@@ -1,9 +1,10 @@
 package main
 
 import (
-	"fmt"
+	//"github.com/gin-gonic/gin"
+	log "github.com/sirupsen/logrus"
 )
 
 func main() {
-	fmt.Println("wing.")
+	log.Info("Wing server bootstraping...")
 }

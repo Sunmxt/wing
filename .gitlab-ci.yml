@@ -1,0 +1,70 @@
+image: registry.stuhome.com/devops/dockerepo/docker:1.0.1
+
+stages:
+    - build
+    - deploy
+
+build-staging-image:
+    stage: build
+    services:
+        - docker:dind
+
+    variables:
+        DOCKER_HOST: tcp://docker:2375/
+        DOCKER_DRIVER: overlay2
+
+    script:
+    - star_ci_build staging wing
+
+    only:
+    - staging
+
+    when: manual
+
+deploy-staging:
+    stage: deploy
+
+    script:
+    - star_ci_deploy staging wing
+
+    only:
+    - staging
+
+    environment:
+        name: staging
+    tags:
+    - staging
+
+    when: on_success
+
+
+build-production-image:
+    stage: build
+    services:
+        - docker:dind
+
+    variables:
+        DOCKER_HOST: tcp://docker:2375/
+        DOCKER_DRIVER: overlay2
+
+    script:
+    - star_ci_build production wing 
+
+    only:
+    - master
+
+deploy-production:
+    stage: deploy
+
+    script:
+    - star_ci_deploy production wing
+
+    only:
+    - master
+
+    environment:
+        name: production
+    tags:
+    - production
+
+    when: manual
