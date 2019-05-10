@@ -1,10 +1,10 @@
 package main
 
 import (
-	//"github.com/gin-gonic/gin"
-	log "github.com/sirupsen/logrus"
+	"git.stuhome.com/Sunmxt/wing/cmd"
 )
 
 func main() {
-	log.Info("Wing server bootstraping...")
+	app := &cmd.Wing{}
+	app.Exec()
 }

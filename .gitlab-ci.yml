@@ -36,6 +36,7 @@ deploy-staging:
     - staging
 
     when: on_success
+    allow_failure: false
 
 
 build-production-image:
@@ -68,3 +69,4 @@ deploy-production:
     - production
 
     when: manual
+    allow_failure: false
