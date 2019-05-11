@@ -19,6 +19,7 @@ build-staging-image:
     only:
     - staging
 
+    allow_failure: false
     when: manual
 
 deploy-staging:
@@ -51,6 +52,7 @@ build-production-image:
     script:
     - star_ci_build production wing 
 
+    allow_failure: false
     only:
     - master
 
