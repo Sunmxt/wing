@@ -85,6 +85,7 @@ func (c *Wing) Parse() string {
 	}
 
 	if err := c.Config.Load(c.ConfigFile); err != nil {
+		c.LogConfig()
 		log.Error("Cannot load configuration: " + err.Error())
 		return ""
 	}
@@ -112,8 +113,8 @@ func (c *Wing) Exec() {
 	switch cmd := c.Parse(); cmd {
 	case "serve":
 		c.Serve()
-	//case "init":
-	//    c.init()
+	case "init":
+		c.Init()
 	case "":
 	default:
 		fmt.Println("Unrecognized command - \"" + cmd + "\".")

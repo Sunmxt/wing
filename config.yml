@@ -1,0 +1,7 @@
+bind: 0.0.0.0:8077
+database:
+  dsn: "root:123456@tcp(127.0.0.1:3306)/wing?charset=utf8"
+  engine: mysql
+
+kubernetes:
+  namespacePrefix: wing_
