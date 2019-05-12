@@ -36,7 +36,7 @@ deploy-staging:
     tags:
     - staging
 
-    when: on_success
+    when: manual
     allow_failure: false
 
 

@@ -1,11 +1,13 @@
 package uac
 
 import (
+	"errors"
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/mysql"
 	_ "github.com/jinzhu/gorm/dialects/postgres"
 	_ "github.com/jinzhu/gorm/dialects/sqlite"
 	log "github.com/sirupsen/logrus"
+	"strings"
 )
 
 const (
@@ -31,20 +33,20 @@ func (m *Account) TableName() string {
 	return "account"
 }
 
-type Role struct {
+type RoleModel struct {
 	ID   int `gorm:"primary_key"`
 	Name string
 }
 
-func (m *Role) TableName() string {
+func (m *RoleModel) TableName() string {
 	return "role"
 }
 
 type RoleRecord struct {
-	ID           int    `gorm:"primary_key"`
-	ResourceName string `gorm:"column:resource_name"`
-	Verbs        int64  `gorm:"column:verbs"`
-	Role         Role   `gorm:"foreignkey:ID;associate_foreignkey:RoleID"`
+	ID           int       `gorm:"primary_key"`
+	ResourceName string    `gorm:"column:resource_name"`
+	Verbs        int64     `gorm:"column:verbs"`
+	Role         RoleModel `gorm:"foreignkey:ID;associate_foreignkey:RoleID"`
 	RoleID       int
 }
 
@@ -55,8 +57,8 @@ func (m *RoleRecord) TableName() string {
 type RoleBinding struct {
 	ID int `gorm:"primary_key"`
 
-	Account Account `gorm:"foreignkey:ID;associate_foreignkey:AccountID"`
-	Role    Role    `gorm:"foreignkey:ID;associate_foreignkey:RoleID"`
+	Account Account   `gorm:"foreignkey:ID;associate_foreignkey:AccountID"`
+	Role    RoleModel `gorm:"foreignkey:ID;associate_foreignkey:RoleID"`
 
 	RoleID    int
 	AccountID int
@@ -67,7 +69,7 @@ func (m *RoleBinding) TableName() string {
 }
 
 func initRBACRoot(db *gorm.DB, initCredentials string) error {
-	adminAccount, adminRole := &Account{}, &Role{}
+	adminAccount := &Account{}
 
 	// Admin account.
 	err := db.Where(&Account{Name: "admin"}).First(adminAccount).Error
@@ -85,46 +87,18 @@ func initRBACRoot(db *gorm.DB, initCredentials string) error {
 	log.Infof("[migration-init] Admin account ID is %v", adminAccount.ID)
 
 	// Admin role.
-	err = db.Where(&Role{Name: "admin"}).First(adminRole).Error
-	if err != nil {
-		if gorm.IsRecordNotFoundError(err) {
-			adminRole.Name = "admin"
-			err = db.Save(adminRole).Error
+	role := Role("admin")
+	if errs := role.Grant("*", VerbAll).Update(db); errs != nil && len(errs) > 0 {
+		msgs := make([]string, len(errs))
+		for _, err := range errs {
+			msgs = append(msgs, err.Error())
 		}
-	}
-	if err != nil {
-		log.Error("[migration-init] Failed to initialize admin role.")
+		err = errors.New("[migration-init] Failed to create admin role: " + strings.Join(msgs, "\n    "))
+		log.Error(err.Error())
 		return err
 	}
-
-	// Admin role records.
-	adminRecord := &RoleRecord{}
-	if err = db.Where(&RoleRecord{RoleID: adminRole.ID}).First(adminRecord).Error; err != nil {
-		if !gorm.IsRecordNotFoundError(err) {
-			log.Error("[migration-init] Failed to initialize admin role.")
-			return err
-		}
-	}
-	adminRecord.ResourceName = "*"
-	adminRecord.Verbs = VerbAll
-	adminRecord.RoleID = adminRole.ID
-	err = db.Save(adminRecord).Error
-	if err != nil {
-		log.Error("[migration-init] Failed to alter admin role.")
-		return err
-	}
-
-	// Binding.
-	binding := &RoleBinding{RoleID: adminRole.ID, AccountID: adminAccount.ID}
-	err = db.Where(binding).First(binding).Error
-	if err != nil {
-		if gorm.IsRecordNotFoundError(err) {
-			err = db.Save(binding).Error
-		}
-	}
-	if err != nil {
-		log.Error("[migration-init] Failed to initialize admin binding.")
-		return err
+	if err = NewRBACContext("admin").Grant(role).Update(db); err != nil {
+		log.Error("[migration-init] Failed to grant admin role to admin: " + err.Error())
 	}
 
 	return nil
@@ -132,7 +106,7 @@ func initRBACRoot(db *gorm.DB, initCredentials string) error {
 
 func Migrate(db *gorm.DB, initCredentials string) error {
 	db.AutoMigrate(&Account{})
-	db.AutoMigrate(&Role{})
+	db.AutoMigrate(&RoleModel{})
 	db.AutoMigrate(&RoleRecord{}).AddForeignKey("role_id", "role(id)", "RESTRICT", "RESTRICT")
 	db.AutoMigrate(&RoleBinding{}).AddForeignKey("account_id", "account(id)", "RESTRICT", "RESTRICT").AddForeignKey("role_id", "role(id)", "RESTRICT", "RESTRICT")
 

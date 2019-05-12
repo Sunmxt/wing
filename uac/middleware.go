@@ -2,7 +2,7 @@ package uac
 
 import (
 	"encoding/base64"
-	//"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin"
 )
 
 type SessionWrapper struct {
@@ -17,5 +17,6 @@ func NewSessionWrapper(rawToken string) (*SessionWrapper, error) {
 	return &SessionWrapper{token: token}, nil
 }
 
-//func (s *SessionWrapper) Wrap(f gin.HandlerFunc) gin.HandlerFunc {
-//}
+func (s *SessionWrapper) Wrap(f gin.HandlerFunc) gin.HandlerFunc {
+	return nil
+}
