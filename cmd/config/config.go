@@ -19,6 +19,7 @@ type WingConfiguration struct {
 	DB                      DatabaseConfiguration   `yaml:"database"`
 	Kube                    KubernetesConfiguration `yaml:"kubernetes"`
 	InitialAdminCredentials string                  `yaml:"initialAdminCredentials" default:"admin"`
+	SessionToken            string                  `yaml:"sessionToken" default:"zPD78HgLVKoQsyCbdnBb4fSVDoZXc40JGMvHNuJ+wBM="`
 }
 
 func (c *WingConfiguration) Load(configFile string) error {
@@ -34,4 +35,5 @@ func (c *WingConfiguration) LogConfig() {
 	log.Infof("[config]     NamespacePrefix: %v", c.Kube.NamespacePrefix)
 	log.Infof("[config]     SQLEngine: %v", c.DB.SQLEngine)
 	log.Infof("[config]     SQLDsn: %v", c.DB.SQLDsn)
+	log.Infof("[config]     SessionToken: %v", c.SessionToken)
 }

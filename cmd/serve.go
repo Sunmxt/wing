@@ -1,9 +1,11 @@
 package cmd
 
 import (
+	mlog "git.stuhome.com/Sunmxt/wing/log"
 	"git.stuhome.com/Sunmxt/wing/uac"
 	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
+	"io/ioutil"
 )
 
 func (c *Wing) Serve() {
@@ -11,13 +13,19 @@ func (c *Wing) Serve() {
 	log.Info("[bootstrap] Wing server bootstraping...")
 
 	if !c.Debug {
-		log.Info("[bootstrap] production mode.")
+		log.Info("[bootstrap] Production mode.")
 		gin.SetMode(gin.ReleaseMode)
 	}
+	gin.DefaultWriter = ioutil.Discard
+
 	router := gin.Default()
+	router.Use(mlog.RequestLogMiddleware)
 
 	log.Info("[bootstrap] Register UAC API.")
 	uac.RegisterAPI(router)
 
-	router.Run("0.0.0.0:10089")
+	log.Infof("[bootstrap] Bind %v", c.Config.Bind)
+	if err := router.Run(c.Config.Bind); err != nil {
+		log.Infof("[bootstrap] Server error: %v", err.Error())
+	}
 }
