@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/jinzhu/gorm"
 	log "github.com/sirupsen/logrus"
+	"regexp"
 )
 
 // High-level role rule interface
@@ -13,6 +14,7 @@ type ContextRoleRule struct {
 
 	dirty   bool
 	roleCtx *ContextRole
+	reg     *regexp.Regexp
 }
 
 func (r *ContextRoleRule) Save(db *gorm.DB) (err error) {
@@ -50,6 +52,19 @@ func NewContextRoleRule(resource string, role *ContextRole) *ContextRoleRule {
 	}
 }
 
+func (r *ContextRoleRule) VerbSub(resource string, verbs int64) int64 {
+	var err error
+	if r.reg == nil {
+		if r.reg, err = regexp.Compile(r.Resource); err != nil {
+			return verbs
+		}
+	}
+	if r.reg.MatchString(resource) {
+		return verbs & ^r.Verbs
+	}
+	return verbs
+}
+
 // High-level Role interface.
 type ContextRole struct {
 	ID    int
@@ -82,7 +97,7 @@ func (r *ContextRole) Grant(resource string, verbs int64) *ContextRole {
 
 func (r *ContextRole) Revoke(resource string, verbs int64) *ContextRole {
 	r.modifyHelper(resource, func(rule *ContextRoleRule) {
-		rule.Verbs &= verbs ^ VerbAll
+		rule.Verbs &= ^verbs
 	})
 	return r
 }
@@ -148,6 +163,21 @@ func (r *ContextRole) Load(db *gorm.DB) (err error) {
 	}
 
 	return nil
+}
+
+func (r *ContextRole) VerbSub(resource string, verbs int64) int64 {
+	if r.Rules == nil {
+		return verbs
+	}
+	for _, rule := range r.Rules {
+		if verbs == 0 {
+			break
+		}
+		if rule != nil {
+			verbs = rule.VerbSub(resource, verbs)
+		}
+	}
+	return verbs
 }
 
 // High-level RBAC interface.
@@ -262,6 +292,15 @@ func (c *RBACContext) Update(db *gorm.DB) (err error) {
 	return c.Load(db)
 }
 
-func (c *RBACContext) Permitted(verbs int64, resource string) bool {
-	return true
+func (c *RBACContext) Permitted(resource string, verbs int64) bool {
+	if c.Roles != nil {
+		return false
+	}
+	for _, role := range c.Roles {
+		if verbs == 0 {
+			break
+		}
+		verbs = role.VerbSub(resource, verbs)
+	}
+	return verbs == 0
 }
