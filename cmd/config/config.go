@@ -20,6 +20,8 @@ type WingConfiguration struct {
 	Kube                    KubernetesConfiguration `yaml:"kubernetes"`
 	InitialAdminCredentials string                  `yaml:"initialAdminCredentials" default:"admin"`
 	SessionToken            string                  `yaml:"sessionToken" default:"zPD78HgLVKoQsyCbdnBb4fSVDoZXc40JGMvHNuJ+wBM="`
+	Debug                   bool                    `yaml:"debug" default:false`
+	DefaultLanguage         string                  `yaml:"defaultLanguage" default:"en"`
 }
 
 func (c *WingConfiguration) Load(configFile string) error {

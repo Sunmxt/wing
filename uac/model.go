@@ -2,6 +2,7 @@ package uac
 
 import (
 	"errors"
+	"git.stuhome.com/Sunmxt/wing/cmd/config"
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/mysql"
 	_ "github.com/jinzhu/gorm/dialects/postgres"
@@ -22,10 +23,10 @@ const (
 )
 
 type Account struct {
-	ID          int    `gorm:"primary_key"`
-	Name        string `gorm:"column:name;type:varchar(16)"`
-	Credentials string `gorm:"column:credentials;type:varchar(64)"`
-	State       int    `gorm:"column:state"`
+	ID          int    `gorm:"primary_key;auto_increment"`
+	Name        string `gorm:"column:name;type:varchar(16);unique;not null"`
+	Credentials string `gorm:"column:credentials;type:varchar(64);not null"`
+	State       int    `gorm:"column:state;not null"`
 	Extra       string `gorm:"column:extra;type:longtext"`
 }
 
@@ -34,8 +35,8 @@ func (m *Account) TableName() string {
 }
 
 type RoleModel struct {
-	ID   int `gorm:"primary_key"`
-	Name string
+	ID   int    `gorm:"primary_key"`
+	Name string `gorm:"unique"`
 }
 
 func (m *RoleModel) TableName() string {
@@ -44,8 +45,8 @@ func (m *RoleModel) TableName() string {
 
 type RoleRecord struct {
 	ID           int       `gorm:"primary_key"`
-	ResourceName string    `gorm:"column:resource_name"`
-	Verbs        int64     `gorm:"column:verbs"`
+	ResourceName string    `gorm:"column:resource_name;unique;not null"`
+	Verbs        int64     `gorm:"column:verbs;not null"`
 	Role         RoleModel `gorm:"foreignkey:ID;associate_foreignkey:RoleID"`
 	RoleID       int
 }
@@ -68,15 +69,24 @@ func (m *RoleBinding) TableName() string {
 	return "role_binding"
 }
 
-func initRBACRoot(db *gorm.DB, initCredentials string) error {
+func initRBACRoot(db *gorm.DB, cfg *config.WingConfiguration) error {
 	adminAccount := &Account{}
 
-	// Admin account.
-	err := db.Where(&Account{Name: "admin"}).First(adminAccount).Error
+	hasher, err := NewSecretHasher(cfg.SessionToken)
 	if err != nil {
+		log.Error("[migration-init] Cannot create SecretHasher: " + err.Error())
+		return err
+	}
+
+	// Admin account.
+	if err = db.Where(&Account{Name: "admin"}).First(adminAccount).Error; err != nil {
 		if gorm.IsRecordNotFoundError(err) {
-			adminAccount.Name, adminAccount.Credentials = "admin", initCredentials
-			adminAccount.State, adminAccount.Extra = 0, ""
+			adminAccount.Credentials, err = hasher.HashString(cfg.InitialAdminCredentials)
+			if err != nil {
+				log.Error("[migration-init] Failed to hash credential: " + err.Error())
+				return err
+			}
+			adminAccount.Name, adminAccount.State, adminAccount.Extra = "admin", 0, ""
 			err = db.Save(adminAccount).Error
 		}
 	}
@@ -104,11 +114,11 @@ func initRBACRoot(db *gorm.DB, initCredentials string) error {
 	return nil
 }
 
-func Migrate(db *gorm.DB, initCredentials string) error {
+func Migrate(db *gorm.DB, cfg *config.WingConfiguration) error {
 	db.AutoMigrate(&Account{})
 	db.AutoMigrate(&RoleModel{})
 	db.AutoMigrate(&RoleRecord{}).AddForeignKey("role_id", "role(id)", "RESTRICT", "RESTRICT")
 	db.AutoMigrate(&RoleBinding{}).AddForeignKey("account_id", "account(id)", "RESTRICT", "RESTRICT").AddForeignKey("role_id", "role(id)", "RESTRICT", "RESTRICT")
 
-	return initRBACRoot(db, initCredentials)
+	return initRBACRoot(db, cfg)
 }

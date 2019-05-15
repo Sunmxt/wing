@@ -1,8 +1,10 @@
 package cmd
 
 import (
+	"git.stuhome.com/Sunmxt/wing/api"
 	mlog "git.stuhome.com/Sunmxt/wing/log"
-	"git.stuhome.com/Sunmxt/wing/uac"
+	ss "github.com/gin-contrib/sessions"
+	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
 	"io/ioutil"
@@ -18,11 +20,22 @@ func (c *Wing) Serve() {
 	}
 	gin.DefaultWriter = ioutil.Discard
 
+	// Log
 	router := gin.Default()
 	router.Use(mlog.RequestLogMiddleware)
 
+	// Session
+	store := cookie.NewStore([]byte(c.Config.SessionToken))
+	router.Use(ss.Sessions("wing_session", store))
+
+	// Wing
+	router.Use(func(ctx *gin.Context) {
+		ctx.Set("config", c.Config)
+		ctx.Next()
+	})
+
 	log.Info("[bootstrap] Register UAC API.")
-	uac.RegisterAPI(router)
+	api.RegisterAPI(router)
 
 	log.Infof("[bootstrap] Bind %v", c.Config.Bind)
 	if err := router.Run(c.Config.Bind); err != nil {

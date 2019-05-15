@@ -30,13 +30,21 @@ func (r *ContextRoleRule) Save(db *gorm.DB) (err error) {
 		if !gorm.IsRecordNotFoundError(err) {
 			log.Errorf("[RBAC] Cannot fetch record for resource \"%v\" of role \"%v\": %v", r.Resource, r.roleCtx.Name, err.Error())
 			return err
+		} else if r.Verbs == 0 {
+			return nil
 		}
 	}
-	record.ResourceName = r.Resource
-	record.Verbs = r.Verbs
-	record.RoleID = r.roleCtx.ID
 
-	err = db.Save(record).Error
+	if r.Verbs != 0 {
+		record.ResourceName = r.Resource
+		record.Verbs = r.Verbs
+		record.RoleID = r.roleCtx.ID
+		err = db.Save(record).Error
+	} else {
+		// No verb means rule can be deleted.
+		err = db.Where(&RoleRecord{RoleID: r.roleCtx.ID, ResourceName: r.Resource}).Delete(RoleBinding{}).Error
+	}
+
 	if err != nil {
 		log.Errorf("[RBAC] Cannot save record for resource \"%v\" of role \"%v\": %v", r.Resource, r.roleCtx.Name, err.Error())
 		return err
