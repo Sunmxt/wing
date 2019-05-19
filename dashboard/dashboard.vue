@@ -8,7 +8,7 @@
                 </div>
                 <div class="login-ui-container">
                     <el-tabs v-model="activeTab">
-                        <el-tab-pane label="登陆" name="login">登录</el-tab-pane>
+                        <el-tab-pane label="登录" name="login">登录</el-tab-pane>
                         <el-tab-pane label="注册" name="register">注册</el-tab-pane>
                     </el-tabs>
                     <div v-if="activeTab=='login'">

@@ -14,6 +14,8 @@ import (
 	"git.stuhome.com/Sunmxt/wing/common"
 	mlog "git.stuhome.com/Sunmxt/wing/log"
 	"git.stuhome.com/Sunmxt/wing/uac"
+	"golang.org/x/text/language"
+	"golang.org/x/text/message"
 )
 
 var ErrConfigMissing error = errors.New("Configuration is missing in context.")
@@ -149,6 +151,10 @@ func (ctx *RequestContext) Succeed() {
 
 func (ctx *RequestContext) TranslateMessage(message string, args ...interface{}) string {
 	return common.TranslateMessage(ctx.Lang, message, args...)
+}
+
+func (ctx *RequestContext) GetLocaleLanguage() language.Tag {
+	return message.MatchLanguage(ctx.Lang)
 }
 
 func (ctx *RequestContext) AbortWithDebugMessage(code int, message string) {
