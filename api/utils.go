@@ -143,6 +143,10 @@ func (ctx *RequestContext) SucceedWithMessage(message string) {
 	ctx.Gin.JSON(http.StatusOK, ctx.Response)
 }
 
+func (ctx *RequestContext) Succeed() {
+	ctx.SucceedWithMessage("Succeed")
+}
+
 func (ctx *RequestContext) TranslateMessage(message string, args ...interface{}) string {
 	return common.TranslateMessage(ctx.Lang, message, args...)
 }
@@ -158,4 +162,15 @@ func (ctx *RequestContext) AbortWithDebugMessage(code int, message string) {
 	ctx.Response.Message = message
 	ctx.Response.Success = false
 	ctx.Gin.JSON(code, message)
+}
+
+func (ctx *RequestContext) LoginEnsured(fail bool) bool {
+	if ctx.User != "" {
+		return true
+	}
+	if fail {
+		ctx.Response.Data = common.RedirectResponse{Next: "/"}
+		ctx.FailWithMessage("Auth.Unauthenticated")
+	}
+	return false
 }
