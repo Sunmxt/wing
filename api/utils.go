@@ -3,19 +3,19 @@ package api
 import (
 	"errors"
 	"fmt"
-	"net/http"
-
-	ss "github.com/gin-contrib/sessions"
-	"github.com/gin-gonic/gin"
-	"github.com/jinzhu/gorm"
-	log "github.com/sirupsen/logrus"
-
 	"git.stuhome.com/Sunmxt/wing/cmd/config"
 	"git.stuhome.com/Sunmxt/wing/common"
 	mlog "git.stuhome.com/Sunmxt/wing/log"
 	"git.stuhome.com/Sunmxt/wing/uac"
+	ss "github.com/gin-contrib/sessions"
+	"github.com/gin-gonic/gin"
+	"github.com/jinzhu/gorm"
+	log "github.com/sirupsen/logrus"
 	"golang.org/x/text/language"
 	"golang.org/x/text/message"
+	"net/http"
+	"strconv"
+	"strings"
 )
 
 var ErrConfigMissing error = errors.New("Configuration is missing in context.")
@@ -38,6 +38,47 @@ func getConfig(ctx *gin.Context) (conf *config.WingConfiguration) {
 	}
 	conf, _ = raw.(*config.WingConfiguration)
 	return conf
+}
+
+func ParseHeaderForLocale(ctx *gin.Context, acceptedLangs ...string) (result string) {
+	raws, exists := ctx.Request.Header["Accept-Language"]
+	if !exists || len(raws) < 1 {
+		return ""
+	}
+	tagMap := make(map[string]language.Tag)
+	for _, lang := range acceptedLangs {
+		tag := message.MatchLanguage(lang)
+		if tag != language.Und {
+			tagMap[tag.String()] = tag
+		}
+	}
+
+	raw, weightCur := raws[0], float64(0)
+	for _, grp := range strings.Split(raw, ",") {
+		langParam := strings.Split(grp, ";")
+		if len(langParam) < 1 || len(langParam) > 2 {
+			continue
+		}
+		lang := langParam[0]
+		tag := message.MatchLanguage(lang)
+		if tag == language.Und {
+			continue
+		}
+		if _, exists = tagMap[tag.String()]; !exists {
+			continue
+		}
+		if len(langParam) == 2 {
+			weight, err := strconv.ParseFloat(strings.TrimPrefix(langParam[1], "q="), 64)
+			if err != nil {
+				continue
+			}
+			if weight > weightCur {
+				weightCur = weight
+				result = lang
+			}
+		}
+	}
+	return result
 }
 
 type RequestContext struct {
@@ -72,8 +113,12 @@ func NewRequestContext(ctx *gin.Context) (rctx *RequestContext) {
 	if langSetting, valid := rctx.Session.Get("lang").(string); valid {
 		rctx.Lang = langSetting
 	} else {
-		rctx.Lang = rctx.Config.DefaultLanguage
+		rctx.Lang = ParseHeaderForLocale(ctx, "en", "zh")
+		if rctx.Lang == "" {
+			rctx.Lang = rctx.Config.DefaultLanguage
+		}
 		rctx.Session.Set("lang", rctx.Lang)
+		rctx.Session.Save()
 	}
 	return rctx
 }

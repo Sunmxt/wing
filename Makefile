@@ -21,7 +21,7 @@ bin/wing: dep-init bin/dashboard
 bin/dashboard: dep-init
 	@cd $(PROJECT_ROOT)/dashboard;	\
 	npm install; 					\
-	npx webpack; 					\
+	npx webpack --mode=production; 	\
 	cd ..;							\
 	if [ ! -L "bin/dashboard" ]; then\
 		ln -s $$(pwd)/dashboard/dist bin/dashboard;\

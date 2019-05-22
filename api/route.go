@@ -6,7 +6,7 @@ import (
 )
 
 func RegisterAPI(engine *gin.Engine) error {
-	engine.GET("/api/login", AuthLoginV1)
+	engine.POST("/api/login", AuthLoginV1)
 	engine.GET("/api/dashboard/tags", ListDashboardTags)
 
 	// Locale API
