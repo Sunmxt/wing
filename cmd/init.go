@@ -25,7 +25,7 @@ func (c *Wing) Init() {
 	}()
 
 	log.Info("[migration] Migrate UAC data models.")
-	if err = uac.Migrate(db, c.Config.InitialAdminCredentials); err != nil {
+	if err = uac.Migrate(db, c.Config); err != nil {
 		return
 	}
 }

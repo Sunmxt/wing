@@ -2,10 +2,11 @@
 
 PROJECT_ROOT:=$(shell pwd)
 export GOPATH:=$(PROJECT_ROOT)/build
+export PATH:=$(PROJECT_ROOT)/bin:$(PATH)
 
 BINARIES:=bin/wing
 
-all: format bin/wing
+all: format bin/wing bin/dashboard
 
 format:
 	@for pkg in $$(cat "$(PROJECT_ROOT)/GOPACKAGES"); do \
@@ -13,11 +14,26 @@ format:
 		go fmt "$$pkg";									\
 	done
 
-#test: build-path
-#	go install -v -gcflags='all=-N -l' git.stuhome.com/Sunmxt/wing
-    
-bin/wing: build-path
+bin/wing: dep-init bin/dashboard
+	statik -src=$$(pwd)/bin/dashboard/
 	go install -v -gcflags='all=-N -l' git.stuhome.com/Sunmxt/wing
+
+bin/dashboard: dep-init
+	@cd $(PROJECT_ROOT)/dashboard;	\
+	npm install; 					\
+	npx webpack --mode=production; 	\
+	cd ..;							\
+	if [ ! -L "bin/dashboard" ]; then\
+		ln -s $$(pwd)/dashboard/dist bin/dashboard;\
+	fi
+
+
+dep-init: build-path
+	@cd $(PROJECT_ROOT); 																\
+	if ! which packr > /dev/null && [ ! -e bin/statik ]; then 							\
+		go get -u github.com/rakyll/statik;												\
+	fi;																					\
+
 
 delve-dbg-gate:
 	@echo Not implemented.

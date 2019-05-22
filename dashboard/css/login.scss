@@ -1,0 +1,86 @@
+@import "./preset.scss";
+
+.login-logo-box {
+    height: 100%;
+    width: 2.5cm;
+    display:inline-block;
+}
+
+.login-logo {
+    display: block;
+    margin: 0 auto;
+    transform: translateY(-50%);
+    position:relative;
+    top: 50%;
+    opacity: 0.8;
+    height: 1cm;
+}
+
+.login-box-h-center {
+    transform: translateY(-50%);
+    position:relative;
+    top: 50%;
+}
+
+.login-page-container-h {
+    width: 100%;
+    margin-top: 2cm;
+}
+
+.login-box {
+    box-shadow: 0.1mm 0.1mm 0.3cm #20224e59 ;
+    width: 12cm;
+    border: 1px solid #5964dd80;
+    position:relative;
+    margin: 0 auto;
+    border-radius: 0.1cm;
+}
+
+.login-title-box {
+    height: 1.5cm;
+    background-color: #20224e;
+    width: 100%;
+    position: relative;
+    border-top-left-radius: 0.1cm;
+    border-top-right-radius: 0.1cm;
+}
+
+.login-form-box {
+    margin: 1cm 0;
+}
+
+.login-input-box {
+    margin: 0.1cm 0;
+}
+
+.login-ui-container {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 0.5cm 1cm 2cm 1cm;
+}
+
+.login-form-item-title {
+    font-family: $wing-font-family;
+    color: $wing-main-color-light;
+    font-size: 0.9em;
+    margin-top: 0.2cm;
+}
+
+.login-small-title {
+    font-size: 0.4em;
+}
+
+.login-action-bar {
+    width: 100%;
+    padding: 0 0.5cm;
+    box-sizing: border-box;
+    float: left;
+}
+
+.login-message-box {
+    font-family: $wing-font-family;
+    color: $wing-main-color-light;
+    font-size: 0.8em;
+    display: inline-block;
+    line-height: 100%;
+}

@@ -7,7 +7,7 @@ RUN set -xe;\
     sed -Ei "s/dl-cdn\.alpinelinux\.org/mirrors.tuna.tsinghua.edu.cn/g" /etc/apk/repositories;\
     mkdir /apk-cache;\
     apk update --cache-dir /apk-cache;\
-    apk add -t build-deps make git gcc g++; \
+    apk add -t build-deps make git gcc g++ nodejs nodejs-npm; \
     cd /app/;\
     make $MAKE_ENV_ARGV;\
     apk del build-deps;\
