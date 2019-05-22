@@ -19,12 +19,15 @@ bin/wing: dep-init bin/dashboard
 	go install -v -gcflags='all=-N -l' git.stuhome.com/Sunmxt/wing
 
 bin/dashboard: dep-init
-	@cd $(PROJECT_ROOT)/dashboard;	\
-	npm install; 					\
-	npx webpack --mode=production; 	\
-	cd ..;							\
-	if [ ! -L "bin/dashboard" ]; then\
-		ln -s $$(pwd)/dashboard/dist bin/dashboard;\
+	@if ! [ -z "$(SKIP_FE_BUILD)" ]; then 			\
+		exit 0;										\
+	fi; 											\
+	cd $(PROJECT_ROOT)/dashboard;					\
+	npm install; 									\
+	npx webpack --mode=production; 					\
+	cd ..;											\
+	if [ ! -L "bin/dashboard" ]; then				\
+		ln -s $$(pwd)/dashboard/dist bin/dashboard;	\
 	fi
 
 

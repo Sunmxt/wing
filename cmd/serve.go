@@ -8,6 +8,9 @@ import (
 	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
 	"io/ioutil"
+
+	"k8s.io/client-go/rest"
+	"time"
 )
 
 func (c *Wing) Serve() {
@@ -34,7 +37,20 @@ func (c *Wing) Serve() {
 		ctx.Next()
 	})
 
-	log.Info("[bootstrap] Register UAC API.")
+	go func() {
+		for {
+			kconf, err := rest.InClusterConfig()
+			if err == nil {
+				c.Config.Kube.InclusterConfig = kconf
+				break
+			}
+			log.Error("[kubernetes] Failed to load incluster kubernetes config: " + err.Error())
+			time.Sleep(5 * time.Second)
+		}
+		log.Info("[kubernetes] Incluster kubernetes config loaded.")
+	}()
+
+	log.Info("[bootstrap] Register API.")
 	api.RegisterAPI(router)
 
 	log.Infof("[bootstrap] Bind %v", c.Config.Bind)

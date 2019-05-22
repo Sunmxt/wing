@@ -6,7 +6,7 @@ import (
 	"git.stuhome.com/Sunmxt/wing/cmd/config"
 	"git.stuhome.com/Sunmxt/wing/common"
 	mlog "git.stuhome.com/Sunmxt/wing/log"
-	"git.stuhome.com/Sunmxt/wing/uac"
+	"git.stuhome.com/Sunmxt/wing/model"
 	ss "github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"github.com/jinzhu/gorm"
@@ -90,7 +90,7 @@ type RequestContext struct {
 	DB       *gorm.DB
 	Lang     string
 
-	RBACContext *uac.RBACContext
+	RBACContext *model.RBACContext
 	User        string
 }
 
@@ -123,7 +123,7 @@ func NewRequestContext(ctx *gin.Context) (rctx *RequestContext) {
 	return rctx
 }
 
-func (ctx *RequestContext) RBAC() *uac.RBACContext {
+func (ctx *RequestContext) RBAC() *model.RBACContext {
 	if ctx.RBACContext != nil {
 		return ctx.RBACContext
 	}
@@ -131,7 +131,7 @@ func (ctx *RequestContext) RBAC() *uac.RBACContext {
 		ctx.Log.Info("[RBAC] Anonymous request.")
 		return nil
 	}
-	ctx.RBACContext = uac.NewRBACContext(ctx.User)
+	ctx.RBACContext = model.NewRBACContext(ctx.User)
 	db, err := ctx.Database()
 	if err != nil {
 		ctx.Log.Warnf("[RBAC] Cannot load RBAC rule for user \"%v\"", ctx.User)

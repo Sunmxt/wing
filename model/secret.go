@@ -1,4 +1,4 @@
-package uac
+package model
 
 import (
 	"crypto/hmac"

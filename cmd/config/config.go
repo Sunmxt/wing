@@ -3,10 +3,13 @@ package config
 import (
 	"github.com/jinzhu/configor"
 	log "github.com/sirupsen/logrus"
+	"k8s.io/client-go/rest"
 )
 
 type KubernetesConfiguration struct {
 	NamespacePrefix string `default:"KubeWing-" yaml:"namespacePrefix"`
+
+	InclusterConfig *rest.Config `yaml:"-"`
 }
 
 type DatabaseConfiguration struct {

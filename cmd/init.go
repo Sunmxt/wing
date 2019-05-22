@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"git.stuhome.com/Sunmxt/wing/uac"
+	"git.stuhome.com/Sunmxt/wing/model"
 	"github.com/jinzhu/gorm"
 	log "github.com/sirupsen/logrus"
 )
@@ -24,8 +24,8 @@ func (c *Wing) Init() {
 		db.Close()
 	}()
 
-	log.Info("[migration] Migrate UAC data models.")
-	if err = uac.Migrate(db, c.Config); err != nil {
+	log.Info("[migration] Apply migration.")
+	if err = model.Migrate(db, c.Config); err != nil {
 		return
 	}
 }

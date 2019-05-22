@@ -15,6 +15,18 @@ func RegisterAPI(engine *gin.Engine) error {
 	engine.GET("/api/locale", GetCurrentLocale)
 	engine.POST("/api/locale", SetLocale)
 
+	// Application API
+	engine.GET("/api/application", ListApplication)
+	engine.GET("/api/application/:name/info", GetApplicationInfo)
+	engine.POST("/api/application", CreateApplication)
+	engine.GET("/api/application/:name/deploy", ListDeployment)
+	engine.POST("/api/application/:name/deploy", CreateDeployment)
+	engine.GET("/api/application/:name/deploy/:deploy_id/info", GetDeploymentInfo)
+	engine.GET("/api/application/:name/deploy/:deploy_id/start", StartDeployment)
+	engine.GET("/api/application/:name/deploy/:deploy_id/stop", StopDeployment)
+	engine.GET("/api/application/:name/deploy/:deploy_id/rollback", RollbackDeployment)
+	engine.GET("/api/application/:name/roll", RollDeployment)
+
 	engine.NoRoute(ServeDefault)
 
 	return nil
