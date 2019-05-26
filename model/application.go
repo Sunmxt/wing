@@ -9,10 +9,11 @@ type AppSpec struct {
 
 	ImageRef string `gorm:"not null"`
 	EnvVar   string `gorm:"not null"`
-	Replica  int    `gorm:"not null"`
 	Memory   uint64 `gorm:"not null"`
 	CPUCore  int    `gorm:"not null"`
 	Command  string `gorm:"not null"`
+	Args     string `gorm:"not null"`
+	Replica  int    `gorm:"not null"`
 }
 
 func (m AppSpec) TableName() string {
@@ -22,7 +23,7 @@ func (m AppSpec) TableName() string {
 type Application struct {
 	Basic
 
-	Name      string   `gorm:"not null"`
+	Name      string   `gorm:"not null;unique"`
 	Owner     *Account `gorm:"foreignkey:OwnerID;not null"`
 	OwnerID   int
 	Extra     string

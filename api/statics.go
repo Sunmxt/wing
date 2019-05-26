@@ -30,7 +30,7 @@ func init() {
 func tryOpenStaticFile(rctx *RequestContext, path string, defaultPath string) (file http.File, stat os.FileInfo, err error) {
 	serveDefault := false
 	setDefault := func() {
-		rctx.Log.Infof("[statics] serve index \"%v\" for path \"%v\".", defaultPath, path)
+		rctx.OpCtx.Log.Infof("[statics] serve index \"%v\" for path \"%v\".", defaultPath, path)
 		serveDefault = true
 		path = defaultPath
 		file = nil
@@ -68,7 +68,7 @@ func ServeDefault(ctx *gin.Context) {
 
 	rawPaths := RegexpStaticFilePath.FindStringSubmatch(path)
 	if rawPaths == nil || len(rawPaths) < 2 {
-		rctx.Log.Infof("[statics] invalid request path: %v. serve index.", ctx.Request.URL.Path)
+		rctx.OpCtx.Log.Infof("[statics] invalid request path: %v. serve index.", ctx.Request.URL.Path)
 		path = "/index.html"
 	} else {
 		path = rawPaths[1]
@@ -78,7 +78,7 @@ func ServeDefault(ctx *gin.Context) {
 		rctx.AbortWithDebugMessage(http.StatusInternalServerError, "cannot serve statics: "+err.Error())
 		return
 	}
-	rctx.Log.Info("[statics] serve static: " + path)
+	rctx.OpCtx.Log.Info("[statics] serve static: " + path)
 	modTime := time.Time{}
 	if stat != nil {
 		modTime = stat.ModTime()

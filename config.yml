@@ -4,4 +4,5 @@ database:
   engine: mysql
 
 kubernetes:
-  namespacePrefix: wing_
+  namespace: default
+  kubeConfig: ./config

@@ -15,7 +15,7 @@ type LoginRequestForm struct {
 
 func AuthLoginV1(ctx *gin.Context) {
 	rctx, req := NewRequestContext(ctx), LoginRequestForm{}
-	if rctx.User != "" {
+	if rctx.OpCtx.Account.Name != "" {
 		rctx.SucceedWithMessage("Succeed")
 		return
 	}
@@ -46,8 +46,8 @@ func AuthLoginV1(ctx *gin.Context) {
 		rctx.FailWithMessage("Login.InvalidAccount")
 		return
 	}
-	rctx.User = req.User
-	rctx.Session.Set("user", rctx.User)
+	rctx.OpCtx.Account.Name = req.User
+	rctx.Session.Set("user", rctx.OpCtx.Account.Name)
 	rctx.Session.Save()
 	rctx.SucceedWithMessage("Succeed")
 }

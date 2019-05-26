@@ -12,7 +12,7 @@ import (
 type Basic struct {
 	ID         int       `gorm:"primary_key;not null;auto_increment;unique"`
 	CreateTime time.Time `gorm:"type:datetime;not null"`
-	ModifyTime time.Time `gotm:"type:datetime;not null"`
+	ModifyTime time.Time `gorm:"type:datetime;not null"`
 }
 
 func Migrate(db *gorm.DB, cfg *config.WingConfiguration) error {
@@ -22,7 +22,7 @@ func Migrate(db *gorm.DB, cfg *config.WingConfiguration) error {
 	db.AutoMigrate(&RoleRecord{}).AddForeignKey("role_id", "role(id)", "RESTRICT", "RESTRICT")
 	db.AutoMigrate(&RoleBinding{}).AddForeignKey("account_id", "account(id)", "RESTRICT", "RESTRICT").AddForeignKey("role_id", "role(id)", "RESTRICT", "RESTRICT")
 	db.AutoMigrate(&Application{}).AddForeignKey("owner_id", "account(id)", "RESTRICT", "RESTRICT").AddForeignKey("spec_id", "application_spec(id)", "RESTRICT", "RESTRICT")
-
+	db.AutoMigrate(&Deployment{}).AddForeignKey("spec_id", "application_spec(id)", "RESTRICT", "RESTRICT").AddForeignKey("app_id", "application(id)", "RESTRICT", "RESTRICT")
 	return initRBACRoot(db, cfg)
 }
 

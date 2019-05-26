@@ -2,18 +2,31 @@ module git.stuhome.com/Sunmxt/wing
 
 go 1.12
 
+replace k8s.io/apimachinery => k8s.io/apimachinery v0.0.0-20190404173353-6a84e37a896d
+
 require (
 	github.com/gin-contrib/sessions v0.0.0-20190512062852-3cb4c4f2d615
 	github.com/gin-gonic/gin v1.4.0
+	github.com/go-playground/locales v0.12.1 // indirect
+	github.com/go-playground/universal-translator v0.16.0 // indirect
 	github.com/google/gofuzz v1.0.0 // indirect
+	github.com/googleapis/gnostic v0.2.0 // indirect
+	github.com/imdario/mergo v0.3.7 // indirect
 	github.com/jinzhu/configor v1.0.0
 	github.com/jinzhu/gorm v1.9.8
+	github.com/leodido/go-urn v1.1.0 // indirect
 	github.com/rakyll/statik v0.1.6
 	github.com/satori/go.uuid v1.2.0
 	github.com/sirupsen/logrus v1.4.1
+	github.com/spf13/pflag v1.0.3 // indirect
 	golang.org/x/text v0.3.1-0.20181227161524-e6919f6577db
+	gopkg.in/bluesuncorp/validator.v5 v5.10.3
+	gopkg.in/bluesuncorp/validator.v8 v8.18.2
+	gopkg.in/bluesuncorp/validator.v9 v9.29.0
+	gopkg.in/go-playground/validator.v8 v8.18.2
 	gopkg.in/inf.v0 v0.9.1 // indirect
-	k8s.io/apimachinery v0.0.0-20190313205120-d7deff9243b1 // indirect
+	k8s.io/api v0.0.0-20190515023547-db5a9d1c40eb
+	k8s.io/apimachinery v0.0.0-20190515023456-b74e4c97951f
 	k8s.io/client-go v11.0.0+incompatible
 	k8s.io/klog v0.3.1 // indirect
 	k8s.io/utils v0.0.0-20190520173318-324c5df7d3f0 // indirect

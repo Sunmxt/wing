@@ -11,7 +11,7 @@ func (c *Wing) Init() {
 
 	log.Info("[init] Initializing...")
 
-	db, err := gorm.Open(c.Config.DB.SQLEngine, c.Config.DB.SQLDsn)
+	db, err := gorm.Open(c.Runtime.Config.DB.SQLEngine, c.Runtime.Config.DB.SQLDsn)
 	if err != nil {
 		log.Error("[migration] Cannot open database: " + err.Error())
 		return
@@ -25,7 +25,7 @@ func (c *Wing) Init() {
 	}()
 
 	log.Info("[migration] Apply migration.")
-	if err = model.Migrate(db, c.Config); err != nil {
+	if err = model.Migrate(db, c.Runtime.Config); err != nil {
 		return
 	}
 }

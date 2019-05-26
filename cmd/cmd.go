@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"git.stuhome.com/Sunmxt/wing/cmd/config"
+	"git.stuhome.com/Sunmxt/wing/common"
 	log "github.com/sirupsen/logrus"
 	"os"
 	"strings"
@@ -30,7 +31,7 @@ type Wing struct {
 	ConfigFile string
 	ShowHelp   bool
 	Debug      bool
-	Config     *config.WingConfiguration
+	Runtime    common.WingRuntime
 	flags      *flag.FlagSet
 
 	Args    []string
@@ -80,11 +81,11 @@ func (c *Wing) Parse() string {
 		return ""
 	}
 
-	if c.Config == nil {
-		c.Config = &config.WingConfiguration{}
+	if c.Runtime.Config == nil {
+		c.Runtime.Config = &config.WingConfiguration{}
 	}
 
-	if err := c.Config.Load(c.ConfigFile); err != nil {
+	if err := c.Runtime.Config.Load(c.ConfigFile); err != nil {
 		c.LogConfig()
 		log.Error("Cannot load configuration: " + err.Error())
 		return ""
@@ -98,7 +99,7 @@ func (c *Wing) LogConfig() {
 	c.Flags().VisitAll(func(f *flag.Flag) {
 		log.Infof("[config]     -%v=%v", f.Name, f.Value.String())
 	})
-	c.Config.LogConfig()
+	c.Runtime.Config.LogConfig()
 }
 
 func (c *Wing) Help() {
