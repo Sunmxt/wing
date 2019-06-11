@@ -2,6 +2,9 @@
 $--color-primary: $wing-main-color-light;
 $--color-success: $wing-main-color-slight;
 $--font-path: '~element-ui/lib/theme-chalk/fonts';
+$--menu-item-hover-fill: $wing-main-color-light;
+$--menu-background-color: $wing-main-color;
 
 @import "~element-ui/packages/theme-chalk/src/index";
 @import "./login.scss";
+@import "./dashboard.scss"

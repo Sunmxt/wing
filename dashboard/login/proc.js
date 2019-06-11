@@ -6,7 +6,9 @@ function onSwitched() {
     UpdateLoginLocaleMessage(false)
     axios.post("/api/login", {}).then(function (resp) {
         if (resp.data.success) {
-            router.push('dashboard')
+            router.push({ 
+                name: 'dashboard'
+            })
         }
     })
 }
@@ -54,7 +56,13 @@ function login() {
     loginParams.set("username", this.username)
     loginParams.set("password", this.password)
     axios.post('/api/login', loginParams).then((resp) => {
-        console.log(resp)
+        if (!resp.data.success) {
+            this.$message.error(resp.data.message)
+        } else {
+            router.push({
+                name: "dashboard"
+            })
+        }
     })
 }
 
