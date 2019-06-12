@@ -8,7 +8,7 @@ BINARIES:=bin/wing
 
 all: format bin/wing bin/dashboard
 
-format:
+format: build-path
 	@for pkg in $$(cat "$(PROJECT_ROOT)/GOPACKAGES"); do \
 		echo format "$$pkg"; 							\
 		go fmt "$$pkg";									\
@@ -19,18 +19,21 @@ bin/wing: dep-init bin/dashboard
 	go install -v -gcflags='all=-N -l' git.stuhome.com/Sunmxt/wing
 
 bin/dashboard: dep-init
-	@cd $(PROJECT_ROOT)/dashboard;	\
-	npm install; 					\
-	npx webpack --mode=production; 	\
-	cd ..;							\
-	if [ ! -L "bin/dashboard" ]; then\
-		ln -s $$(pwd)/dashboard/dist bin/dashboard;\
+	@if ! [ -z "$(SKIP_FE_BUILD)" ]; then 			\
+		exit 0;										\
+	fi; 											\
+	cd $(PROJECT_ROOT)/dashboard;					\
+	npm install; 									\
+	npx webpack --mode=production; 					\
+	cd ..;											\
+	if [ ! -L "bin/dashboard" ]; then				\
+		ln -s $$(pwd)/dashboard/dist bin/dashboard;	\
 	fi
 
 
 dep-init: build-path
 	@cd $(PROJECT_ROOT); 																\
-	if ! which packr > /dev/null && [ ! -e bin/statik ]; then 							\
+	if ! which statik > /dev/null && [ ! -e bin/statik ]; then 							\
 		go get -u github.com/rakyll/statik;												\
 	fi;																					\
 
@@ -43,7 +46,7 @@ delve-dbg-svc:
 
 # Common rules
 build-path:
-	@ENSURE_DIRS="bin build";					\
+	@ENSURE_DIRS="bin build statik";				\
 	for dir in $$ENSURE_DIRS; do				\
 		if [ -e "$$dir" ]; then 				\
 			if ! [ -d "$$dir" ]; then			\

@@ -1,9 +1,7 @@
 package api
 
 import (
-	"git.stuhome.com/Sunmxt/wing/common"
 	"github.com/gin-gonic/gin"
-	"golang.org/x/text/language"
 )
 
 type LoginLocaleText struct {
@@ -22,35 +20,6 @@ type LoginLocaleText struct {
 	PasswordMissing          string `json:"password_missing"`
 	PasswordConfrimMissing   string `json:"password_confrim_missing"`
 	PasswordConfrimUnmatched string `json:"password_confrim_unmatched"`
-}
-
-func ListLoginLocaleText(ctx *gin.Context) {
-	rctx := NewRequestContext(ctx)
-	text := &LoginLocaleText{
-		Login:                    rctx.TranslateMessage("UI.Login.Login"),
-		Register:                 rctx.TranslateMessage("UI.Login.Register"),
-		Account:                  rctx.TranslateMessage("UI.Login.Account"),
-		Password:                 rctx.TranslateMessage("UI.Login.Password"),
-		UsernamePrompt:           rctx.TranslateMessage("UI.Login.Prompt.Username"),
-		PasswordPrompt:           rctx.TranslateMessage("UI.Login.Prompt.Password"),
-		PasswordConfrim:          rctx.TranslateMessage("UI.Login.PasswordConfrim"),
-		PasswordConfrimPrompt:    rctx.TranslateMessage("UI.Login.Prompt.PasswordConfrim"),
-		UsernameMissing:          rctx.TranslateMessage("UI.Login.UsernameMissing"),
-		PasswordMissing:          rctx.TranslateMessage("UI.Login.PasswordMissing"),
-		PasswordConfrimMissing:   rctx.TranslateMessage("UI.Login.PasswordConfrimMissing"),
-		PasswordConfrimUnmatched: rctx.TranslateMessage("UI.Login.PasswordConfrimUnmatched"),
-	}
-	if rctx.GetLocaleLanguage() != language.English {
-		text.AccountSub = common.TranslateMessage("en", "UI.Login.Account")
-		text.PasswordSub = common.TranslateMessage("en", "UI.Login.Password")
-		text.PasswordConfrimSub = common.TranslateMessage("en", "UI.Login.PasswordConfrim")
-	}
-	rctx.Response.Data = text
-	rctx.Succeed()
-}
-
-func ListDashboardLocaleText(ctx *gin.Context) {
-
 }
 
 type CurrentLocale struct {

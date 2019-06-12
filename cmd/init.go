@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"git.stuhome.com/Sunmxt/wing/uac"
+	"git.stuhome.com/Sunmxt/wing/model"
 	"github.com/jinzhu/gorm"
 	log "github.com/sirupsen/logrus"
 )
@@ -11,7 +11,7 @@ func (c *Wing) Init() {
 
 	log.Info("[init] Initializing...")
 
-	db, err := gorm.Open(c.Config.DB.SQLEngine, c.Config.DB.SQLDsn)
+	db, err := gorm.Open(c.Runtime.Config.DB.SQLEngine, c.Runtime.Config.DB.SQLDsn)
 	if err != nil {
 		log.Error("[migration] Cannot open database: " + err.Error())
 		return
@@ -24,8 +24,8 @@ func (c *Wing) Init() {
 		db.Close()
 	}()
 
-	log.Info("[migration] Migrate UAC data models.")
-	if err = uac.Migrate(db, c.Config); err != nil {
+	log.Info("[migration] Apply migration.")
+	if err = model.Migrate(db, c.Runtime.Config); err != nil {
 		return
 	}
 }

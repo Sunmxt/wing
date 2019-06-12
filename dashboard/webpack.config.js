@@ -49,7 +49,7 @@ module.exports = {
         ]
       },
       {
-        test: /\.(ttf|woff(2)?)/,
+        test: /\.(ttf|ttc|woff(2)?)/,
         loader: 'file-loader',
         options: {
           name: "res/[name].[ext]?[hash]"

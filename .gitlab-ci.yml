@@ -22,24 +22,6 @@ build-staging-image:
     allow_failure: false
     when: manual
 
-deploy-staging:
-    stage: deploy
-
-    script:
-    - star_ci_deploy staging wing
-
-    only:
-    - staging
-
-    environment:
-        name: staging
-    tags:
-    - staging
-
-    when: manual
-    allow_failure: false
-
-
 build-production-image:
     stage: build
     services:
@@ -56,19 +38,15 @@ build-production-image:
     only:
     - master
 
-deploy-production:
+deploy-staging:
     stage: deploy
-
+    image: registry.stuhome.com/devops/dockerepo/kubectl:1.0.1
+    variables:
+      env: production
     script:
-    - star_ci_deploy production wing
+    - bash ./deploy.sh
 
     only:
-    - master
-
-    environment:
-        name: production
+    - staging
     tags:
-    - production
-
-    when: manual
-    allow_failure: false
+    - k8s_deploy

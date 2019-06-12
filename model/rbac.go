@@ -1,11 +1,72 @@
-package uac
+package model
 
 import (
 	"fmt"
 	"github.com/jinzhu/gorm"
+	_ "github.com/jinzhu/gorm/dialects/mysql"
+	_ "github.com/jinzhu/gorm/dialects/postgres"
+	_ "github.com/jinzhu/gorm/dialects/sqlite"
 	log "github.com/sirupsen/logrus"
 	"regexp"
 )
+
+const (
+	ACTIVE  = 0
+	BLOCKED = 1
+
+	VerbGet    = 1
+	VerbDelete = 1 << 1
+	VerbUpdate = 1 << 2
+	VerbCreate = 1 << 3
+	VerbAll    = VerbGet | VerbDelete | VerbUpdate | VerbCreate
+)
+
+type Account struct {
+	Basic
+	Name        string `gorm:"type:varchar(16);unique;not null"`
+	Credentials string `gorm:"type:varchar(64);not null"`
+	State       int    `gorm:"not null"`
+	Extra       string `gorm:"type:longtext"`
+}
+
+func (m Account) TableName() string {
+	return "account"
+}
+
+type RoleModel struct {
+	Basic
+	Name string `gorm:"unique;not null"`
+}
+
+func (m RoleModel) TableName() string {
+	return "role"
+}
+
+type RoleRecord struct {
+	Basic
+	ResourceName string    `gorm:"column:resource_name;unique;not null"`
+	Verbs        int64     `gorm:"column:verbs;not null"`
+	Role         RoleModel `gorm:"foreignkey:RoleID"`
+	RoleID       int
+}
+
+func (m *RoleRecord) TableName() string {
+	return "role_record"
+}
+
+type RoleBinding struct {
+	Basic
+
+	Account Account   `gorm:"foreignkey:AccountID"`
+	Role    RoleModel `gorm:"foreignkey:RoleID"`
+
+	RoleID    int
+	AccountID int
+}
+
+func (m *RoleBinding) TableName() string {
+	return "role_binding"
+}
 
 // High-level role rule interface
 type ContextRoleRule struct {

@@ -6,7 +6,8 @@ import (
 )
 
 type KubernetesConfiguration struct {
-	NamespacePrefix string `default:"KubeWing-" yaml:"namespacePrefix"`
+	Namespace  string `default:"KubeWing-" yaml:"namespace"`
+	KubeConfig string `default:"" yaml:"kubeConfig"`
 }
 
 type DatabaseConfiguration struct {
@@ -34,7 +35,7 @@ func (c *WingConfiguration) Load(configFile string) error {
 func (c *WingConfiguration) LogConfig() {
 	log.Info("[config] configurations:")
 	log.Infof("[config]     Bind: %v", c.Bind)
-	log.Infof("[config]     NamespacePrefix: %v", c.Kube.NamespacePrefix)
+	log.Infof("[config]     KubernetesNamespace: %v", c.Kube.Namespace)
 	log.Infof("[config]     SQLEngine: %v", c.DB.SQLEngine)
 	log.Infof("[config]     SQLDsn: %v", c.DB.SQLDsn)
 	log.Infof("[config]     SessionToken: %v", c.SessionToken)

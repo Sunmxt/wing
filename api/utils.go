@@ -3,22 +3,26 @@ package api
 import (
 	"errors"
 	"fmt"
+	"net/http"
+	"strconv"
+	"strings"
+
 	"git.stuhome.com/Sunmxt/wing/cmd/config"
 	"git.stuhome.com/Sunmxt/wing/common"
 	mlog "git.stuhome.com/Sunmxt/wing/log"
-	"git.stuhome.com/Sunmxt/wing/uac"
+	"git.stuhome.com/Sunmxt/wing/model"
 	ss "github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"github.com/jinzhu/gorm"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/text/language"
 	"golang.org/x/text/message"
-	"net/http"
-	"strconv"
-	"strings"
+	validator "gopkg.in/go-playground/validator.v8"
 )
 
-var ErrConfigMissing error = errors.New("Configuration is missing in context.")
+type APIRequest interface {
+	Clean(ctx *RequestContext) error
+}
 
 func getLogger(ctx *gin.Context) (logger *log.Entry) {
 	raw, ok := ctx.Get("logger")
@@ -31,13 +35,21 @@ func getLogger(ctx *gin.Context) (logger *log.Entry) {
 	return mlog.RequestLogger(ctx)
 }
 
-func getConfig(ctx *gin.Context) (conf *config.WingConfiguration) {
-	raw, ok := ctx.Get("config")
+func getRuntime(ctx *gin.Context) (runtime *common.WingRuntime) {
+	raw, ok := ctx.Get("runtime")
 	if !ok {
 		return nil
 	}
-	conf, _ = raw.(*config.WingConfiguration)
-	return conf
+	rt, _ := raw.(*common.WingRuntime)
+	return rt
+}
+
+func FormatValidateErrorMessage(ctx *RequestContext, errs validator.ValidationErrors) error {
+	invalidFields := []string{}
+	for _, err := range errs {
+		invalidFields = append(invalidFields, err.Field)
+	}
+	return errors.New(ctx.TranslateMessage("Partial.InvalidFields") + ":" + strings.Join(invalidFields, ", "))
 }
 
 func ParseHeaderForLocale(ctx *gin.Context, acceptedLangs ...string) (result string) {
@@ -83,39 +95,36 @@ func ParseHeaderForLocale(ctx *gin.Context, acceptedLangs ...string) (result str
 
 type RequestContext struct {
 	Gin      *gin.Context
-	Log      *log.Entry
+	OpCtx    common.OperationContext
 	Response common.Response
 	Session  ss.Session
-	Config   *config.WingConfiguration
-	DB       *gorm.DB
 	Lang     string
-
-	RBACContext *uac.RBACContext
-	User        string
 }
 
 func NewRequestContext(ctx *gin.Context) (rctx *RequestContext) {
 	rctx = &RequestContext{
 		Gin: ctx,
-		Log: getLogger(ctx),
 		Response: common.Response{
 			Success: true,
 		},
 		Session: ss.Default(ctx),
-		Config:  getConfig(ctx),
+		OpCtx: common.OperationContext{
+			Log:     getLogger(ctx),
+			Runtime: getRuntime(ctx),
+		},
 	}
-	if rctx.Config == nil {
-		rctx.Log.Panic("[Fatal] Configuration missing.")
+	if rctx.OpCtx.Runtime.Config == nil {
+		rctx.OpCtx.Log.Panic("[Fatal] Configuration missing.")
 	}
 	if user, valid := rctx.Session.Get("user").(string); valid {
-		rctx.User = user
+		rctx.OpCtx.Account.Name = user
 	}
 	if langSetting, valid := rctx.Session.Get("lang").(string); valid {
 		rctx.Lang = langSetting
 	} else {
 		rctx.Lang = ParseHeaderForLocale(ctx, "en", "zh")
 		if rctx.Lang == "" {
-			rctx.Lang = rctx.Config.DefaultLanguage
+			rctx.Lang = rctx.OpCtx.Runtime.Config.DefaultLanguage
 		}
 		rctx.Session.Set("lang", rctx.Lang)
 		rctx.Session.Save()
@@ -123,38 +132,16 @@ func NewRequestContext(ctx *gin.Context) (rctx *RequestContext) {
 	return rctx
 }
 
-func (ctx *RequestContext) RBAC() *uac.RBACContext {
-	if ctx.RBACContext != nil {
-		return ctx.RBACContext
-	}
-	if ctx.User == "" {
-		ctx.Log.Info("[RBAC] Anonymous request.")
-		return nil
-	}
-	ctx.RBACContext = uac.NewRBACContext(ctx.User)
-	db, err := ctx.Database()
-	if err != nil {
-		ctx.Log.Warnf("[RBAC] Cannot load RBAC rule for user \"%v\"", ctx.User)
-		return nil
-	}
-	if err = ctx.RBACContext.Load(db); err != nil {
-		ctx.Log.Warn("[RBAC] RBAC rules not loaded: " + err.Error())
-		return nil
-	}
-	return ctx.RBACContext
+func (ctx *RequestContext) Database() (db *gorm.DB, err error) {
+	return ctx.OpCtx.Database()
 }
 
-func (ctx *RequestContext) Database() (db *gorm.DB, err error) {
-	if ctx.DB != nil {
-		return ctx.DB, nil
-	}
-	if ctx.Config == nil {
-		return nil, ErrConfigMissing
-	}
-	if ctx.DB, err = gorm.Open(ctx.Config.DB.SQLEngine, ctx.Config.DB.SQLDsn); err != nil {
-		return nil, errors.New("Failed too open database: " + err.Error())
-	}
-	return ctx.DB, nil
+func (ctx *RequestContext) GetAccount() *model.Account {
+	return ctx.OpCtx.GetAccount()
+}
+
+func (ctx *RequestContext) RBAC() *model.RBACContext {
+	return ctx.OpCtx.RBAC()
 }
 
 func (ctx *RequestContext) DatabaseOrFail() *gorm.DB {
@@ -167,15 +154,11 @@ func (ctx *RequestContext) DatabaseOrFail() *gorm.DB {
 }
 
 func (ctx *RequestContext) ConfigOrFail() *config.WingConfiguration {
-	if ctx.Config == nil {
-		ctx.AbortWithDebugMessage(http.StatusInternalServerError, ErrConfigMissing.Error())
+	if ctx.OpCtx.Runtime.Config == nil {
+		ctx.AbortWithDebugMessage(http.StatusInternalServerError, common.ErrConfigMissing.Error())
 		return nil
 	}
-	return ctx.Config
-}
-
-func (ctx *RequestContext) Permitted(resource string, verbs int64) bool {
-	return true
+	return ctx.OpCtx.Runtime.Config
 }
 
 func (ctx *RequestContext) FailWithMessage(message string) {
@@ -203,12 +186,12 @@ func (ctx *RequestContext) GetLocaleLanguage() language.Tag {
 }
 
 func (ctx *RequestContext) AbortWithDebugMessage(code int, message string) {
-	debugMode := ctx.Config == nil || ctx.Config.Debug
+	debugMode := ctx.OpCtx.Runtime.Config == nil || ctx.OpCtx.Runtime.Config.Debug
 	if !debugMode {
-		ctx.Log.Error("internal error: " + message)
-		message = fmt.Sprintf("internal server error. [request id: %v]", ctx.Log.Data["request_id"])
+		ctx.OpCtx.Log.Error("internal error: " + message)
+		message = fmt.Sprintf("internal server error. [request id: %v]", ctx.OpCtx.Log.Data["request_id"])
 	} else {
-		message = message + " [request id:" + ctx.Log.Data["request_id"].(string) + "]"
+		message = message + " [request id:" + ctx.OpCtx.Log.Data["request_id"].(string) + "]"
 	}
 	ctx.Response.Message = message
 	ctx.Response.Success = false
@@ -216,7 +199,7 @@ func (ctx *RequestContext) AbortWithDebugMessage(code int, message string) {
 }
 
 func (ctx *RequestContext) LoginEnsured(fail bool) bool {
-	if ctx.User != "" {
+	if ctx.OpCtx.Account.Name != "" {
 		return true
 	}
 	if fail {
@@ -224,4 +207,38 @@ func (ctx *RequestContext) LoginEnsured(fail bool) bool {
 		ctx.FailWithMessage("Auth.Unauthenticated")
 	}
 	return false
+}
+
+func (ctx *RequestContext) RBACOrDeny() *model.RBACContext {
+	rbac := ctx.RBAC()
+	if rbac != nil {
+		ctx.FailWithMessage("Auth.LackOfPermissing")
+		return nil
+	}
+	return rbac
+}
+
+func (ctx *RequestContext) PermitOrReject(resource string, verbs int64) bool {
+	if !ctx.OpCtx.Permitted(resource, verbs) {
+		ctx.FailWithMessage("Auth.LackOfPermission")
+		return false
+	}
+	return true
+}
+
+func (ctx *RequestContext) BindOrFail(req APIRequest) bool {
+	if err := ctx.Gin.ShouldBind(req); err != nil {
+		errs, ok := err.(validator.ValidationErrors)
+		if !ok {
+			ctx.FailWithMessage(err.Error())
+		} else {
+			ctx.FailWithMessage(FormatValidateErrorMessage(ctx, errs).Error())
+		}
+		return false
+	}
+	if err := req.Clean(ctx); err != nil {
+		ctx.FailWithMessage(err.Error())
+		return false
+	}
+	return true
 }

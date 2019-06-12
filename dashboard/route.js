@@ -1,25 +1,19 @@
 import VueRouter from 'vue-router'
 import Login from './login/login.vue'
-import Dashboard from './dashboard.vue'
+import Dashboard from './dashboard/dashboard.vue'
 import {onSwitched as onSwitchedLogin} from './login/proc.js'
-import {UpdateDashboardLocaleMessage, message as localeMessage} from './locale.js'
+import {onSwitched as onSwitchedDashboard} from './dashboard/proc.js'
 
 const routes = [
     { 
         name: "login",
         path: "/login",
-        component: Dashboard,
-        props: {
-            localetext: localeMessage.login
-        }
+        component: Login,
     },
     { 
         name: "dashboard",
         path: "/",
-        component: Login,
-        props: {
-            localetext: localeMessage.login
-        }
+        component: Dashboard,
     }
 ]
 
@@ -31,7 +25,7 @@ let router = new VueRouter({
 router.afterEach((to, from) => {
     switch(to.name) {
     case "dashboard":
-        onSwitchedLogin()
+        onSwitchedDashboard()
         break
     case "login":
         onSwitchedLogin()

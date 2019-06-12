@@ -14,7 +14,7 @@ func RequestLogger(ctx *gin.Context) *log.Entry {
 		request_id = guuid.NewV4().String()
 	}
 	entry.Data["request_id"] = request_id
-	entry.Data["path"] = ctx.Request.URL.RequestURI()
+	//entry.Data["path"] = ctx.Request.URL.RequestURI()
 	entry.Data["type"] = "request"
 	return entry
 }
@@ -31,7 +31,7 @@ func RequestLogMiddleware(ctx *gin.Context) {
 
 	logger.Data["cost"] = latency
 	logger.Data["status"] = ctx.Writer.Status()
-	logger.Data["method"] = ctx.Request.Method
+	//logger.Data["method"] = ctx.Request.Method
 	logger.Data["remote"] = ctx.Request.RemoteAddr
 	logger.Infof("[request] %v %v %v", ctx.Request.Method, ctx.Request.URL.RequestURI(), ctx.Writer.Status())
 }

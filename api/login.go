@@ -3,7 +3,7 @@ package api
 import (
 	"net/http"
 
-	"git.stuhome.com/Sunmxt/wing/uac"
+	"git.stuhome.com/Sunmxt/wing/model"
 	"github.com/gin-gonic/gin"
 	"github.com/jinzhu/gorm"
 )
@@ -15,7 +15,7 @@ type LoginRequestForm struct {
 
 func AuthLoginV1(ctx *gin.Context) {
 	rctx, req := NewRequestContext(ctx), LoginRequestForm{}
-	if rctx.User != "" {
+	if rctx.OpCtx.Account.Name != "" {
 		rctx.SucceedWithMessage("Succeed")
 		return
 	}
@@ -27,13 +27,13 @@ func AuthLoginV1(ctx *gin.Context) {
 	if db == nil || config == nil {
 		return
 	}
-	hasher, err := uac.NewSecretHasher(config.SessionToken)
+	hasher, err := model.NewSecretHasher(config.SessionToken)
 	if err != nil {
 		rctx.AbortWithDebugMessage(http.StatusInternalServerError, "invalid session token.")
 		return
 	}
-	account := &uac.Account{}
-	if err = db.Where(&uac.Account{Name: req.User}).First(account).Error; err != nil {
+	account := &model.Account{}
+	if err = db.Where(&model.Account{Name: req.User}).First(account).Error; err != nil {
 		if gorm.IsRecordNotFoundError(err) {
 			rctx.FailWithMessage("Login.InvalidAccount")
 			return
@@ -46,8 +46,8 @@ func AuthLoginV1(ctx *gin.Context) {
 		rctx.FailWithMessage("Login.InvalidAccount")
 		return
 	}
-	rctx.User = req.User
-	rctx.Session.Set("user", rctx.User)
+	rctx.OpCtx.Account.Name = req.User
+	rctx.Session.Set("user", rctx.OpCtx.Account.Name)
 	rctx.Session.Save()
 	rctx.SucceedWithMessage("Succeed")
 }
