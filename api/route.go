@@ -10,8 +10,6 @@ func RegisterAPI(engine *gin.Engine) error {
 	engine.GET("/api/dashboard/tags", ListDashboardTags)
 
 	// Locale API
-	engine.GET("/api/locale/login/list", ListLoginLocaleText)
-	engine.GET("/api/locale/dashboard/list", ListDashboardLocaleText)
 	engine.GET("/api/locale", GetCurrentLocale)
 	engine.POST("/api/locale", SetLocale)
 

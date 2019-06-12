@@ -41,7 +41,7 @@ export default {
             console.log('show login')
         }
     },
-    props: ['localetext']
+    props: []
 }
 </script>
 <style>

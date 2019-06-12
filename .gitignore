@@ -7,3 +7,4 @@ statik/
 .vscode/
 dist/
 package-lock\.json
+config

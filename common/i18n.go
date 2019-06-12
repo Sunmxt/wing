@@ -29,33 +29,6 @@ func init() {
 	message.SetString(language.English, "UI.Tag.Management", "Management")
 	message.SetString(language.English, "UI.Tag.LoadBalance", "LoadBalance")
 
-	// Login page
-	message.SetString(language.Chinese, "UI.Login.Login", "登录")
-	message.SetString(language.Chinese, "UI.Login.Register", "注册")
-	message.SetString(language.Chinese, "UI.Login.Account", "账户")
-	message.SetString(language.Chinese, "UI.Login.Password", "密码")
-	message.SetString(language.Chinese, "UI.Login.Prompt.Username", "用户名")
-	message.SetString(language.Chinese, "UI.Login.Prompt.Password", "密码")
-	message.SetString(language.Chinese, "UI.Login.Prompt.PasswordConfrim", "重复输入以确认密码")
-	message.SetString(language.Chinese, "UI.Login.PasswordConfrim", "确认密码")
-	message.SetString(language.Chinese, "UI.Login.UsernameMissing", "用户名不能为空哦")
-	message.SetString(language.Chinese, "UI.Login.PasswordMissing", "密码不能为空哦")
-	message.SetString(language.Chinese, "UI.Login.PasswordConfrimMissing", "确认密码不能为空")
-	message.SetString(language.Chinese, "UI.Login.PasswordConfrimUnmatched", "确认密码不一致")
-
-	message.SetString(language.English, "UI.Login.Login", "Login")
-	message.SetString(language.English, "UI.Login.Register", "Register")
-	message.SetString(language.English, "UI.Login.Account", "Account")
-	message.SetString(language.English, "UI.Login.Password", "Password")
-	message.SetString(language.English, "UI.Login.Prompt.Username", "Username")
-	message.SetString(language.English, "UI.Login.Prompt.Password", "Password")
-	message.SetString(language.English, "UI.Login.Prompt.PasswordConfrim", "Confrim password")
-	message.SetString(language.English, "UI.Login.PasswordConfrim", "Password confrim")
-	message.SetString(language.English, "UI.Login.UsernameMissing", "Username should not be empty.")
-	message.SetString(language.English, "UI.Login.PasswordMissing", "Password should not be empty.")
-	message.SetString(language.English, "UI.Login.PasswordConfrimMissing", "Confrim password should not be empty.")
-	message.SetString(language.English, "UI.Login.PasswordConfrimUnmatched", "Confrim password does not matched.")
-
 	// Orchestration
 	message.SetString(language.Chinese, "UI.Operation.ApplicationNotFound", "应用不存在")
 	message.SetString(language.English, "UI.Operation.ApplicationNotFound", "Application doesn't exists.")

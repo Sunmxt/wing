@@ -1,15 +1,17 @@
 import Vue from 'vue'
+import Vuex from 'vuex'
+import VueI18n from 'vue-i18n'
 import Wing from './wing.vue'
 import VueRouter from 'vue-router'
 import ElementUI from 'element-ui'
-
 import {router} from './route.js'
-import {message as localeMessage} from './locale.js'
+import imessage from './common/i18n.js'
 import './css/theme.scss'
-
 
 Vue.use(VueRouter)
 Vue.use(ElementUI)
+Vue.use(Vuex)
+Vue.use(VueI18n)
 
 new Vue({
     el: "#wing",
@@ -19,6 +21,14 @@ new Vue({
     },
     router,
     data: {
-        messages: localeMessage
-    }
+    },
+    store: new Vuex.Store({
+        state: {
+            lang: "cn"
+        }
+    }),
+    i18n: new VueI18n({
+        locale: 'cn',
+        messages: imessage
+    })
 })
