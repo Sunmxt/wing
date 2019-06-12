@@ -18,7 +18,7 @@
 FROM golang:1.12-alpine
 
 ARG MAKE_ENV_ARGV
-ARG ALPINE_MIRROR_HOST=mirrors.tuna.tsinghua.edu.cn
+ARG ALPINE_MIRROR_HOST=mirrors.ustc.edu.cn
 ARG NPM_REGISTRY=http://registry.npm.taobao.org
 
 COPY ./ /app/
@@ -26,11 +26,14 @@ RUN set -xe;\
     sed -Ei "s/dl-cdn\.alpinelinux\.org/"$ALPINE_MIRROR_HOST"/g" /etc/apk/repositories;\
     mkdir /apk-cache;\
     apk update --cache-dir /apk-cache;\
-    apk add -t build-deps make git gcc g++ nodejs nodejs-npm python; \
+    apk add -t build-deps make git gcc g++ nodejs nodejs-npm python;\
     npm set strict-ssl false;\
-    npm config set registry $NPM_REGISTRY;\
+    npm config set registry $NPM_REGISTRY;
+
+RUN set -xe;\
     cd /app/;\
-    make $MAKE_ENV_ARGV;\
+    make bin/dashboard;\
+    make bin/wing $MAKE_ENV_ARGV SKIP_FE_BUILD=1;\
     apk del build-deps;\
     cp bin/wing /bin/wing;\
     rm -rf /apk-cache /app;
