@@ -6,9 +6,9 @@ export PATH:=$(PROJECT_ROOT)/bin:$(PATH)
 
 BINARIES:=bin/wing
 
-all: format bin/wing bin/dashboard
+all: bin/dashboard format bin/wing 
 
-format:
+format: build-path
 	@for pkg in $$(cat "$(PROJECT_ROOT)/GOPACKAGES"); do \
 		echo format "$$pkg"; 							\
 		go fmt "$$pkg";									\
@@ -18,7 +18,7 @@ bin/wing: dep-init bin/dashboard
 	statik -src=$$(pwd)/bin/dashboard/
 	go install -v -gcflags='all=-N -l' git.stuhome.com/Sunmxt/wing
 
-bin/dashboard: dep-init
+bin/dashboard: build-path
 	@if ! [ -z "$(SKIP_FE_BUILD)" ]; then 			\
 		exit 0;										\
 	fi; 											\
@@ -33,7 +33,7 @@ bin/dashboard: dep-init
 
 dep-init: build-path
 	@cd $(PROJECT_ROOT); 																\
-	if ! which packr > /dev/null && [ ! -e bin/statik ]; then 							\
+	if ! which statik > /dev/null && [ ! -e bin/statik ]; then 							\
 		go get -u github.com/rakyll/statik;												\
 	fi;																					\
 
@@ -46,7 +46,7 @@ delve-dbg-svc:
 
 # Common rules
 build-path:
-	@ENSURE_DIRS="bin build";					\
+	@ENSURE_DIRS="bin build statik";				\
 	for dir in $$ENSURE_DIRS; do				\
 		if [ -e "$$dir" ]; then 				\
 			if ! [ -d "$$dir" ]; then			\
