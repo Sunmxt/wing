@@ -6,7 +6,7 @@ export PATH:=$(PROJECT_ROOT)/bin:$(PATH)
 
 BINARIES:=bin/wing
 
-all: format bin/wing bin/dashboard
+all: bin/dashboard format bin/wing 
 
 format: build-path
 	@for pkg in $$(cat "$(PROJECT_ROOT)/GOPACKAGES"); do \
@@ -18,7 +18,7 @@ bin/wing: dep-init bin/dashboard
 	statik -src=$$(pwd)/bin/dashboard/
 	go install -v -gcflags='all=-N -l' git.stuhome.com/Sunmxt/wing
 
-bin/dashboard: dep-init
+bin/dashboard: build-path
 	@if ! [ -z "$(SKIP_FE_BUILD)" ]; then 			\
 		exit 0;										\
 	fi; 											\
