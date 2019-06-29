@@ -2,6 +2,13 @@
 
 source star_ci_lib
 
-export k8s_target_image_tag=`docker_base_tag_by_env $env`
+export ENV=$1
+export IMAGE_BASE=`docker_base_tag_by_env $1`
+
+if [ -z "$IMAGE_BASE" ] || [ -z "$ENV" ]; then
+    exit 1
+fi
+
 envsubst < ./k8s-deploy.template.yml > k8s.yml
-kubectl apply -f k8s.yml --kubeconfig=/var/run/kube/config
+kubectl cluster-info
+kubectl apply -f k8s.yml
