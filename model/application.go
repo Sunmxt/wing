@@ -7,13 +7,13 @@ const (
 type AppSpec struct {
 	Basic
 
-	ImageRef string `gorm:"not null"`
-	EnvVar   string `gorm:"not null"`
-	Memory   uint64 `gorm:"not null"`
-	CPUCore  int    `gorm:"not null"`
-	Command  string `gorm:"not null"`
-	Args     string `gorm:"not null"`
-	Replica  int    `gorm:"not null"`
+	ImageRef string  `gorm:"type:varchar(128);not null"`
+	EnvVar   string  `gorm:"type:longtext;not null"`
+	Memory   uint64  `gorm:"not null"`
+	CPUCore  float32 `gorm:"not null"`
+	Command  string  `gorm:"type:longtext;not null"`
+	Args     string  `gorm:"type:longtext;not null"`
+	Replica  int     `gorm:"not null"`
 }
 
 func (m AppSpec) TableName() string {
@@ -23,11 +23,11 @@ func (m AppSpec) TableName() string {
 type Application struct {
 	Basic
 
-	Name      string   `gorm:"not null;unique"`
+	Name      string   `gorm:"type:varchar(128);not null;unique"`
 	Owner     *Account `gorm:"foreignkey:OwnerID;not null"`
 	OwnerID   int
-	Extra     string
-	KubeLabel string   `gorm:"not null"`
+	Extra     string   `gorm:"type:longtext"`
+	KubeLabel string   `gorm:"type:longtext;not null"`
 	Spec      *AppSpec `gorm:"foreignkey:SpecID;not null"`
 	SpecID    int
 }

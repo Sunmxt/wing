@@ -6,3 +6,10 @@ database:
 kubernetes:
   namespace: default
   kubeConfig: ./config
+
+ldap:
+   server: 10.240.5.1:389
+   adminUser: cn=admin,dc=starstudio,dc=com
+   baseDN: dc=starstudio,dc=com
+   searchPatten: (&(objectClass=person)(cn={0}))
+   nameAttribute: cn
