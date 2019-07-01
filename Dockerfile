@@ -29,7 +29,9 @@ RUN set -xe;\
     apk add -t build-deps make git gcc g++ nodejs nodejs-npm python;\
     apk add bash vim;\
     npm set strict-ssl false;\
-    npm config set registry $NPM_REGISTRY;\
+    npm config set registry $NPM_REGISTRY;
+
+RUN set -xe;\
     cd /app/;\
     make bin/dashboard;\
     make bin/wing $MAKE_ENV_ARGV SKIP_FE_BUILD=1;\
