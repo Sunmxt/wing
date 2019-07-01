@@ -8,7 +8,8 @@ module.exports = {
   entry: './main.js',
   output: {
     path: distPath,
-    filename: 'wing.bundle.js'
+    filename: 'wing.bundle.js',
+    publicPath: '/'
   },
   module: {
     rules: [
@@ -66,6 +67,11 @@ module.exports = {
   devServer: {
     contentBase: distPath,
     compress: true,
+    historyApiFallback: {
+      rewrites: [
+        { from: /^(.*)$/, to: '/' },
+      ]
+    },
     port: 9000,
     proxy: {
       '/api': "http://localhost:8077/"
