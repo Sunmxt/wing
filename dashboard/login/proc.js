@@ -1,7 +1,7 @@
 import {router} from '../route.js'
 import { Form } from 'element-ui';
 
-function onSwitched() {
+export function init() {
     axios.post("/api/login", {}).then(function (resp) {
         if (resp.data.success) {
             router.push({ 
@@ -71,4 +71,4 @@ function register() {
     this.$message('暂时不支持注册')
 }
 
-export {onSwitched, login, register}
+export {login, register}

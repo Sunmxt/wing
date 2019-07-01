@@ -13,7 +13,7 @@ type Deployment struct {
 	RelatedRevison int
 	Spec           *AppSpec     `gorm:"foreignkey:SpecID;not null"`
 	App            *Application `gorm:"foreignkey:AppID;not null"`
-	Pods           string       `gorm:"not null"`
+	Pods           string       `gorm:"type:longtext;not null"`
 	State          int
 
 	SpecID int

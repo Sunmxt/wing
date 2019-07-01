@@ -34,7 +34,7 @@ type ApplicationCreateRequest struct {
 	Image      string                 `form:"image" binding:"required"`
 	EnvVar     map[string]interface{} `form:"env_vars"`
 	Replicas   int                    `form:"replicas" binding:"min=0"`
-	CPUCore    int                    `form:"cpu_cores" binding:"min=0"`
+	CPUCore    float32                `form:"cpu_cores" binding:"min=0"`
 	ArgsRaw    string                 `form:"args" binding:"required"`
 	CommandRaw string                 `form:"command" binding:"required"`
 	Memory     uint64                 `form:"memory" binding:"required"`

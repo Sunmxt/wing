@@ -27,6 +27,7 @@ RUN set -xe;\
     mkdir /apk-cache;\
     apk update --cache-dir /apk-cache;\
     apk add -t build-deps make git gcc g++ nodejs nodejs-npm python;\
+    apk add bash vim;\
     npm set strict-ssl false;\
     npm config set registry $NPM_REGISTRY;
 

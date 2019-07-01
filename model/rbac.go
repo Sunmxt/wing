@@ -35,7 +35,7 @@ func (m Account) TableName() string {
 
 type RoleModel struct {
 	Basic
-	Name string `gorm:"unique;not null"`
+	Name string `gorm:"type:varchar(32);unique;not null"`
 }
 
 func (m RoleModel) TableName() string {
@@ -44,8 +44,8 @@ func (m RoleModel) TableName() string {
 
 type RoleRecord struct {
 	Basic
-	ResourceName string    `gorm:"column:resource_name;unique;not null"`
-	Verbs        int64     `gorm:"column:verbs;not null"`
+	ResourceName string    `gorm:"type:varchar(64);column:resource_name;unique;not null"`
+	Verbs        int64     `gorm:"not null"`
 	Role         RoleModel `gorm:"foreignkey:RoleID"`
 	RoleID       int
 }

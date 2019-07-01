@@ -44,9 +44,10 @@ deploy-staging:
     variables:
       env: production
     script:
-    - bash ./deploy.sh
+    - bash ./deploy.sh staging
 
     only:
     - staging
     tags:
     - k8s_deploy
+    - staging
