@@ -8,6 +8,26 @@ import (
 	"github.com/jinzhu/gorm"
 )
 
+type UserInfoResponse struct {
+	Identify  string `json:"id"`
+	Name      string `json:"name"`
+	IsLogined bool   `json:"login"`
+}
+
+func AuthUserInfoV1(ctx *gin.Context) {
+	rctx, resp := NewRequestContext(ctx), &UserInfoResponse{}
+	rctx.Response.Data = resp
+	defer rctx.Succeed()
+	if !rctx.LoginEnsured(false) {
+		resp.IsLogined = false
+		return
+	} else {
+		resp.IsLogined = true
+	}
+	resp.Name = rctx.OpCtx.Account.Name
+	resp.Identify = rctx.OpCtx.Account.Name
+}
+
 type LoginRequestForm struct {
 	User     string `form:"username" binding:"required"`
 	Password string `form:"password" binding:"required"`

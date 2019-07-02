@@ -24,7 +24,12 @@ new Vue({
     },
     store: new Vuex.Store({
         state: {
-            lang: "cn"
+            lang: "cn",
+            user: {
+                id: "",
+                name: "",
+                login: false
+            }
         }
     }),
     i18n: new VueI18n({
