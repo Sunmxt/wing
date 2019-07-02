@@ -1,4 +1,4 @@
-image: registry.stuhome.com/devops/dockerepo/docker:1.0.1
+image: registry.stuhome.com/devops/dockerepo/docker:1.0.2
 
 stages:
     - build
@@ -44,7 +44,9 @@ deploy-staging:
     variables:
       env: production
     script:
-    - bash ./deploy.sh staging
+    - mkdir /etc/starconf -p
+    - touch /etc/starconf/confmap
+    - star_boot bash ./deploy.sh staging
 
     only:
     - staging

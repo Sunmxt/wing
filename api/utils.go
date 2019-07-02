@@ -185,14 +185,32 @@ func (ctx *RequestContext) GetLocaleLanguage() language.Tag {
 	return message.MatchLanguage(ctx.Lang)
 }
 
-func (ctx *RequestContext) AbortWithDebugMessage(code int, message string) {
+func (ctx *RequestContext) GetDebugMessageForResponse(message string) string {
 	debugMode := ctx.OpCtx.Runtime.Config == nil || ctx.OpCtx.Runtime.Config.Debug
 	if !debugMode {
-		ctx.OpCtx.Log.Error("internal error: " + message)
 		message = fmt.Sprintf("internal server error. [request id: %v]", ctx.OpCtx.Log.Data["request_id"])
 	} else {
 		message = message + " [request id:" + ctx.OpCtx.Log.Data["request_id"].(string) + "]"
 	}
+	return message
+}
+
+func (ctx *RequestContext) AbortWithDebugMessage(code int, message string) {
+	message = ctx.GetDebugMessageForResponse(message)
+	ctx.OpCtx.Log.Error("error: " + message)
+	ctx.Response.Message = message
+	ctx.Response.Success = false
+	ctx.Gin.JSON(code, message)
+}
+
+func (ctx *RequestContext) AbortWithError(code int, err error) {
+	message := ""
+	if _, isExternal := err.(common.ExternalError); !isExternal {
+		message = ctx.GetDebugMessageForResponse(err.Error())
+	} else {
+		message = err.Error()
+	}
+	ctx.OpCtx.Log.Error("error: " + err.Error())
 	ctx.Response.Message = message
 	ctx.Response.Success = false
 	ctx.Gin.JSON(code, message)

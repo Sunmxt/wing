@@ -3,9 +3,9 @@ package api
 import (
 	"net/http"
 
+	"git.stuhome.com/Sunmxt/wing/common"
 	"git.stuhome.com/Sunmxt/wing/model"
 	"github.com/gin-gonic/gin"
-	"github.com/jinzhu/gorm"
 )
 
 type UserInfoResponse struct {
@@ -43,29 +43,41 @@ func AuthLoginV1(ctx *gin.Context) {
 		rctx.FailWithMessage("invalid parameters: " + err.Error())
 		return
 	}
-	db, config := rctx.DatabaseOrFail(), rctx.ConfigOrFail()
-	if db == nil || config == nil {
-		return
-	}
-	hasher, err := model.NewSecretHasher(config.SessionToken)
-	if err != nil {
-		rctx.AbortWithDebugMessage(http.StatusInternalServerError, "invalid session token.")
-		return
-	}
-	account := &model.Account{}
-	if err = db.Where(&model.Account{Name: req.User}).First(account).Error; err != nil {
-		if gorm.IsRecordNotFoundError(err) {
-			rctx.FailWithMessage("Login.InvalidAccount")
-			return
+
+	var account *model.Account
+	var err, ldapAuthError error
+	if rctx.OpCtx.Runtime.Config.Auth.EnableLDAP {
+		if account, ldapAuthError = rctx.OpCtx.AuthAsLDAPUser(req.User, req.Password); err != nil {
+			switch ldapAuthError {
+			case common.ErrInvalidPassword:
+				rctx.FailWithMessage("Login.InvalidAccount")
+				return
+			case common.ErrInvalidUsername:
+			default:
+				rctx.AbortWithError(http.StatusInternalServerError, err)
+				return
+			}
 		}
 	}
-
-	var toVerify string
-	toVerify, err = hasher.HashString(req.Password)
-	if toVerify != account.Credentials {
+	if account == nil {
+		if account, err = rctx.OpCtx.AuthAsLegacyUser(req.User, req.Password); err != nil {
+			switch err {
+			case common.ErrInvalidPassword:
+				rctx.FailWithMessage("Login.InvalidAccount")
+				return
+			case common.ErrInvalidUsername:
+			default:
+				rctx.AbortWithError(http.StatusInternalServerError, err)
+				return
+			}
+		} //else if rctx.OpCtx.Runtime.Config.Auth.SyncLegacyUser {
+		//}
+	}
+	if account == nil {
 		rctx.FailWithMessage("Login.InvalidAccount")
 		return
 	}
+
 	rctx.OpCtx.Account.Name = req.User
 	rctx.Session.Set("user", rctx.OpCtx.Account.Name)
 	rctx.Session.Save()

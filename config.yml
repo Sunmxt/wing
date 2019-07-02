@@ -7,9 +7,15 @@ kubernetes:
   namespace: default
   kubeConfig: ./config
 
-ldap:
-   server: 10.240.5.1:389
-   adminUser: cn=admin,dc=starstudio,dc=com
-   baseDN: dc=starstudio,dc=com
-   searchPatten: (&(objectClass=person)(cn={0}))
-   nameAttribute: cn
+auth:
+  enableLDAP: true
+  disableLegacyUser: false
+
+  ldap:
+     server: 10.240.5.1:389
+     bindDN: cn=admin,dc=starstudio,dc=com
+     bindPassword: testing_ldap
+     baseDN: dc=starstudio,dc=com
+     searchPattern: (&(objectClass=person)(cn={0}))
+     nameAttribute: cn
+     #syncLegacyUser: false
