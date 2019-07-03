@@ -6,18 +6,22 @@ import (
 )
 
 type AuthConfiguration struct {
-	EnableLDAP        bool              `default:"true" yaml:"enableLDAP"`
+	EnableLDAP        bool              `default:"false" yaml:"enableLDAP"`
 	DisableLegacyUser bool              `default:"false" yaml:"disableLegacyUser"`
 	LDAP              LDAPConfiguration `yaml:"ldap"`
 }
 
 type LDAPConfiguration struct {
-	Server        string `yaml:"server"`
-	BindDN        string `yaml:"bindDN"`
-	BindPassword  string `yaml:"bindPassword"`
-	BaseDN        string `yaml:"baseDN"`
-	SearchPattern string `yaml:"searchPattern"`
-	NameAttribute string `yaml:"nameAttribute"`
+	Server                string            `yaml:"server"`
+	BindDN                string            `yaml:"bindDN"`
+	BindPassword          string            `yaml:"bindPassword"`
+	BaseDN                string            `yaml:"baseDN"`
+	SearchPattern         string            `yaml:"searchPattern"`
+	NameAttribute         string            `yaml:"nameAttribute"`
+	AcceptRegistration    bool              `yaml:"acceptRegistration"`
+	RegisterRDN           string            `yaml:"registerRDN"`
+	RegisterObjectClasses []string          `yaml:"registerObjectClasses"`
+	RegisterAttributes    map[string]string `yaml:"registerAttributes"`
 }
 
 type KubernetesConfiguration struct {

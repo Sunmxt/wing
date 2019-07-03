@@ -197,23 +197,20 @@ func (ctx *RequestContext) GetDebugMessageForResponse(message string) string {
 
 func (ctx *RequestContext) AbortWithDebugMessage(code int, message string) {
 	message = ctx.GetDebugMessageForResponse(message)
-	ctx.OpCtx.Log.Error("error: " + message)
 	ctx.Response.Message = message
 	ctx.Response.Success = false
-	ctx.Gin.JSON(code, message)
+	ctx.Gin.JSON(code, ctx.Response)
 }
 
-func (ctx *RequestContext) AbortWithError(code int, err error) {
+func (ctx *RequestContext) AbortWithError(err error) {
 	message := ""
 	if _, isExternal := err.(common.ExternalError); !isExternal {
 		message = ctx.GetDebugMessageForResponse(err.Error())
+		ctx.FailWithMessage(message)
 	} else {
-		message = err.Error()
+		ctx.FailWithMessage(err.Error())
 	}
 	ctx.OpCtx.Log.Error("error: " + err.Error())
-	ctx.Response.Message = message
-	ctx.Response.Success = false
-	ctx.Gin.JSON(code, message)
 }
 
 func (ctx *RequestContext) LoginEnsured(fail bool) bool {

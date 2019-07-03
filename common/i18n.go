@@ -15,6 +15,10 @@ func init() {
 	message.SetString(language.English, "Auth.Unauthenticated", "unauthenticated")
 	message.SetString(language.Chinese, "Auth.LackOfPermission", "权限不足")
 	message.SetString(language.English, "Auth.LackOfPermission", "Lack of permission.")
+	message.SetString(language.Chinese, "Account.Exists", "用户已存在")
+	message.SetString(language.English, "Account.Exists", "Account already exists.")
+	message.SetString(language.Chinese, "Register.NotAllowed", "目前不允许注册")
+	message.SetString(language.English, "Register.NotAllowed", "目前不允许注册")
 
 	message.SetString(language.Chinese, "Succeed", "成功")
 	message.SetString(language.English, "Succeed", "succeed.")

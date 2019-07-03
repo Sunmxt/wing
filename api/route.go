@@ -8,6 +8,8 @@ import (
 func RegisterAPI(engine *gin.Engine) error {
 	engine.POST("/api/login", AuthLoginV1)
 	engine.GET("/api/login", AuthUserInfoV1)
+	engine.POST("/api/register", RegisterV1)
+
 	engine.GET("/api/dashboard/tags", ListDashboardTags)
 
 	// Locale API

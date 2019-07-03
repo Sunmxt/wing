@@ -1,8 +1,6 @@
 package api
 
 import (
-	"net/http"
-
 	"git.stuhome.com/Sunmxt/wing/common"
 	"git.stuhome.com/Sunmxt/wing/model"
 	"github.com/gin-gonic/gin"
@@ -28,13 +26,13 @@ func AuthUserInfoV1(ctx *gin.Context) {
 	resp.Identify = rctx.OpCtx.Account.Name
 }
 
-type LoginRequestForm struct {
+type CredentialRequestForm struct {
 	User     string `form:"username" binding:"required"`
 	Password string `form:"password" binding:"required"`
 }
 
 func AuthLoginV1(ctx *gin.Context) {
-	rctx, req := NewRequestContext(ctx), LoginRequestForm{}
+	rctx, req := NewRequestContext(ctx), CredentialRequestForm{}
 	if rctx.OpCtx.Account.Name != "" {
 		rctx.SucceedWithMessage("Succeed")
 		return
@@ -54,7 +52,7 @@ func AuthLoginV1(ctx *gin.Context) {
 				return
 			case common.ErrInvalidUsername:
 			default:
-				rctx.AbortWithError(http.StatusInternalServerError, err)
+				rctx.AbortWithError(err)
 				return
 			}
 		}
@@ -67,7 +65,7 @@ func AuthLoginV1(ctx *gin.Context) {
 				return
 			case common.ErrInvalidUsername:
 			default:
-				rctx.AbortWithError(http.StatusInternalServerError, err)
+				rctx.AbortWithError(err)
 				return
 			}
 		} //else if rctx.OpCtx.Runtime.Config.Auth.SyncLegacyUser {
@@ -81,5 +79,43 @@ func AuthLoginV1(ctx *gin.Context) {
 	rctx.OpCtx.Account.Name = req.User
 	rctx.Session.Set("user", rctx.OpCtx.Account.Name)
 	rctx.Session.Save()
+	rctx.SucceedWithMessage("Succeed")
+}
+
+func RegisterV1(ctx *gin.Context) {
+	rctx, req := NewRequestContext(ctx), CredentialRequestForm{}
+	if err := ctx.ShouldBind(&req); err != nil {
+		rctx.FailWithMessage("invalid parameters: " + err.Error())
+		return
+	}
+	config := rctx.ConfigOrFail()
+	if config == nil {
+		return
+	}
+	if config.Auth.EnableLDAP {
+		if !config.Auth.LDAP.AcceptRegistration {
+			rctx.AbortWithError(common.ErrRegisterNotAllowed)
+			return
+		}
+
+		resp, err := rctx.OpCtx.LDAPByName(req.User)
+		if err != nil {
+			rctx.AbortWithError(err)
+			return
+		}
+		if len(resp.Entries) > 0 {
+			rctx.AbortWithError(common.ErrAccountExists)
+			return
+		}
+		if err = rctx.OpCtx.AddLDAPAccount(req.User, req.Password, req.User); err != nil {
+			rctx.AbortWithError(err)
+			return
+		}
+	} else {
+		if err := rctx.OpCtx.AddLegacyAccount(req.User, req.Password); err != nil {
+			rctx.AbortWithError(err)
+			return
+		}
+	}
 	rctx.SucceedWithMessage("Succeed")
 }

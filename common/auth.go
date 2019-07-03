@@ -7,6 +7,65 @@ import (
 	ldap "gopkg.in/ldap.v3"
 )
 
+func (ctx *OperationContext) NewLDAPSearchRequest(username string) (*ldap.SearchRequest, error) {
+	if ctx.Runtime.Config == nil {
+		return nil, ErrConfigMissing
+	}
+	config := ctx.Runtime.Config
+	searchRequest := ldap.NewSearchRequest(
+		config.Auth.LDAP.BaseDN,
+		ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
+		fmt.Sprintf(config.Auth.LDAP.SearchPattern, username),
+		[]string{config.Auth.LDAP.NameAttribute},
+		nil,
+	)
+	return searchRequest, nil
+}
+
+func (ctx *OperationContext) LDAPByName(username string) (*ldap.SearchResult, error) {
+	result, request := (*ldap.SearchResult)(nil), (*ldap.SearchRequest)(nil)
+	conn, err := ctx.LDAPRootConnection()
+	if err != nil {
+		return nil, err
+	}
+	if request, err = ctx.NewLDAPSearchRequest(username); err != nil {
+		return nil, err
+	}
+	if result, err = conn.Search(request); err != nil {
+		return nil, NewInternalError(err)
+	}
+	return result, err
+}
+
+func (ctx *OperationContext) AddLDAPAccount(username, password, commonName string) error {
+	ctx.Log.Infof("add LDAP user \"%v\".", username)
+
+	if ctx.Runtime.Config == nil {
+		return ErrConfigMissing
+	}
+	config := ctx.Runtime.Config
+	conn, err := ctx.LDAPRootConnection()
+
+	hasher := model.NewMD5Hasher()
+	if password, err = hasher.HashString(password); err != nil {
+		return NewInternalError(err)
+	}
+	req := ldap.NewAddRequest(fmt.Sprintf(config.Auth.LDAP.RegisterRDN, username)+","+config.Auth.LDAP.BaseDN, nil)
+	req.Attribute(config.Auth.LDAP.NameAttribute, []string{commonName})
+	req.Attribute("userPassword", []string{"{MD5}" + password})
+	req.Attribute("objectClass", config.Auth.LDAP.RegisterObjectClasses)
+	for attr, pattern := range config.Auth.LDAP.RegisterAttributes {
+		req.Attribute(attr, []string{fmt.Sprintf(pattern, username, commonName)})
+	}
+
+	if err = conn.Add(req); err != nil {
+		return NewInternalError(err)
+	}
+	conn.Close()
+
+	return nil
+}
+
 func (ctx *OperationContext) AuthAsLDAPUser(username, password string) (*model.Account, error) {
 	ctx.Log.Infof("try to auth \"%v\" via LDAP.", username)
 
@@ -44,13 +103,13 @@ func (ctx *OperationContext) AuthAsLDAPUser(username, password string) (*model.A
 
 	ctx.Log.Infof("valid LDAP user \"%v\"", username)
 	var account *model.Account
-	if account, err = ctx.legacyAccountByName(username, true, ""); err != nil {
+	if account, err = ctx.LegacyAccountByName(username, true, ""); err != nil {
 		return nil, err
 	}
 	return account, nil
 }
 
-func (ctx *OperationContext) legacyAccountByName(username string, create bool, passwordHash string) (*model.Account, error) {
+func (ctx *OperationContext) LegacyAccountByName(username string, create bool, passwordHash string) (*model.Account, error) {
 	ctx.Log.Infof("load legacy user \"%v\"", username)
 
 	db, err := ctx.Database()
@@ -77,22 +136,38 @@ func (ctx *OperationContext) legacyAccountByName(username string, create bool, p
 func (ctx *OperationContext) AuthAsLegacyUser(username, password string) (account *model.Account, err error) {
 	ctx.Log.Infof("try to auth \"%v\" as legacy user.", username)
 
-	if ctx.Runtime.Config == nil {
-		return nil, ErrConfigMissing
-	}
-	config := ctx.Runtime.Config
+	hasher := model.NewMD5Hasher()
 
-	var hasher *model.SecretHasher
-	if hasher, err = model.NewSecretHasher(config.SessionToken); err != nil {
-		return nil, ErrInvalidSessionToken
-	}
 	var toVerify string
-	toVerify, err = hasher.HashString(password)
-	if account, err = ctx.legacyAccountByName(username, false, ""); err != nil {
+	if toVerify, err = hasher.HashString(password); err != nil {
+		return nil, NewInternalError(err)
+	}
+
+	if account, err = ctx.LegacyAccountByName(username, false, ""); err != nil {
 		return nil, err
 	}
 	if toVerify != account.Credentials {
 		return nil, ErrInvalidAccount
 	}
 	return account, nil
+}
+
+func (ctx *OperationContext) AddLegacyAccount(username, password string) error {
+	ctx.Log.Infof("try to add legacy account \"%v\".", username)
+
+	account, err := ctx.LegacyAccountByName(username, false, "")
+	if err != nil && err != ErrInvalidUsername {
+		return err
+	}
+	if account != nil {
+		return ErrAccountExists
+	}
+	hasher := model.NewMD5Hasher()
+	if password, err = hasher.HashString(password); err != nil {
+		return err
+	}
+	if _, err = ctx.LegacyAccountByName(username, true, password); err != nil {
+		return err
+	}
+	return nil
 }
