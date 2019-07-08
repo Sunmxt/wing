@@ -9,7 +9,7 @@
                 <div class="login-ui-container">
                     <el-tabs v-model="activeTab">
                         <el-tab-pane v-bind:label="$t('ui.login.login')" name="login">{{ $t('ui.login.login') }}</el-tab-pane>
-                        <el-tab-pane v-bind:label="$t('ui.login.register')" name="register">{{ $t('ui.login.register') }}</el-tab-pane>
+                        <el-tab-pane v-if="singUpEnabled" v-bind:label="$t('ui.login.register')" name="register">{{ $t('ui.login.register') }}</el-tab-pane>
                     </el-tabs>
                     <div v-if="activeTab=='login'">
                         <div class="login-form-box">
@@ -42,7 +42,7 @@
     </div>
 </template>
 <script>
-import {login, register} from './proc.js'
+import {login, register, init} from './proc.js'
 
 export default {
     data(){
@@ -57,6 +57,16 @@ export default {
     methods: {
         login,
         register
+    },
+    beforeRouteEnter(to, from, next) {
+        next(vm => {
+            init.call(vm)
+        })
+    },
+    computed: {
+        singUpEnabled() {
+            return this.$store.state.signUpEnabled
+        }
     }
 }
 </script>

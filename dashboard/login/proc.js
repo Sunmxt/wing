@@ -1,10 +1,11 @@
 import {router} from '../route.js'
-import { Form } from 'element-ui';
+import {init as globalInit} from '../common/proc.js'
 
 export function init() {
+    globalInit.call(this)
+    let self = this
     axios.post("/api/login", {}).then(function (resp) {
         if (resp.data.success) {
-            this.$message(resp.data.message)
             router.push({ 
                 name: 'dashboard'
             })

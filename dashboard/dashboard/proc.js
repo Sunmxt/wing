@@ -1,4 +1,5 @@
 import {router} from '../route.js'
+import {init as globalInit} from '../common/proc.js'
 
 export function refreshUserInfo() {
     console.log('refresh user info.')
@@ -15,8 +16,8 @@ export function refreshUserInfo() {
 }
 
 export function init() {
-    console.log('switch to dashboard.')
     let c = this
+    globalInit.call(this)
     axios.post("/api/login", {}).then(function (resp) {
         if (!resp.data.success) {
             router.push({ name: 'login' })

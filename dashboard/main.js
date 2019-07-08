@@ -20,8 +20,6 @@ new Vue({
         Wing
     },
     router,
-    data: {
-    },
     store: new Vuex.Store({
         state: {
             lang: "cn",
@@ -29,7 +27,9 @@ new Vue({
                 id: "",
                 name: "",
                 login: false
-            }
+            },
+            avaliablePanels: [],
+            signUpEnabled: false,
         }
     }),
     i18n: new VueI18n({

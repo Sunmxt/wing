@@ -23,6 +23,7 @@ func Migrate(db *gorm.DB, cfg *config.WingConfiguration) error {
 	db.AutoMigrate(&RoleBinding{}).AddForeignKey("account_id", "account(id)", "RESTRICT", "RESTRICT").AddForeignKey("role_id", "role(id)", "RESTRICT", "RESTRICT")
 	db.AutoMigrate(&Application{}).AddForeignKey("owner_id", "account(id)", "RESTRICT", "RESTRICT").AddForeignKey("spec_id", "application_spec(id)", "RESTRICT", "RESTRICT")
 	db.AutoMigrate(&Deployment{}).AddForeignKey("spec_id", "application_spec(id)", "RESTRICT", "RESTRICT").AddForeignKey("app_id", "application(id)", "RESTRICT", "RESTRICT")
+	db.AutoMigrate(&Settings{})
 	return initRBACRoot(db, cfg)
 }
 
