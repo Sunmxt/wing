@@ -5,7 +5,7 @@ import (
 	"golang.org/x/text/message"
 )
 
-func init() {
+func registerI18NMessage() {
 	// common
 	message.SetString(language.Chinese, "Partial.InvalidFields", "无效的字段")
 	message.SetString(language.English, "Partial.InvalidFields", "Invalid fields")
@@ -17,6 +17,10 @@ func init() {
 	message.SetString(language.English, "Auth.LackOfPermission", "Lack of permission.")
 	message.SetString(language.Chinese, "Account.Exists", "用户已存在")
 	message.SetString(language.English, "Account.Exists", "Account already exists.")
+	message.SetString(language.Chinese, "Account.NotAMail", "用户名不是邮箱")
+	message.SetString(language.English, "Account.NotAMail", "Username is not a e-mail.")
+	message.SetString(language.Chinese, "Account.WeakPassword", "密码强度过低，换一个密码吧。")
+	message.SetString(language.English, "Account.WeakPassword", "Weak password detected. Maybe try another one.")
 	message.SetString(language.Chinese, "Register.NotAllowed", "目前不允许注册")
 	message.SetString(language.English, "Register.NotAllowed", "目前不允许注册")
 

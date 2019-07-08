@@ -33,4 +33,6 @@ var (
 	ErrInvalidAccount     = NewExternalError(errors.New("Login.InvalidAccount"))
 	ErrAccountExists      = NewExternalError(errors.New("Account.Exists"))
 	ErrRegisterNotAllowed = NewExternalError(errors.New("Register.NotAllowed"))
+	ErrUsernameNotMail    = NewExternalError(errors.New("Account.NotAMail"))
+	ErrWeakPassword       = NewExternalError(errors.New("Account.WeakPassword"))
 )

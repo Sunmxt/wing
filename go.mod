@@ -15,6 +15,7 @@ require (
 	github.com/jinzhu/configor v1.0.0
 	github.com/jinzhu/gorm v1.9.8
 	github.com/leodido/go-urn v1.1.0 // indirect
+	github.com/nbutton23/zxcvbn-go v0.0.0-20180912185939-ae427f1e4c1d
 	github.com/rakyll/statik v0.1.6
 	github.com/satori/go.uuid v1.2.0
 	github.com/sirupsen/logrus v1.4.1

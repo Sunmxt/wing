@@ -4,8 +4,12 @@ import (
 	"fmt"
 	"git.stuhome.com/Sunmxt/wing/model"
 	"github.com/jinzhu/gorm"
+	zxcvbn "github.com/nbutton23/zxcvbn-go"
 	ldap "gopkg.in/ldap.v3"
+	"regexp"
 )
+
+var ReMail *regexp.Regexp
 
 func (ctx *OperationContext) NewLDAPSearchRequest(username string) (*ldap.SearchRequest, error) {
 	if ctx.Runtime.Config == nil {
@@ -38,8 +42,15 @@ func (ctx *OperationContext) LDAPByName(username string) (*ldap.SearchResult, er
 }
 
 func (ctx *OperationContext) AddLDAPAccount(username, password, commonName string) error {
-	ctx.Log.Infof("add LDAP user \"%v\".", username)
+	if !ReMail.Match([]byte(username)) {
+		return ErrUsernameNotMail
+	}
+	score := zxcvbn.PasswordStrength(password, []string{username})
+	if score.Score < 2 || len(password) < 6 {
+		return ErrWeakPassword
+	}
 
+	ctx.Log.Infof("add LDAP user \"%v\".", username)
 	if ctx.Runtime.Config == nil {
 		return ErrConfigMissing
 	}
@@ -110,6 +121,10 @@ func (ctx *OperationContext) AuthAsLDAPUser(username, password string) (*model.A
 }
 
 func (ctx *OperationContext) LegacyAccountByName(username string, create bool, passwordHash string) (*model.Account, error) {
+	if !ReMail.Match([]byte(username)) {
+		return nil, ErrUsernameNotMail
+	}
+
 	ctx.Log.Infof("load legacy user \"%v\"", username)
 
 	db, err := ctx.Database()
@@ -154,6 +169,10 @@ func (ctx *OperationContext) AuthAsLegacyUser(username, password string) (accoun
 
 func (ctx *OperationContext) AddLegacyAccount(username, password string) error {
 	ctx.Log.Infof("try to add legacy account \"%v\".", username)
+	score := zxcvbn.PasswordStrength(password, []string{username})
+	if score.Score < 2 || len(password) < 6 {
+		return ErrWeakPassword
+	}
 
 	account, err := ctx.LegacyAccountByName(username, false, "")
 	if err != nil && err != ErrInvalidUsername {

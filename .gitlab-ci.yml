@@ -46,7 +46,7 @@ deploy-staging:
     script:
     - mkdir /etc/starconf -p
     - touch /etc/starconf/confmap
-    - star_boot bash ./deploy.sh staging
+    - bash ./deploy.sh staging
 
     only:
     - staging
