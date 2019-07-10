@@ -4,18 +4,12 @@ import Dashboard from './dashboard/dashboard.vue'
 import OverviewPanel from './dashboard/overview.vue'
 import OrchestrationPanel from './dashboard/orchestration.vue'
 import NewApplicationPanel from './dashboard/new_application.vue'
-import {init as initLogin} from './login/proc.js'
-import {init as dashboardInit} from './dashboard/proc.js'
 
 const routes = [
     { 
         name: "login",
         path: "/login",
         component: Login,
-        beforeEnter: (to, from, next) => {
-            initLogin()
-            next()
-        }
     },
     { 
         name: "dashboard",
@@ -47,16 +41,7 @@ const routes = [
                 }
             }
         ],
-        beforeEnter: (to, from, next) => {
-            dashboardInit()
-            if(to.name == "dashboard" || !to.name) {
-                next({
-                    name: "overview"
-                })
-            } else {
-                next()
-            }
-        }
+        redirect: {name: "overview"}
     }
 ]
 

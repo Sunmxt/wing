@@ -1,7 +1,9 @@
 import {router} from '../route.js'
-import { Form } from 'element-ui';
+import {init as globalInit} from '../common/proc.js'
 
 export function init() {
+    globalInit.call(this)
+    let self = this
     axios.post("/api/login", {}).then(function (resp) {
         if (resp.data.success) {
             router.push({ 
@@ -68,7 +70,28 @@ function register() {
     if(!verifyForm.call(this)) {
         return
     }
-    this.$message('暂时不支持注册')
+    let form = new FormData()
+    form.set("username", this.username)
+    form.set("password", this.password)
+    axios.post('/api/register', form).then(
+        resp => {
+            console.log(resp)
+            if (!resp.data.success) {
+                this.$message({
+                    message: resp.data.message,
+                    type: "error"
+                })
+            } else {
+                this.$message.success({
+                    message: resp.data.message,
+                    type: "success"
+                })
+                this.password = ""
+                this.passwordConfrim = ""
+                this.activeTab = "login"
+            }
+        }
+    )
 }
 
 export {login, register}

@@ -53,6 +53,25 @@ data:
       engine: mysql
     kubernetes:
       namespacePrefix: wing-${ENV}
+    auth:
+      enableLDAP: true
+      disableLegacyUser: false
+    
+      ldap:
+         server: 10.240.5.1:389
+         bindDN: cn=admin,dc=starstudio,dc=com
+         bindPassword: ${ldap__bind_password}
+         baseDN: dc=starstudio,dc=com
+         searchPattern: (&(objectClass=person)(cn=%v))
+         nameAttribute: cn
+         #syncLegacyUser: false
+         acceptRegistration: true
+         registerRDN: cn=%v
+         registerObjectClasses:
+           - person
+         registerAttributes:
+           sn: "%[1]v"
+
 ---
 apiVersion: apps/v1
 kind: Deployment

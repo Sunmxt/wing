@@ -6,10 +6,9 @@ import (
 	"git.stuhome.com/Sunmxt/wing/model"
 	"github.com/jinzhu/gorm"
 	log "github.com/sirupsen/logrus"
+	ldap "gopkg.in/ldap.v3"
 	"k8s.io/client-go/kubernetes"
 )
-
-var ErrConfigMissing error = errors.New("Configuration is missing in context.")
 
 type OperationContext struct {
 	Runtime     *WingRuntime
@@ -102,4 +101,19 @@ func (ctx *OperationContext) Permitted(resource string, verbs int64) bool {
 		return false
 	}
 	return true
+}
+
+func (ctx *OperationContext) LDAPRootConnection() (*ldap.Conn, error) {
+	if ctx.Runtime.Config == nil {
+		return nil, ErrConfigMissing
+	}
+	config := ctx.Runtime.Config
+	conn, err := ldap.Dial("tcp", config.Auth.LDAP.Server)
+	if err != nil {
+		return nil, NewInternalError(err)
+	}
+	if err = conn.Bind(config.Auth.LDAP.BindDN, config.Auth.LDAP.BindPassword); err != nil {
+		return nil, NewInternalError(err)
+	}
+	return conn, nil
 }

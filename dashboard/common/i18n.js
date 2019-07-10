@@ -23,7 +23,15 @@ export default {
             dashboard: {
                 nav: {
                     overview: "概览",
-                    orchestration: "应用编排"
+                    orchestration: "应用编排",
+                    lb: "负载均衡",
+                    cicd: "持续集成",
+                },
+                navSubtitle: {
+                    overview: "Overview",
+                    orchestration: "Orchestration",
+                    lb: "Load Balance",
+                    cicd: "CI/CD",
                 }
             },
             orchestration: {

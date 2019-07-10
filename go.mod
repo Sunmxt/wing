@@ -15,16 +15,19 @@ require (
 	github.com/jinzhu/configor v1.0.0
 	github.com/jinzhu/gorm v1.9.8
 	github.com/leodido/go-urn v1.1.0 // indirect
+	github.com/nbutton23/zxcvbn-go v0.0.0-20180912185939-ae427f1e4c1d
 	github.com/rakyll/statik v0.1.6
 	github.com/satori/go.uuid v1.2.0
 	github.com/sirupsen/logrus v1.4.1
 	github.com/spf13/pflag v1.0.3 // indirect
 	golang.org/x/text v0.3.1-0.20181227161524-e6919f6577db
+	gopkg.in/asn1-ber.v1 v1.0.0-20181015200546-f715ec2f112d // indirect
 	gopkg.in/bluesuncorp/validator.v5 v5.10.3
 	gopkg.in/bluesuncorp/validator.v8 v8.18.2
 	gopkg.in/bluesuncorp/validator.v9 v9.29.0
 	gopkg.in/go-playground/validator.v8 v8.18.2
 	gopkg.in/inf.v0 v0.9.1 // indirect
+	gopkg.in/ldap.v3 v3.0.3
 	k8s.io/api v0.0.0-20190515023547-db5a9d1c40eb
 	k8s.io/apimachinery v0.0.0-20190515023456-b74e4c97951f
 	k8s.io/client-go v11.0.0+incompatible

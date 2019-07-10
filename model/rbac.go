@@ -25,6 +25,7 @@ type Account struct {
 	Basic
 	Name        string `gorm:"type:varchar(16);unique;not null"`
 	Credentials string `gorm:"type:varchar(64);not null"`
+	CommonName  string `gorm:"type:varchar(128);not null"`
 	State       int    `gorm:"not null"`
 	Extra       string `gorm:"type:longtext"`
 }

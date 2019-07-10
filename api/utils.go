@@ -185,17 +185,32 @@ func (ctx *RequestContext) GetLocaleLanguage() language.Tag {
 	return message.MatchLanguage(ctx.Lang)
 }
 
-func (ctx *RequestContext) AbortWithDebugMessage(code int, message string) {
+func (ctx *RequestContext) GetDebugMessageForResponse(message string) string {
 	debugMode := ctx.OpCtx.Runtime.Config == nil || ctx.OpCtx.Runtime.Config.Debug
 	if !debugMode {
-		ctx.OpCtx.Log.Error("internal error: " + message)
 		message = fmt.Sprintf("internal server error. [request id: %v]", ctx.OpCtx.Log.Data["request_id"])
 	} else {
 		message = message + " [request id:" + ctx.OpCtx.Log.Data["request_id"].(string) + "]"
 	}
+	return message
+}
+
+func (ctx *RequestContext) AbortWithDebugMessage(code int, message string) {
+	message = ctx.GetDebugMessageForResponse(message)
 	ctx.Response.Message = message
 	ctx.Response.Success = false
-	ctx.Gin.JSON(code, message)
+	ctx.Gin.JSON(code, ctx.Response)
+}
+
+func (ctx *RequestContext) AbortWithError(err error) {
+	message := ""
+	if _, isExternal := err.(common.ExternalError); !isExternal {
+		message = ctx.GetDebugMessageForResponse(err.Error())
+		ctx.FailWithMessage(message)
+	} else {
+		ctx.FailWithMessage(err.Error())
+	}
+	ctx.OpCtx.Log.Error("error: " + err.Error())
 }
 
 func (ctx *RequestContext) LoginEnsured(fail bool) bool {
