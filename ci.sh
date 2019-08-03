@@ -96,7 +96,7 @@ _ci_gitlab_runner_docker_build() {
         eval "local opts=\"\$opts \$$idx\""
         local -i idx=idx+1
     done
-    if [ "$ci_build_docker_tag" = "gitlab_ci_commit" ]; then
+    if [ "$ci_build_docker_tag" = "gitlab_ci_commit_hash" ]; then
         local ci_build_docker_tag=${CI_COMMIT_SHA:0:10}
         local opts="$opts -t $ci_build_docker_tag"
     fi
@@ -106,6 +106,19 @@ _ci_gitlab_runner_docker_build() {
     return $?
 }
 
+# ci_build <mode> [options] -- [docker build options]
+# 
+# mode:
+#   gitlab-runner-docker
+#   docker
+#
+# options:
+#       -t <tag>                            Image tag. 
+#                                           if `gitlab_ci_commit_hash` is specified in 
+#                                           `gitlab-runner-docker` mode, the tag will be substitute 
+#                                           with actually commit hash.
+#       -e <environment_variable_name>      Identify docker path by environment variable.
+#       -r <ref_prefix>
 ci_build() {
     case $1 in
         gitlab-runner-docker)
