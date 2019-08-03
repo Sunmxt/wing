@@ -80,6 +80,8 @@ _ci_gitlab_runner_docker_build() {
         logerror Cannot login to $CI_REGISTRY.
         return 2
     fi
+
+    OPTIND=0
     while getopts ':t:r:' opt; do
         case $opt in
             t)
@@ -106,33 +108,47 @@ _ci_gitlab_runner_docker_build() {
     return $?
 }
 
-# ci_build <mode> [options] -- [docker build options]
-# 
-# mode:
-#   gitlab-runner-docker
-#   docker
-#
-# options:
-#       -t <tag>                            Image tag. 
-#                                           if `gitlab_ci_commit_hash` is specified in 
-#                                           `gitlab-runner-docker` mode, the tag will be substitute 
-#                                           with actually commit hash.
-#       -e <environment_variable_name>      Identify docker path by environment variable.
-#       -r <ref_prefix>
+help_ci_build() {
+    echo '
+Project builder in CI Environment.
+
+ci_build <mode> [options] -- [docker build options]
+
+mode:
+  gitlab-runner-docker
+  docker
+
+options:
+      -t <tag>                            Image tag. 
+                                          if `gitlab_ci_commit_hash` is specified in 
+                                          `gitlab-runner-docker` mode, the tag will be substitute 
+                                          with actually commit hash.
+      -e <environment_variable_name>      Identify docker path by environment variable.
+      -r <ref_prefix>                     Image reference prefix.
+
+example:
+      ci_build gitlab-runner-docker -t gitlab_ci_commit_hash -e ENV .
+      ci_build gitlab-runner-docker -t gitlab_ci_commit_hash -e ENV -- --build-arg="myvar=1" .
+      ci_build gitlab-runner-docker -t gitlab_ci_commit_hash -r registry.mine.cn/test/myimage -e ENV -- --build-arg="myvar=1" .
+      ci_build docker -t stable_version -r registry.mine.cn/test/myimage -e ENV .
+'
+}
+
 ci_build() {
-    case $1 in
+    local mode=$1
+    shift 1
+    case $mode in
         gitlab-runner-docker)
-            shift 1
             _ci_gitlab_runner_docker_build $*
             return $?
             ;;
         docker)
-            shift 1
             _ci_docker_build $*
             return $?
             ;;
         *)
             logerror unsupported ci type: $1
+            help_ci_build
             return 1
             ;;
     esac
