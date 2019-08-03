@@ -92,7 +92,7 @@ _ci_gitlab_runner_docker_build() {
     done
     local opts=
     local -i idx=1
-    while [ $idx -lt $OPTIND ]; do
+    while [ $idx -le $OPTIND ]; do
         eval "local opts=\"\$opts \$$idx\""
         local -i idx=idx+1
     done
@@ -100,9 +100,9 @@ _ci_gitlab_runner_docker_build() {
         local ci_build_docker_tag=${CI_COMMIT_SHA:0:10}
         local opts="$opts -t $ci_build_docker_tag"
     fi
-    local -i shift_cnt=$OPTIND-1
+    local -i shift_cnt=$OPTIND
     shift $shift_cnt
-    _ci_docker_build $opts -r $CI_REGISTRY_IMAGE $*
+    log_exec _ci_docker_build $opts -r $CI_REGISTRY_IMAGE $*
     return $?
 }
 

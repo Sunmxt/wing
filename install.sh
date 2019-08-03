@@ -1,6 +1,6 @@
 #! /bin/bash
 
-SOURCING_ENTRYPOINT=bin/runtime_env
+SOURCING_ENTRYPOINT=/bin/runtime_env
 
 _runtime_env_script_gen_add_import() {
     echo "sar_import runtime.sh" # Entrypoint
