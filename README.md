@@ -11,7 +11,7 @@
 ### 安装
 
 ```bash
-./install.sh
+./install.sh /opt/sar
 ```
 
 ### 使用
