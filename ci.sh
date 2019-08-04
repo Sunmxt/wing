@@ -141,7 +141,7 @@ _ci_gitlab_runner_docker_build() {
     return $?
 }
 
-# 这里的逻辑狠毒是重复的，看能不能合并到一起。
+# 这里的逻辑很多是重复的，看能不能合并到一起。
 _ci_gitlab_package_build() {
     if [ -z "$GITLAB_CI" ]; then
         logerror Not a Gitlab CI environment.
@@ -324,8 +324,12 @@ ci_build() {
             _ci_build_package $*
             return $?
             ;;
+        gitlab-package)
+            _ci_gitlab_package_build $*
+            return $?
+            ;;
         *)
-            logerror unsupported ci type: $1
+            logerror unsupported ci type: $mode
             help_ci_build
             return 1
             ;;
