@@ -1,4 +1,3 @@
-
 sar_import lib.sh
 sar_import settings/image.sh
 
@@ -142,6 +141,45 @@ _ci_gitlab_runner_docker_build() {
     return $?
 }
 
+# 这里的逻辑狠毒是重复的，看能不能合并到一起。
+_ci_gitlab_package_build() {
+    if [ -z "$GITLAB_CI" ]; then
+        logerror Not a Gitlab CI environment.
+        return 1
+    fi
+    loginfo Try to login to registry.
+    if ! docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY; then
+        logerror Cannot login to $CI_REGISTRY.
+        return 2
+    fi
+
+    OPTIND=0
+    while getopts ':t:r:' opt; do
+        case $opt in
+            t)
+                local ci_build_docker_tag=$OPTARG
+                ;;
+            r)
+                local ci_build_docker_ref=$OPTARG
+                ;;
+        esac
+    done
+    local opts=
+    local -i idx=1
+    while [ $idx -le $OPTIND ]; do
+        eval "local opts=\"\$opts \$$idx\""
+        local -i idx=idx+1
+    done
+    if [ "$ci_build_docker_tag" = "gitlab_ci_commit_hash" ]; then
+        local ci_build_docker_tag=${CI_COMMIT_SHA:0:10}
+        local opts="$opts -t $ci_build_docker_tag"
+    fi
+    local -i shift_cnt=$OPTIND
+    shift $shift_cnt
+    log_exec _ci_build_package $opts -r $CI_REGISTRY_IMAGE $*
+    return $?
+}
+
 
 _ci_build_package_generate_dockerfile() {
     local product_ref=$1
@@ -250,6 +288,7 @@ mode:
   gitlab-runner-docker
   docker
   package
+  gitlab-package
 
 options:
       -t <tag>                            Image tag / package tag (package mode)
@@ -265,6 +304,7 @@ example:
       ci_build gitlab-runner-docker -t gitlab_ci_commit_hash -r registry.mine.cn/test/myimage -e ENV -- --build-arg="myvar=1" .
       ci_build docker -t stable_version -r registry.mine.cn/test/myimage -e ENV .
       ci_build package -t be/recruitment2019 -e ENV bin
+      ci_build gitlab-package -t gitlab_ci_commit_hash -e ENV bin
 '
 }
 
@@ -278,6 +318,10 @@ ci_build() {
             ;;
         docker)
             _ci_docker_build $*
+            return $?
+            ;;
+        package)
+            _ci_build_package $*
             return $?
             ;;
         *)
