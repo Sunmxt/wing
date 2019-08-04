@@ -32,7 +32,7 @@ logwarn() {
 }
 
 log_exec() {
-    loginfo exec $*
+    loginfo '[exec]' $*
     $*
     return $?
 }
