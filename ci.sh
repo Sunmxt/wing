@@ -243,7 +243,7 @@ _ci_build_package() {
         logerror Empty package ref.
         return 1
     fi
-    local ci_package_ref=`path_join "$ci_package_ref" __package__`
+    local ci_package_ref=`path_join "$ci_package_ref" sar__package`
     loginfo build package with registry image: $ci_package_ref
     local ci_package_env_name=`_ci_build_generate_env_additional_path "$ci_package_env_name"`
     local ci_package_tag=`_ci_build_generate_registry_tag "$ci_package_tag"`
