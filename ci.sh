@@ -264,13 +264,13 @@ _ci_build_package() {
 
     # upload
     if ! log_exec docker push $ci_package_ref:$ci_package_tag; then
-        logerror uploading image(package) $ci_package_ref:$ci_package_tag failure.
+        logerror uploading "image(package)" $ci_package_ref:$ci_package_tag failure.
         return 3
     fi
     if [ "$ci_package_tag" != "latest" ]; then
         log_exec docker tag "${ci_package_ref}:$ci_package_tag" "${ci_package_ref}:latest"
         if ! log_exec docker push "${ci_package_ref}:latest"; then
-            logerror uploading image(package) ${ci_package_tag}:latest failure.
+            logerror uploading "image(package)" ${ci_package_tag}:latest failure.
             return 4
         fi
     fi
