@@ -1,5 +1,48 @@
 
 sar_import lib.sh
+sar_import settings/image.sh
+
+_ci_build_generate_registry_tag() {
+    local tag=$1
+    if [ -z "$tag" ]; then
+        local tag=latest
+    fi
+    echo $tag
+}
+
+_ci_build_generate_env_additional_path () {
+    local env_name=$1
+    if [ ! -z "$env_name" ]; then
+        eval "local content=\$$env_name"
+        if [ ! -z "$content" ]; then
+            local env_name=$content
+        fi
+    fi
+    echo $env_name
+}
+
+_ci_build_generate_registry_path() {
+    local prefix=$1
+    local env=$2
+
+    if ! [ -z "$prefix" ]; then
+        local prefix=`echo "$prefix" | sed -E 's/(\/)*$//g'`
+    fi
+    local registry_path="$prefix"
+
+    if [ ! -z "$env" ]; then
+        eval "local path_appended=\$$env"
+        if [ ! -z "$path_appended" ]; then
+            local registry_path=$registry_path/$path_appended
+        fi
+    fi
+
+    echo $registry_path
+    if [ -z "$registry_path" ]; then
+        logwarn Empty image reference.
+        return 1
+    fi
+}
 
 # _ci_docker_build [options] -- [docker build options]
 #   options:
@@ -22,7 +65,7 @@ _ci_docker_build() {
                 ;;
         esac
     done
-    eval `local __=\$$OPTIND`
+    eval "local __=\$$OPTIND"
     local -i optind=$OPTIND
     if [ "$__" = "--" ]; then
         local -i optind=optind+1
@@ -30,17 +73,8 @@ _ci_docker_build() {
     local -i shift_opt_cnt=optind-1
     shift $shift_opt_cnt
 
-    if ! [ -z "$ci_registry_image" ]; then
-        local ci_registry_image=`echo $ci_registry_image | sed -E 's/(\/)*$//g'`
-    fi
-    local ci_build_docker_ref=$ci_registry_image
-    if [ ! -z "$ci_build_docker_env_name" ]; then
-        eval "local path_appended=\$$ci_build_docker_env_name"
-        if [ ! -z "$path_appended" ]; then
-            loginfo add path to image ref: $path_appended
-            local ci_build_docker_ref=$ci_build_docker_ref/$path_appended
-        fi
-    fi
+    local ci_build_docker_ref=`_ci_build_generate_registry_path "$ci_registry_image" "$ci_build_docker_env_name"`
+
     if [ -z "$ci_build_docker_tag" ]; then
         local ci_build_docker_tag=latest
     fi
@@ -108,6 +142,104 @@ _ci_gitlab_runner_docker_build() {
     return $?
 }
 
+
+_ci_build_package_generate_dockerfile() {
+    local product_ref=$1
+    local product_environment=$2
+    local product_tag=$3
+    local product_path=$4
+
+    # TODO: 这里要防注入，对一些字符进行转义
+    echo '
+FROM '$PACKAGE_BASE_IMAGE'
+
+RUN set -xe;\
+    mkdir -p /package;\
+    touch /package/meta;\
+    echo PKG_REF='\\\'$product_ref\\\'' >> /package/meta;\
+    echo PKG_ENV='\\\'$product_environment\\\'' >> /package/meta;\
+    echo PKG_TAG='\\\'$product_tag\\\'' >> /package/meta;\
+    echo PKG_TYPE=package >> /package/meta;\
+    mkdir -p /package/data;
+
+COPY "'$product_path'" /package/data
+'
+    
+}
+
+_ci_build_package() {
+    OPTIND=0
+    while getopts 't:e:r:' opt; do
+        case $opt in
+            t)
+                local ci_package_tag=$OPTARG
+                ;;
+            e)
+                local ci_package_env_name=$OPTARG
+                ;;
+            r)
+                local ci_package_prefix=$OPTARG
+                ;;
+        esac
+    done
+    eval "local __=\$$OPTIND"
+    local -i optind=$OPTIND
+    if [ "$__" != "--" ] && [ ! -z "$__" ]; then
+        local product_path=$__
+    fi
+    local -i optind=optind+1
+    eval "local __=\$$optind"
+    if [ "$__" = "--" ]; then
+        local -i optind=optind+1
+    fi
+    if [ -z "$product_path" ]; then
+        logerror output path not specified.
+        return 1
+    fi
+
+    local -i shift_opt_cnt=optind-1
+    shift $shift_opt_cnt
+
+    local ci_package_ref=`_ci_build_generate_registry_path "$ci_package_prefix" "$ci_package_env_name"`
+    if [ -z "$ci_package_ref" ]; then
+        logerror Empty package ref.
+        return 1
+    fi
+    local ci_package_ref=`path_join "$ci_package_ref" __package__`
+    loginfo build package with registry image: $ci_package_ref
+    local ci_package_env_name=`_ci_build_generate_env_additional_path "$ci_package_env_name"`
+    local ci_package_tag=`_ci_build_generate_registry_tag "$ci_package_tag"`
+
+    # Generate dockerfile
+    local dockerfile_path=/tmp/Dockerfile-PACKAGE-$RANDOM$RANDOM$RANDOM
+    loginfo generate dockerfile: $dockerfile_path
+    if ! log_exec _ci_build_package_generate_dockerfile "$ci_package_ref" "$ci_package_env_name" "$ci_package_tag" "$product_path" > "$dockerfile_path"; then 
+        logerror generate dockerfile failure.
+        return 1
+    fi
+
+    # build
+    if ! log_exec docker build -t $ci_package_ref:$ci_package_tag -f "$dockerfile_path" $* .; then
+        logerror build failure.
+        return 2
+    fi
+
+    # upload
+    if ! log_exec docker push $ci_package_ref:$ci_package_tag; then
+        logerror uploading image(package) $ci_package_ref:$ci_package_tag failure.
+        return 3
+    fi
+    if [ "$ci_package_tag" != "latest" ]; then
+        log_exec docker tag "${ci_package_ref}:$ci_package_tag" "${ci_package_ref}:latest"
+        if ! log_exec docker push "${ci_package_ref}:latest"; then
+            logerror uploading image(package) ${ci_package_tag}:latest failure.
+            return 4
+        fi
+    fi
+
+    return 0
+}
+
 help_ci_build() {
     echo '
 Project builder in CI Environment.
@@ -117,9 +249,10 @@ ci_build <mode> [options] -- [docker build options]
 mode:
   gitlab-runner-docker
   docker
+  package
 
 options:
-      -t <tag>                            Image tag. 
+      -t <tag>                            Image tag / package tag (package mode)
                                           if `gitlab_ci_commit_hash` is specified in 
                                           `gitlab-runner-docker` mode, the tag will be substitute 
                                           with actually commit hash.
@@ -131,6 +264,7 @@ example:
       ci_build gitlab-runner-docker -t gitlab_ci_commit_hash -e ENV -- --build-arg="myvar=1" .
       ci_build gitlab-runner-docker -t gitlab_ci_commit_hash -r registry.mine.cn/test/myimage -e ENV -- --build-arg="myvar=1" .
       ci_build docker -t stable_version -r registry.mine.cn/test/myimage -e ENV .
+      ci_build package -t be/recruitment2019 -e ENV bin
 '
 }
 
@@ -152,4 +286,18 @@ ci_build() {
             return 1
             ;;
     esac
+}
+
+# build_runtime_image -r be/recruitment2019 -e master -t ci_commit_hash -e master 
+# build_runtime_image_base registry.stuhome.com/devops/php:7-1.0.1
+# runtime_image_add_dependency -r be/recruitment2019 -t 3928ea19 -e master /app
+# runtime_image_add_dependency -r fe/recruitment2019 -t 281919ea -e master /app/statics
+# starconf_set_entry xxxxxx
+# starconf_configure_root xxxx
+# runtime_image_run /app/my_start_script.sh
+# runtime_image_build_start
+# deploy_runtime_image -r be/recruitment2019 -e master -t ci_commit_hash -e master
+
+runtime_image_add_dependency() {
+    return 0
 }

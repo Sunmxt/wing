@@ -1,0 +1,1 @@
+PACKAGE_BASE_IMAGE='alpine:3.7'
