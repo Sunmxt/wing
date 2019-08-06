@@ -18,3 +18,7 @@ path_join() {
     done
     echo $result
 }
+
+hash_for_key() {
+    echo "$*" | md5sum - | cut -d ' ' -f 1
+}
