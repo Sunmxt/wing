@@ -1,3 +1,1 @@
 PACKAGE_BASE_IMAGE='alpine:3.7'
-
-RUNTIME_BUILD_PACKAGE_STASH_DIR=/etc/sar_runtime/stash

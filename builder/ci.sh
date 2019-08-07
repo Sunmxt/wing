@@ -1,4 +1,5 @@
 sar_import lib.sh
+sar_import builder/common.sh
 sar_import settings/image.sh
 
 _ci_build_generate_registry_tag() {
@@ -7,17 +8,6 @@ _ci_build_generate_registry_tag() {
         local tag=latest
     fi
     echo $tag
-}
-
-_ci_build_generate_env_additional_path () {
-    local env_name=$1
-    if [ ! -z "$env_name" ]; then
-        eval "local content=\$$env_name"
-        if [ ! -z "$content" ]; then
-            local env_name=$content
-        fi
-    fi
-    echo $env_name
 }
 
 _ci_build_generate_registry_path() {
@@ -245,7 +235,7 @@ _ci_build_package() {
     fi
     local ci_package_ref=`path_join "$ci_package_ref" sar__package`
     loginfo build package with registry image: $ci_package_ref
-    local ci_package_env_name=`_ci_build_generate_env_additional_path "$ci_package_env_name"`
+    local ci_package_env_name=`_ci_get_env_additional_value "$ci_package_env_name"`
     local ci_package_tag=`_ci_build_generate_registry_tag "$ci_package_tag"`
 
     # Generate dockerfile
@@ -337,7 +327,7 @@ ci_build() {
 }
 
 # build_runtime_image -r be/recruitment2019 -e master -t ci_commit_hash -e master 
-# build_runtime_image_base registry.stuhome.com/devops/php:7-1.0.1
+# build_runtime_image_base_image registry.stuhome.com/devops/php:7-1.0.1
 # runtime_image_add_dependency -r be/recruitment2019 -t 3928ea19 -e master /app
 # runtime_image_add_dependency -r fe/recruitment2019 -t 281919ea -e master /app/statics
 # starconf_set_entry xxxxxx
