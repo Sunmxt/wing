@@ -23,7 +23,7 @@ example:
 
 build_runtime_image() {
     OPTIND=0
-    while getopts 't:e:r:' opt; do
+    while getopts 't:e:r:c:' opt; do
         case $opt in
             t)
                 local ci_image_tag=$OPTARG
@@ -81,7 +81,7 @@ example:
 
 build_runtime_image_base_image() {
     OPTIND=0
-    while getopts 't:e:r:' opt; do
+    while getopts 'c:' opt; do
         case $opt in
             c)
                 local context=$OPTARG
@@ -92,10 +92,54 @@ build_runtime_image_base_image() {
                 ;;
         esac
     done
+    eval "local base_image=\$$OPTIND"
+    if [ -z "$base_image" ]; then
+        logerror "[runtime_image_builder] base image not specifed."
+        return 1
+    fi
+
     if [ -z "$context" ]; then
         local context=system
     fi
     eval "local stash_prefix=\$_SAR_RT_BUILD_${context}_STASH_PREFIX"
-    eval "local _SAR_RT_BUILD_${context}_BASE_IMAGE="
+    eval "local _SAR_RT_BUILD_${context}_BASE_IMAGE=$base_image"
+}
 
+runtime_image_add_dependency_help() {
+    echo '
+Add package dependency. Packages will be placed to during building runtime image.
+
+usage:
+    runtime_image_add_dependency -t <tag> -e <environment_varaible_name> -r prefix [options] <path>
+
+options:
+    -c <context_name>       specified build context. default: system
+
+example:
+    runtime_image_add_dependency -t c3adea1d -e ENV -r registry.stuhome.com/be/recruitment-fe /app/statics
+'
+}
+
+runtime_image_add_dependency() {
+    OPTIND=0
+    while getopts 't:e:r:c:' opt; do
+        case $opt in
+            t)
+                local ci_package_tag=$OPTARG
+                ;;
+            e)
+                local ci_package_env_name=`_ci_get_env_name "$OPTARG"`
+                ;;
+            r)
+                local ci_package_prefix=$OPTARG
+                ;;
+            c)
+                local context=$OPTARG
+                ;;
+            *)
+                runtime_image_add_dependency_help
+                logerror "[runtime_image_builder]" unexcepted options -$opt.
+                ;;
+        esac
+    done
 }
