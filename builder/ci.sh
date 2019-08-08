@@ -182,13 +182,13 @@ _ci_build_package_generate_dockerfile() {
 FROM '$PACKAGE_BASE_IMAGE'
 
 RUN set -xe;\
-    mkdir -p /package;\
-    touch /package/meta;\
-    echo PKG_REF='\\\'$product_ref\\\'' >> /package/meta;\
-    echo PKG_ENV='\\\'$product_environment\\\'' >> /package/meta;\
-    echo PKG_TAG='\\\'$product_tag\\\'' >> /package/meta;\
-    echo PKG_TYPE=package >> /package/meta;\
-    mkdir -p /package/data;
+    mkdir -p /_sar_package;\
+    touch /_sar_package/meta;\
+    echo PKG_REF='\\\'$product_ref\\\'' > /_sar_package/meta;\
+    echo PKG_ENV='\\\'$product_environment\\\'' >> /_sar_package/meta;\
+    echo PKG_TAG='\\\'$product_tag\\\'' >> /_sar_package/meta;\
+    echo PKG_TYPE=package >> /_sar_package/meta;\
+    mkdir -p /_sar_package/data;
 
 COPY "'$product_path'" /package/data
 '

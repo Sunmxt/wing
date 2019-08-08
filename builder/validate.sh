@@ -1,0 +1,3 @@
+sar_import lib.sh
+
+_validate_base_image

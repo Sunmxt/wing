@@ -1,4 +1,5 @@
 sar_import builder/common.sh
+sar_import builder/validate.sh
 sar_import settings/image.sh
 sar_import utils.sh
 
@@ -9,19 +10,139 @@ _runtime_image_stash_prefix() {
     `hash_for_key "$prefix" "$env" "$tag"`
 }
 
-runtime_image_help() {
+_runtime_image_stash_prefix_by_context() {
+    eval "local stash_prefix=\$_SAR_RT_BUILD_${context}_STASH_PREFIX"
+    echo $stash_prefix
+}
+
+_generate_runtime_image_dockerfile_add_os_deps_alpine() {
+    loginfo "[runtime_image_build] add os dependencies with apk."
+}
+
+_generate_runtime_image_dockerfile_add_os_deps_centos() {
+    logerror "[runtime_image_builder] Centos will be supported soon."
+}
+
+_generate_runtime_image_dockerfile_add_os_deps_debian() {
+    logerror "[runtime_image_builder] Debian will be supported soon."
+}
+
+_generate_runtime_image_dockerfile_add_supervisor_services() {
+    loginfo "[runtime_image_build] add supervisor services."
+}
+
+_generate_runtime_image_dockerfile() {
+    local context=$1
+    local package_ref=$2
+    local package_env=$3
+    local pakcage_tag=$4
+
+    local build_id=$RANDOM$RANDOM$RANDOM$RANDOM
+
+    eval 'local dependency_keys=\${_SAR_RT_BUILD_${context}_DEPS[@]}'
+    local failure=0
+    for key in $dependency_keys; do
+        eval "local pkg_env_name=\${_SAR_RT_BUILD_${context}_${dependency_key}_ENV}"
+        eval "local pkg_prefix=\${_SAR_RT_BUILD_${context}_${dependency_key}_PREFIX}"
+        eval "local pkg_tag=\${_SAR_RT_BUILD_${context}_${dependency_key}_TAG}"
+        local pkg_image_ref=`_ci_get_image_ref "$pkg_prefix" "$pkg_env_name" "$pkg_tag"`
+
+        loginfo "[runtime_image_builder][pre_check] check package: $pkg_image_ref"
+        if ! _validate_dependency_package "$pkg_prefix" "$pkg_prefix" "$pkg_tag"; then
+            local failure=1
+        fi
+    done
+    if [ $failure -ne 0 ]; then
+        logerror "[runtime_image_builder]" dependency package validation failure.
+        return 1
+    fi
+
+    # Multi-stage image layers.
+    for key in $dependency_keys; do
+        eval "local pkg_env_name=\${_SAR_RT_BUILD_${context}_DEP_${dependency_key}_ENV}"
+        eval "local pkg_prefix=\${_SAR_RT_BUILD_${context}_DEP_${dependency_key}_PREFIX}"
+        eval "local pkg_tag=\${_SAR_RT_BUILD_${context}_DEP_${dependency_key}_TAG}"
+        local pkg_image_ref=`_ci_get_image_ref "$pkg_prefix" "$pkg_env_name" "$pkg_tag"`
+
+        loginfo "[runtime_image_builder] package $pkg_image_ref used."
+        echo "FROM $pkg_image_ref AS sar_stage_`hash_for_key $build_id $pkg_image_ref`"
+    done
+
+    eval "local base_image=\$_SAR_RT_BUILD_${context}_BASE_IMAGE"
+    _validate_base_image "$base_image" || return 1
+    echo "FROM $base_image" # 暂时假设 base image 里有构建需要的各种工具
+
+    # Run pre-build scripts.
+
+    # Place packages.
+    local -i layer_idx=0
+    for key in $dependency_keys; do
+        eval "local pkg_env_name=\${_SAR_RT_BUILD_${context}_DEP_${dependency_key}_ENV}"
+        eval "local pkg_prefix=\${_SAR_RT_BUILD_${context}_DEP_${dependency_key}_PREFIX}"
+        eval "local pkg_tag=\${_SAR_RT_BUILD_${context}_DEP_${dependency_key}_TAG}"
+        eval "local placed_path=\${_SAR_RT_BUILD_${context}_DEP_${dependency_key}_PLACE_PATH}"
+        local pkg_image_ref=`_ci_get_image_ref "$pkg_prefix" "$pkg_env_name" "$pkg_tag"`
+
+        loginfo "[runtime_image_builder] place package $pkg_image_ref --> $placed_path"
+        echo "COPY --from=sar_stage_`hash_for_key $build_id $pkg_image_ref` /_sar_package/data \"$placed_path\""
+    done
+
+    # add system dependencies.
+    local pkg_mgr=`determine_os_package_manager`
+    case $pkg_mgr in
+        apk)
+            _generate_runtime_image_dockerfile_add_os_deps_alpine || return 1
+            ;;
+        yum)
+            _generate_runtime_image_dockerfile_add_os_deps_centos || return 1
+            ;;
+        apt)
+            _generate_runtime_image_dockerfile_add_os_deps_debian || return 1
+            ;;
+        *)
+            logerror "[runtime_image_builder] unsupported package manager type: $pkg_mgr"
+            return 1
+            ;;
+    esac
+
+    _generate_runtime_image_dockerfile_add_supervisor_services
+
+    # save runtime image metadata and install runtime.
     echo '
-Start build runtime image.
+RUN set -xe;\
+    [ -d '\''/_sar_package/runtime_install'\'' ] && (echo install runtime; bash /_sar_package/runtime_install/install.sh);\
+    mkdir -p /_sar_package;\
+    echo PKG_REF='\\\'$package_ref\\\'' > /_sar_package/meta;\
+    echo PKG_ENV='\\\'$package_env\\\'' >> /_sar_package/meta;\
+    echo PKG_TAG='\\\'$pakcage_tag\\\'' >> /_sar_package/meta;\
+    echo PKG_TYPE=runtime_image >> /_sar_package/meta;\
+    echo PKG_APP_NAME='\\\'$application_name\\\'' >> /_sar_package/meta;\
+
+CMD ["supervisord"]
+
+'
+}
+
+build_runtime_image_help() {
+    echo '
+Build runtime image.
 
 usage:
-    build_runtime_image -t <tag> -e <environment_varaible_name> -r prefix
+    build_runtime_image <build_mode> [options] -t <tag> -e <environment_varaible_name> -r prefix
+
+mode:
+  docker
+  gitlab-docker
+
+options:
+    -c <context_name>       specified build context. default: system
 
 example:
     build_runtime_image -t latest -e ENV -r registry.stuhome.com/mine/myproject
 '
 }
 
-runtime_image() {
+build_runtime_image() {
     OPTIND=0
     while getopts 't:e:r:c:' opt; do
         case $opt in
@@ -56,11 +177,15 @@ runtime_image() {
         logerror "[runtime_image_builder]" empty runtime image prefix.
         return 1
     fi
-    local stash_prefix=`_runtime_image_stash_prefix "$prefix" "$ci_image_env_name" "$ci_image_tag"`
-    eval "_SAR_RT_BUILD_${context}_${stash_prefix}_PREFIX=$ci_image_prefix"
-    eval "_SAR_RT_BUILD_${context}_${stash_prefix}_ENV=$ci_image_env_name"
-    eval "_SAR_RT_BUILD_${context}_${stash_prefix}_TAG=$ci_image_tag"
-    eval "_SAR_RT_BUILD_${context}_STASH_PREFIX=${stash_prefix}"
+
+    # add runtime
+    runtime_image_add_dependency -c "$context" -r "$SAR_RUNTIME_PKG_PREFIX" -e "$SAR_RUNTIME_PKG_ENV" -t "$SAR_RUNIME_PKG_TAG" /_sar_package/runtime_install
+
+    local dockerfile=/tmp/Dockerfile-RuntimeImage-$RANDOM$RANDOM$RANDOM
+    if ! _generate_runtime_image_dockerfile "$context" "$ci_image_prefix" "$ci_image_env_name" "$ci_image_tag" > "$dockerfile"; then
+        logerror "[runtime_image_builder]" generate runtime image failure.
+        return 1
+    fi
 }
 
 runtime_image_base_image_help() {
@@ -142,12 +267,25 @@ runtime_image_add_dependency() {
                 ;;
         esac
     done
+    if [ -z "$context" ]; then
+        local context=system
+    fi
+    eval "local place_path=\$$OPTIND"
+    if [ -z "$place_path" ]; then
+        logerror "[runtime_image_builder] runtime_image_add_dependency: Target path cannot be empty."
+        return 1
+    fi
+
+    local dependency_key=`hash_for_key "$ci_package_prefix" "$ci_package_env_name" "$ci_package_tag"`
+    eval "_SAR_RT_BUILD_${context}_DEP_${dependency_key}_ENV=$ci_package_env_name"
+    eval "_SAR_RT_BUILD_${context}_DEP_${dependency_key}_PREFIX=$ci_package_prefix"
+    eval "_SAR_RT_BUILD_${context}_DEP_${dependency_key}_TAG=$ci_package_tag"
+    eval "_SAR_RT_BUILD_${context}_DEP_${dependency_key}_PLACE_PATH=$ci_package_tag"
+    eval "local dep_count=\${#_SAR_RT_BUILD_${context}_DEPS[@]}"
+    eval "local \$_SAR_RT_BUILD_${context}_DEPS[$dep_count]=$dependency_key"
 }
 
 runtime_image_bootstrap_run() {
-}
-
-runtime_image_build_start() {
 }
 
 runtime_image_pre_build_run() {
@@ -160,4 +298,7 @@ runtime_image_pre_build_script() {
 }
 
 runtime_image_post_build_script() {
+}
+
+runtime_image_health_check_script() {
 }

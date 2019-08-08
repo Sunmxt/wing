@@ -22,3 +22,11 @@ path_join() {
 hash_for_key() {
     echo "$*" | md5sum - | cut -d ' ' -f 1
 }
+
+strip() {
+    echo "$*" | xargs
+}
+
+determine_package_manager() {
+    echo apk
+}

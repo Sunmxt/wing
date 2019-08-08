@@ -1,1 +1,5 @@
 PACKAGE_BASE_IMAGE='alpine:3.7'
+
+SAR_RUNTIME_PKG_PREFIX='registry.stuhome.com'
+SAR_RUNTIME_PKG_ENV='master'
+SAR_RUNTIME_PKG_TAG='latest'
