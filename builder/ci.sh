@@ -326,13 +326,13 @@ ci_build() {
     esac
 }
 
-# build_runtime_image -r be/recruitment2019 -e master -t ci_commit_hash -e master 
-# build_runtime_image_base_image registry.stuhome.com/devops/php:7-1.0.1
+# runtime_image -r be/recruitment2019 -e master -t ci_commit_hash -e master 
+# runtime_image_base_image registry.stuhome.com/devops/php:7-1.0.1
 # runtime_image_add_dependency -r be/recruitment2019 -t 3928ea19 -e master /app
 # runtime_image_add_dependency -r fe/recruitment2019 -t 281919ea -e master /app/statics
 # starconf_set_entry xxxxxx
 # starconf_configure_root xxxx
-# runtime_image_run /app/my_start_script.sh
+# runtime_image_bootstrap_run /app/my_start_script.sh
 # runtime_image_build_start
 # deploy_runtime_image -r be/recruitment2019 -e master -t ci_commit_hash -e master
 

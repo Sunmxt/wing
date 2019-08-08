@@ -9,7 +9,7 @@ _runtime_image_stash_prefix() {
     `hash_for_key "$prefix" "$env" "$tag"`
 }
 
-build_runtime_image_help() {
+runtime_image_help() {
     echo '
 Start build runtime image.
 
@@ -21,7 +21,7 @@ example:
 '
 }
 
-build_runtime_image() {
+runtime_image() {
     OPTIND=0
     while getopts 't:e:r:c:' opt; do
         case $opt in
@@ -38,7 +38,7 @@ build_runtime_image() {
                 local context=$OPTARG
                 ;;
             *)
-                build_runtime_image_help
+                runtime_image_help
                 logerror "[runtime_image_builder]" unexcepted options -$opt.
                 ;;
         esac
@@ -63,7 +63,7 @@ build_runtime_image() {
     eval "_SAR_RT_BUILD_${context}_STASH_PREFIX=${stash_prefix}"
 }
 
-build_runtime_image_base_image_help() {
+runtime_image_base_image_help() {
     echo '
 Set base image of runtime image.
 
@@ -79,7 +79,7 @@ example:
 '
 }
 
-build_runtime_image_base_image() {
+runtime_image_base_image() {
     OPTIND=0
     while getopts 'c:' opt; do
         case $opt in
@@ -87,7 +87,7 @@ build_runtime_image_base_image() {
                 local context=$OPTARG
                 ;;
             *)
-                build_runtime_image_base_image_help
+                runtime_image_base_image_help
                 logerror "[runtime_image_builder]" unexcepted options -$opt.
                 ;;
         esac
@@ -142,4 +142,22 @@ runtime_image_add_dependency() {
                 ;;
         esac
     done
+}
+
+runtime_image_bootstrap_run() {
+}
+
+runtime_image_build_start() {
+}
+
+runtime_image_pre_build_run() {
+}
+
+runtime_image_post_build_run() {
+}
+
+runtime_image_pre_build_script() {
+}
+
+runtime_image_post_build_script() {
 }

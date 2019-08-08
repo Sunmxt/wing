@@ -27,7 +27,7 @@
 source runtime_env
 ```
 
-就可以愉快的使用各种拓展命令了。目前支持的拓展命令如下：
+就可以使用runtime的各种拓展命令了。目前支持的拓展命令如下：
 
 - log.sh (日志)
   - loginfo
@@ -36,9 +36,23 @@ source runtime_env
   - logexec
 - utils.sh (工具集合)
   - path_join
-- ci.sh (持续集成、构建相关)
+- builder/ci.sh (持续集成、构建相关)
   - ci_build
+- builder/runtime_image.sh (镜像构建)
+  - runtime_image
+  - runtime_image_base_image
+  - runtime_image_add_dependency
+  - runtime_image_bootstrap_run
+  - runtime_image_pre_build_run
+  - runtime_image_post_build_run
+  - runtime_image_pre_build_script
+  - runtime_image_post_build_script
+  - runtime_image_build_start
+  - runtime_image_health_check_script
+  - runtime_image_publish_port
+  - runtime_image_volume \[后续支持\]
 
+不带任何参数执行相关命令可以查看帮助。
 
 
 ## 开发
