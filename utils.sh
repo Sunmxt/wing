@@ -27,6 +27,6 @@ strip() {
     echo "$*" | xargs
 }
 
-determine_package_manager() {
+determine_os_package_manager() {
     echo apk
 }

@@ -235,7 +235,7 @@ _ci_build_package() {
     fi
     local ci_package_ref=`path_join "$ci_package_ref" sar__package`
     loginfo build package with registry image: $ci_package_ref
-    local ci_package_env_name=`_ci_get_env_additional_value "$ci_package_env_name"`
+    local ci_package_env_name=`_ci_get_env_value "$ci_package_env_name"`
     local ci_package_tag=`_ci_build_generate_registry_tag "$ci_package_tag"`
 
     # Generate dockerfile
