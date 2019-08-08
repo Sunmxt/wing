@@ -64,7 +64,7 @@ _runtime_install() {
         local target=`path_join "$install_path" "$relative"`
         loginfo [check] $bin
         if [ ! -e "$bin" ]; then
-            log_info "\"$bin\" doesn't exist"
+            loginfo "\"$bin\" doesn't exist"
             return 1
         fi
 
