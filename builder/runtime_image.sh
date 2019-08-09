@@ -1,4 +1,5 @@
 sar_import builder/common.sh
+sar_import builder/ci.sh
 sar_import builder/validate.sh
 sar_import settings/image.sh
 sar_import utils.sh
@@ -172,7 +173,7 @@ build_runtime_image_help() {
 Build runtime image.
 
 usage:
-    build_runtime_image <build_mode> [options] -t <tag> -e <environment_varaible_name> -r prefix
+    build_runtime_image <build_mode> [options] -t <tag> -e <environment_varaible_name> -r prefix -- [docker build options]
 
 mode:
   docker
@@ -209,6 +210,16 @@ build_runtime_image() {
         esac
     done
 
+    eval "local __=\$$OPTIND"
+    local -i optind=$OPTIND
+    if [ "$__" != "--" ]; then
+        if [ ! -z "$__" ]; then
+            logerror "[runtime_image_builder] build_runtime_image: got unexcepted non-option argument: \"$__\"."
+            return 1
+        fi
+        local -i optind=optind-1
+    fi
+
     if [ -z "$context" ]; then
         local context=system
     fi
@@ -226,10 +237,21 @@ build_runtime_image() {
     runtime_image_add_dependency -c "$context" -r "$SAR_RUNTIME_PKG_PREFIX" -e "$SAR_RUNTIME_PKG_ENV" -t "$SAR_RUNTIME_PKG_TAG" /_sar_package/runtime_install
 
     local dockerfile=/tmp/Dockerfile-RuntimeImage-$RANDOM$RANDOM$RANDOM
-    if ! _generate_runtime_image_dockerfile "$context" "$ci_image_prefix" "$ci_image_env_name" "$ci_image_tag"; then
+    if ! _generate_runtime_image_dockerfile "$context" "$ci_image_prefix" "$ci_image_env_name" "$ci_image_tag" > "$dockerfile" ; then
         logerror "[runtime_image_builder]" generate runtime image failure.
         return 1
     fi
+
+
+    local opts=
+    local -i idx=1
+    while [ $idx -le $optind ]; do
+        eval "local opts=\"\$opts \$$idx\""
+        local -i idx=idx+1
+    done
+    shift $optind
+    
+    eval "log_exec _ci_docker_build $opts -- -f \"$dockerfile\" $* ."
 }
 
 runtime_image_base_image_help() {
@@ -329,19 +351,25 @@ runtime_image_add_dependency() {
 }
 
 runtime_image_bootstrap_run() {
+    return 0
 }
 
 runtime_image_pre_build_run() {
+    return 0
 }
 
 runtime_image_post_build_run() {
+    return 0
 }
 
 runtime_image_pre_build_script() {
+    return 0
 }
 
 runtime_image_post_build_script() {
+    return 0
 }
 
 runtime_image_health_check_script() {
+    return 0
 }

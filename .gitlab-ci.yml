@@ -1,17 +1,30 @@
 image: registry.stuhome.com/devops/dockerepo/docker:1.0.1
 
+services:
+    - docker:18.09.7-dind
+
+variables:
+    DOCKER_HOST: tcp://docker:2375/
+    DOCKER_DRIVER: overlay2
+    GIT_SUBMODULE_STRATEGY: recursive
+    ENV: ci
+
 stages:
+  - test
   - package
 
+test-build-image:
+    stage: test
+
+    script:
+    - ./install.sh /opt/runtime
+    - source runtime_env
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+    - runtime_image_base_image alpine:3.7
+    - build_runtime_image -t ${CI_COMMIT_SHA:0:10} -e ENV -r $CI_REGISTRY_IMAGE
+ 
 package-manifests:
     stage: package
-    services:
-        - docker:18.09.7-dind
-
-    variables:
-        DOCKER_HOST: tcp://docker:2375/
-        DOCKER_DRIVER: overlay2
-        GIT_SUBMODULE_STRATEGY: recursive
 
     script:
     - ./install.sh /opt/runtime
