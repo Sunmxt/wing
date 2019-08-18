@@ -38,10 +38,42 @@ _generate_runtime_image_dockerfile_add_os_deps_debian() {
     logerror "[runtime_image_builder] Debian will be supported soon."
 }
 
+_generate_supervisor_system_service() {
+    local name=$1
+    local workdir=$2
+    shift 2
+    local exec="$*"
+    echo '
+[program:'$name']
+command='$exec'
+startsecs=20
+autorestart=true
+stdout_logfile=/var/log/application/'$name.log'
+stderr_logfile=/var/log/application/'$name.err.log'
+directory='$workdir'
+'
+}
+
+_generate_supervisor_cron_service() {
+    local name=$1
+    local cron=$2
+    local workdir=$3
+    shift 3
+    local exec="$*"
+    echo '
+'
+}
+
+_generate_supervisor_normal_service() {
+    _generate_supervisor_system_service $*
+    return $?
+}
+
 _generate_runtime_image_dockerfile_add_supervisor_services() {
+    local context=$1
     loginfo "[runtime_image_build] add supervisor services."
 
-    local supervisor_root_config=/tmp/supervisor-$RANDOM$RANDOM$RANDOM.ini
+    local supervisor_root_config=supervisor-$RANDOM$RANDOM$RANDOM.ini
 
     echo '
 [unix_http_server]
@@ -64,7 +96,61 @@ supervisor.rpcinterface_factory = supervisor.rpcinterface:make_main_rpcinterface
 serverurl=unix:///run/supervisord.sock
 ' > "$supervisor_root_config"
 
+    echo "COPY $supervisor_root_config /etc/sar_supervisor.conf"
+
+    local making_dirs=/var/log/application
     # generate services.
+    eval "local -i count=\${#_SAR_RT_BUILD_${context}_SVCS[@]}"
+    local -i idx=1
+    while [ $idx -le $count ]; do
+        eval "local key=\${_SAR_RT_BUILD_${context}_SVCS[$count]}"
+        eval "local type=\${_SAR_RT_BUILD_${context}_SVC_${key}_TYPE}"
+        eval "local name=\${_SAR_RT_BUILD_${context}_SVC_${key}_NAME}"
+        eval "local exec=\${_SAR_RT_BUILD_${context}_SVC_${key}_EXEC}"
+        eval "local working_dir=\${_SAR_RT_BUILD_${context}_SVC_${key}_WORKING_DIR}"
+        if [ -z "$working_dir" ]; then
+            local working_dir=$SAR_RUNTIME_APP_DEFAULT_WORKING_DIR
+        fi
+        local making_dirs="$making_dirs '$working_dir'"
+
+        local file="supervisor-svc-$key.conf"
+        case $type in
+            cron)
+                eval "locak cron=\${_SAR_RT_BUILD_${context}_SVC_${key}_CRON}"
+                if ! _generate_supervisor_cron_service "$name" "$cron" "$working_dir" $exec > "$file"; then
+                    logerror "[runtime_image_builder] Generate cronjob $name configuration failure." 
+                    return 1
+                fi
+                ;;
+            system)
+                if ! _generate_supervisor_system_service "$name" "$working_dir" $exec > "$file"; then
+                    logerror "[runtime_image_builder] Generate system service $name configuration failure." 
+                    return 1
+                fi
+                ;;
+            normal)
+                if ! _generate_supervisor_normal_service "$name" "$working_dir" $exec > "$file"; then
+                    logerror "[runtime_image_builder] Generate normal service $name configuration failure." 
+                    return 1
+                fi
+                ;;
+            *)
+                logerror "[runtime_image_builder] Unsupported service type."
+                return 1
+                ;;
+        esac
+        local svc_files="$svc_files $file"
+        local -i idx=idx+1
+    done
+    if [ ! -z "$svc_files" ]; then
+        echo "COPY $svc_files /etc/supervisor.d/services/"
+    fi
+    if [ ! -z "$making_dirs" ]; then
+        echo '
+RUN set -xe;\
+    mkdir -p '`echo $making_dirs | xargs -n 1 echo | sort | uniq | sed -E 's/(.*)/'\\\\\''\1'\\\\\''/g' | xargs echo`'
+'
+    fi
 }
 
 _generate_runtime_image_dockerfile() {
@@ -150,7 +236,10 @@ _generate_runtime_image_dockerfile() {
             ;;
     esac
 
-    _generate_runtime_image_dockerfile_add_supervisor_services
+    if ! _generate_runtime_image_dockerfile_add_supervisor_services $context; then
+        logerror "[runtime_image_builder] failed to add supervisor services."
+        return 1
+    fi
 
     # save runtime image metadata and install runtime.
     echo '
@@ -204,7 +293,7 @@ build_runtime_image() {
                 local context=$OPTARG
                 ;;
             *)
-                runtime_image_help
+                build_runtime_image_help
                 logerror "[runtime_image_builder]" unexcepted options -$opt.
                 ;;
         esac
@@ -214,6 +303,7 @@ build_runtime_image() {
     local -i optind=$OPTIND
     if [ "$__" != "--" ]; then
         if [ ! -z "$__" ]; then
+            build_runtime_image_help
             logerror "[runtime_image_builder] build_runtime_image: got unexcepted non-option argument: \"$__\"."
             return 1
         fi
@@ -225,10 +315,12 @@ build_runtime_image() {
     fi
 
     if [ -z "$ci_image_tag" ]; then
+        build_runtime_image_help
         logerror "[runtime_image_builder]" empty runtime image tag.
         return 1
     fi
     if [ -z "$ci_image_prefix" ]; then
+        build_runtime_image_help
         logerror "[runtime_image_builder]" empty runtime image prefix.
         return 1
     fi
@@ -238,6 +330,7 @@ build_runtime_image() {
 
     local dockerfile=/tmp/Dockerfile-RuntimeImage-$RANDOM$RANDOM$RANDOM
     if ! _generate_runtime_image_dockerfile "$context" "$ci_image_prefix" "$ci_image_env_name" "$ci_image_tag" > "$dockerfile" ; then
+        build_runtime_image_help
         logerror "[runtime_image_builder]" generate runtime image failure.
         return 1
     fi
@@ -259,14 +352,14 @@ runtime_image_base_image_help() {
 Set base image of runtime image.
 
 usage:
-    build_runtime_image_base_image [options] <image reference>
+    runtime_image_base_image [options] <image reference>
 
 options:
     -c <context_name>       specified build context. default: system
 
 example:
-    build_runtime_image_base_image alpine:3.7
-    build_runtime_image_base_image -c context2 alpine:3.7
+    runtime_image_base_image alpine:3.7
+    runtime_image_base_image -c context2 alpine:3.7
 '
 }
 
@@ -285,6 +378,7 @@ runtime_image_base_image() {
     done
     eval "local base_image=\$$OPTIND"
     if [ -z "$base_image" ]; then
+        runtime_image_base_image_help
         logerror "[runtime_image_builder] base image not specifed."
         return 1
     fi
@@ -350,26 +444,153 @@ runtime_image_add_dependency() {
     eval "_SAR_RT_BUILD_${context}_DEPS[$dep_count]=$dependency_key"
 }
 
+runtime_image_add_service_help() {
+    echo '
+
+Add service to image. Services will be started automatically after conainter started.
+
+usage:
+    runtime_image_add_service [options] <type> ...
+    runtime_image_add_service [options] system <service_name> <command>
+    runtime_image_add_service [options] normal <service_name> <command>
+    runtime_image_add_service [options] cron <service_name> <command>
+
+options:
+    -d <path>       working directory.
+    -c <context_name>       specified build context. default: system
+
+
+runtime_image_add_service system conf_updator /opt/runtime/bin/runtime_conf_update.sh
+runtime_image_add_service cron runtime_conf_update "5 0 * * *"
+runtime_image_add_service normal nginx /sbin/nginx
+
+'
+}
+
+_runtime_image_add_service() {
+    local context=$1
+    local working_dir=$2
+    local type=$3
+    local name=$4
+    shift 3
+    local -i idx=1
+    local exec=
+    while [ $idx -le $# ]; do
+        eval "local param=\$$idx"
+        if echo "$param" | grep ' ' -q ; then
+            local exec="$exec '$param'"
+        else
+            local exec="$exec $param"
+        fi
+        local -i idx=idx+1
+    done
+
+    local key=`hash_for_key $name`
+    eval "_SAR_RT_BUILD_${context}_SVC_${key}_TYPE=$type"
+    eval "_SAR_RT_BUILD_${context}_SVC_${key}_NAME=$name"
+    eval "_SAR_RT_BUILD_${context}_SVC_${key}_EXEC=\"$exec\""
+    eval "_SAR_RT_BUILD_${context}_SVC_${key}_WORKING_DIR=$working_dir"
+    eval "local -i count=\${#_SAR_RT_BUILD_${context}_SVCS[@]}+1"
+    eval "_SAR_RT_BUILD_${context}_SVCS[$count]=$key"
+}
+
+_runtime_image_add_service_cron() {
+    local context=$1
+    local working_dir=$2
+    local name=$3
+    local cron=$4
+    shift 3
+
+    local -i idx=1
+    local exec=
+    while [ $idx -le $# ]; do
+        eval "local param=\$$idx"
+        if echo "$param" | grep ' ' -q ; then
+            local exec="$exec '$param'"
+        else
+            local exec="$exec $param"
+        fi
+        local -i idx=idx+1
+    done
+
+    local key=`hash_for_key $name`
+    eval "_SAR_RT_BUILD_${context}_SVC_${key}_TYPE=cron"
+    eval "_SAR_RT_BUILD_${context}_SVC_${key}_NAME=$name"
+    eval "_SAR_RT_BUILD_${context}_SVC_${key}_CRON=$cron"
+    eval "_SAR_RT_BUILD_${context}_SVC_${key}_EXEC=\"$exec\""
+    eval "_SAR_RT_BUILD_${context}_SVC_${key}_WORKING_DIR=$working_dir"
+    eval "local -i count=\${#_SAR_RT_BUILD_${context}_SVCS[@]}+1"
+    eval "_SAR_RT_BUILD_${context}_SVCS[$count]=$key"
+}
+
+runtime_image_add_service() {
+    OPTIND=0
+    while getopts 'c:d:' opt; do
+        case $opt in
+            c)
+                local context=$OPTARG
+                ;;
+            d)
+                local working_dir=$OPTARG
+                ;;
+            *)
+                runtime_image_add_service_help
+                logerror "[runtime_image_builder]" unexcepted options -$opt.
+                ;;
+        esac
+    done
+
+    local -i optind=$OPTIND-1
+    shift $optind
+
+    if [ -z "$context" ]; then
+        local context=system
+    fi
+
+    local type=$1
+    case $type in
+        system)
+            shift 1
+            _runtime_image_add_service $context "$working_dir" system $* || return 1
+            ;;
+        cron)
+            shift 1
+            _runtime_image_add_service_cron $context "$working_dir" $* || return 1
+            ;;
+        run)
+            shift 1
+            _runtime_image_add_service $context "$working_dir" normal $* || return 1
+            ;;
+        *)
+            logerror "[runtime_image_builder] unknown service type: $type"
+            ;;
+    esac
+}
+
+runtime_image_workdir() {
+    return 1
+}
+
 runtime_image_bootstrap_run() {
-    return 0
+    return 1
 }
 
 runtime_image_pre_build_run() {
-    return 0
+    return 1
 }
 
 runtime_image_post_build_run() {
-    return 0
+    return 1
 }
 
 runtime_image_pre_build_script() {
-    return 0
+    return 1
 }
 
 runtime_image_post_build_script() {
-    return 0
+    return 1
 }
 
 runtime_image_health_check_script() {
-    return 0
+    return 1
 }
