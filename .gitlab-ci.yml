@@ -10,8 +10,15 @@ variables:
     ENV: ci
 
 stages:
+  - prepare
   - test
   - package
+
+prepare-lnmp-ci-resource:
+    stage: prepare
+    script:
+    - ./install.sh /opt/runtime
+    - source runtime_env
 
 test-build-image:
     stage: test
@@ -22,7 +29,15 @@ test-build-image:
     - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
     - runtime_image_base_image alpine:3.7
     - build_runtime_image -t ${CI_COMMIT_SHA:0:10} -e ENV -r $CI_REGISTRY_IMAGE
- 
+
+test-build-lnmp-image:
+    stage: test
+    script:
+    - ./install.sh /opt/runtime
+    - source runtime_env
+    - docker loging -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+    - runtime_image_base_image php:7.2-fpm-alpine
+
 package-manifests:
     stage: package
 

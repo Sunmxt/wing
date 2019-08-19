@@ -153,6 +153,95 @@ RUN set -xe;\
     fi
 }
 
+_generate_runtime_image_dockerfile_prebuild_scripts() {
+    local context=$1
+    eval "local pre_build_script_keys=\$_SAR_RT_BUILD_${context}_PRE_BUILD_SCRIPTS"
+    if [ ! -z "$pre_build_script_keys" ]; then
+        local pre_build_script_keys=`echo $pre_build_script_keys | xargs -n 1 echo | sort | uniq | sed -E 's/(.*)/'\\\\\''\1'\\\\\''/g' | xargs echo`
+        local pre_build_work_dirs=
+        for key in `echo $pre_build_script_keys`; do
+            eval "local pre_build_script_path=\$_SAR_RT_BUILD_${context}_PRE_BUILD_SFRIPT_${key}_PATH"
+            eval "local pre_build_script_workdir=\$_SAR_RT_BUILD_${context}_PRE_BUILD_SCRIPT_${key}_WORKDIR"
+            if [ -z "$pre_build_script_workdir" ]; then
+                local pre_build_script_workdir=/
+            fi
+            local pre_build_work_dirs="$pre_build_work_dirs '$pre_build_script_workdir'"
+            local pre_build_scripts="$pre_build_scripts '$pre_build_script_path'"
+            # TODO: checksum here.
+        done
+        local pre_build_scripts=`echo $pre_build_scripts | xargs -n 1 echo | sort | uniq | sed -E 's/(.*)/'\\\\\''\1'\\\\\''/g' | xargs echo`
+        local pre_build_work_dirs=`echo $pre_build_work_dirs | xargs -n 1 echo | sort | uniq | sed -E 's/(.*)/'\\\\\''\1'\\\\\''/g' | xargs echo`
+        # run pre-build scripts.
+        local failure=0
+        echo $pre_build_scripts | xargs -n 1 -I {} test -f {} || (local failure=1; logerror some pre-build script missing.)
+        if [ ! $failure -eq 0 ]; then
+            return 1
+        fi
+        echo "COPY $pre_build_scripts /_sar_package/pre_build_scripts/"
+        echo -n '
+RUN     set -xe;\
+        cd /_sar_package/pre_build_scripts;\
+        chmod a+x *; mkdir -p '$pre_build_work_dirs';'
+
+        for key in `echo $pre_build_script_keys`; do
+            eval "local pre_build_script_path=\$_SAR_RT_BUILD_${context}_PRE_BUILD_SFRIPT_${key}_PATH"
+            eval "local pre_build_script_workdir=\$_SAR_RT_BUILD_${context}_PRE_BUILD_SCRIPT_${key}_WORKDIR"
+            if [ -z "$pre_build_script_workdir" ]; then
+                local pre_build_script_workdir=/
+            fi
+            local script_name=`basename "$pre_build_script_path"`
+            local script_name=`strip $script_name`
+            local script_name=`path_join /_sar_package/pre_build_scripts $script_name`
+            echo -n "cd $pre_build_script_workdir; $script_name;"
+        done
+        echo
+    fi
+}
+
+_generate_runtime_image_dockerfile_postbuild_scripts() {
+    local context=$1
+    eval "local post_build_script_keys=\$_SAR_RT_BUILD_${context}_POST_BUILD_SCRIPTS"
+    if [ ! -z "$post_build_script_keys" ]; then
+        local post_build_script_keys=`echo $post_build_script_keys | xargs -n 1 echo | sort | uniq | sed -E 's/(.*)/'\\\\\''\1'\\\\\''/g' | xargs echo`
+        for key in `echo $post_build_script_keys`; do
+            eval "local post_build_script_path=\$_SAR_RT_BUILD_${context}_POST_BUILD_SFRIPT_${key}_PATH"
+            eval "local post_build_script_workdir=\$_SAR_RT_BUILD_${context}_POST_BUILD_SCRIPT_${key}_WORKDIR"
+            local post_build_scripts="$post_build_scripts '$post_build_script_path'"
+            if [ -z "$post_build_script_workdir" ]; then
+                local post_build_script_workdir=/
+            fi
+            local post_build_work_dirs="$post_build_work_dirs '$post_build_script_workdir'"
+            # TODO: checksum here.
+        done
+        local post_build_scripts=`echo $post_build_scripts | xargs -n 1 echo | sort | uniq | sed -E 's/(.*)/'\\\\\''\1'\\\\\''/g' | xargs echo`
+        local post_build_work_dirs=`echo $post_build_work_dirs | xargs -n 1 echo | sort | uniq | sed -E 's/(.*)/'\\\\\''\1'\\\\\''/g' | xargs echo`
+        # run post-build scripts.
+        local failure=0
+        echo $post_build_scripts | xargs -n 1 -I {} test -f {} || (local failure=1; logerror some post-build script missing.)
+        if [ ! $failure -eq 0 ]; then
+            return 1
+        fi
+        echo "COPY $post_build_scripts /_sar_package/post_build_scripts/"
+        echo -n '
+RUN     set -xe;\
+        cd /_sar_package/post_build_scripts;\
+        chmod a+x *; mkdir -p '$post_build_work_dirs';'
+
+        for key in `echo $post_build_script_keys`; do
+            eval "local post_build_script_path=\$_SAR_RT_BUILD_${context}_POST_BUILD_SFRIPT_${key}_PATH"
+            eval "local post_build_script_workdir=\$_SAR_RT_BUILD_${context}_POST_BUILD_SCRIPT_${key}_WORKDIR"
+            if [ -z "$post_build_script_workdir" ]; then
+                local post_build_script_workdir=/
+            fi
+            local script_name=`basename "$post_build_script_path"`
+            local script_name=`strip $script_name`
+            local script_name=`path_join /_sar_package/post_build_scripts $script_name`
+            echo -n "cd $post_build_script_workdir; $script_name;"
+        done
+        echo
+    fi
+}
+
 _generate_runtime_image_dockerfile() {
     local context=$1
     local package_ref=$2
@@ -201,8 +290,10 @@ _generate_runtime_image_dockerfile() {
     _validate_base_image "$base_image" || return 1
     echo "FROM $base_image" # 暂时假设 base image 里有构建需要的各种工具
 
-    # Run pre-build scripts.
-
+    # pack pre-build and post-build scripts.
+    if ! _generate_runtime_image_dockerfile_prebuild_scripts $context; then
+        return 1
+    fi
     # Place packages.
     local -i idx=1
     while [ $idx -le $deps_count ]; do
@@ -251,10 +342,14 @@ RUN set -xe;\
     echo PKG_TAG='\\\'$pakcage_tag\\\'' >> /_sar_package/meta;\
     echo PKG_TYPE=runtime_image >> /_sar_package/meta;\
     echo PKG_APP_NAME='\\\'$application_name\\\'' >> /_sar_package/meta;
-
-CMD ["supervisord"]
-
 '
+
+    # run post-build scripts.
+    if ! _generate_runtime_image_dockerfile_postbuild_scripts $context; then
+        return 1
+    fi
+echo 'CMD ["supervisord", "-c", "/etc/sar_supervisor.conf"]'
+
 }
 
 build_runtime_image_help() {
@@ -456,7 +551,7 @@ usage:
     runtime_image_add_service [options] cron <service_name> <command>
 
 options:
-    -d <path>       working directory.
+    -d <path>               working directory.
     -c <context_name>       specified build context. default: system
 
 
@@ -583,12 +678,137 @@ runtime_image_post_build_run() {
     return 1
 }
 
+runtime_image_pre_build_script_help() {
+    echo '
+Run pre-build script within building of runtime image.
+
+usage:
+    runtime_image_pre_build_script [options] <script_path>
+
+options:
+    -d <path>               working directory.
+    -c <context_name>       specified build context. default: system
+
+example:
+    runtime_image_pre_build_script install_lnmp.sh
+    runtime_image_pre_build_script -c my_context install_nginx.sh
+'
+}
+
 runtime_image_pre_build_script() {
-    return 1
+    OPTIND=0
+    while getopts 'c:d:' opt; do
+        case $opt in
+            c)
+                local context=$OPTARG
+                ;;
+            d)
+                local working_dir=$OPTARG
+                ;;
+            *)
+                runtime_image_pre_build_script_help
+                logerror "[runtime_image_builder]" unexcepted options -$opt.
+                ;;
+        esac
+    done
+    if [ -z "$context" ]; then
+        local context=system
+    fi
+    local -i optind=$OPTIND-1
+    shift $optind
+
+    local -i idx=1
+    local -i failure=0
+    local script_appended=
+    while [ $idx -le $# ]; do
+        eval "local script=\$$idx"
+        if ! [ -f "$script" ]; then
+            logerror "[runtime_image_builder] not a script file: $script"
+            local -i failure=1
+        fi
+        local script_appended="$script_appended '$script'"
+        local -i idx=idx+1
+    done
+    if [ -z `strip $script_appended` ]; then
+        runtime_image_pre_build_script_help
+        logerror "script missing."
+        return 1
+    fi
+    if [ $failure -gt 0 ]; then
+        return 1
+    fi
+
+    local key=`eval "hash_file_for_key $script_appended"`
+    eval "_SAR_RT_BUILD_${context}_PRE_BUILD_SCRIPTS=\"\$_SAR_RT_BUILD_${context}_PRE_BUILD_SCRIPTS \$key\""
+    eval "_SAR_RT_BUILD_${context}_PRE_BUILD_SFRIPT_${key}_PATH=\"$script_appended\""
+    eval "_SAR_RT_BUILD_${context}_PRE_BUILD_SCRIPT_${key}_WORKDIR=$working_dir"
+}
+
+runtime_image_post_build_script_help() {
+    echo '
+Run post-build script within building of runtime image.
+
+usage:
+    runtime_image_post_build_script [options] <script_path>
+
+options:
+    -d <path>               working directory.
+    -c <context_name>       specified build context. default: system
+
+example:
+    runtime_image_post_build_script cleaning.sh
+    runtime_image_post_build_script -c my_context send_notification.sh
+'
 }
 
 runtime_image_post_build_script() {
-    return 1
+    OPTIND=0
+    while getopts 'c:d:' opt; do
+        case $opt in
+            c)
+                local context=$OPTARG
+                ;;
+            d)
+                local working_dir=$OPTARG
+                ;;
+            *)
+                runtime_image_post_build_script_help
+                logerror "[runtime_image_builder]" unexcepted options -$opt.
+                ;;
+        esac
+    done
+    if [ -z "$context" ]; then
+        local context=system
+    fi
+    local -i optind=$OPTIND-1
+    shift $optind
+
+    local -i idx=1
+    local -i failure=0
+    local script_appended=
+    while [ $idx -le $# ]; do
+        eval "local script=\$$idx"
+        if ! [ -f "$script" ]; then
+            logerror "[runtime_image_builder] not a script file: $script"
+            local -i failure=1
+        fi
+        local script_appended="$script_appended '$script'"
+        local -i idx=idx+1
+    done
+    if [ $failure -gt 0 ]; then
+        return 1
+    fi
+
+    if [ -z `strip $script_appended` ]; then
+        runtime_image_post_build_script_help
+        logerror "script missing."
+        return 1
+    fi
+
+    local key=`eval "hash_file_for_key $script_appended"`
+    eval "_SAR_RT_BUILD_${context}_POST_BUILD_SCRIPTS=\"\$_SAR_RT_BUILD_${context}_POST_BUILD_SCRIPTS \$key\""
+    eval "_SAR_RT_BUILD_${context}_POST_BUILD_SFRIPT_${key}_PATH=\"$script_appended\""
+    eval "_SAR_RT_BUILD_${context}_POST_BUILD_SCRIPT_${key}_WORKDIR=$working_dir"
 }
 
 runtime_image_health_check_script() {

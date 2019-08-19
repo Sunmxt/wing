@@ -23,6 +23,10 @@ hash_for_key() {
     echo "$*" | md5sum - | cut -d ' ' -f 1
 }
 
+hash_file_for_key() {
+    cat $* | md5sum - | cut -d ' ' -f 1
+}
+
 strip() {
     echo "$*" | xargs
 }
