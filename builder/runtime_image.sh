@@ -80,7 +80,7 @@ _generate_runtime_image_dockerfile_add_supervisor_services() {
 file=/run/supervisord.sock
 
 [include]
-files = /etc/supervisor.d/services/*.ini
+files = /etc/supervisor.d/services/*.conf
 
 [supervisord]
 logfile=/var/log/supervisord.log
@@ -98,12 +98,12 @@ serverurl=unix:///run/supervisord.sock
 
     echo "COPY $supervisor_root_config /etc/sar_supervisor.conf"
 
-    local making_dirs=/var/log/application
+    local making_dirs="/var/log/application /run/runtime"
     # generate services.
     eval "local -i count=\${#_SAR_RT_BUILD_${context}_SVCS[@]}"
     local -i idx=1
     while [ $idx -le $count ]; do
-        eval "local key=\${_SAR_RT_BUILD_${context}_SVCS[$count]}"
+        eval "local key=\${_SAR_RT_BUILD_${context}_SVCS[$idx]}"
         eval "local type=\${_SAR_RT_BUILD_${context}_SVC_${key}_TYPE}"
         eval "local name=\${_SAR_RT_BUILD_${context}_SVC_${key}_NAME}"
         eval "local exec=\${_SAR_RT_BUILD_${context}_SVC_${key}_EXEC}"
@@ -189,7 +189,7 @@ RUN     set -xe;\
             if [ -z "$pre_build_script_workdir" ]; then
                 local pre_build_script_workdir=/
             fi
-            local script_name=`basename "$pre_build_script_path"`
+            local script_name=`eval "basename $pre_build_script_path"`
             local script_name=`strip $script_name`
             local script_name=`path_join /_sar_package/pre_build_scripts $script_name`
             echo -n "cd $pre_build_script_workdir; $script_name;"
@@ -233,7 +233,7 @@ RUN     set -xe;\
             if [ -z "$post_build_script_workdir" ]; then
                 local post_build_script_workdir=/
             fi
-            local script_name=`basename "$post_build_script_path"`
+            local script_name=`eval "basename $post_build_script_path"`
             local script_name=`strip $script_name`
             local script_name=`path_join /_sar_package/post_build_scripts $script_name`
             echo -n "cd $post_build_script_workdir; $script_name;"
@@ -567,7 +567,7 @@ _runtime_image_add_service() {
     local working_dir=$2
     local type=$3
     local name=$4
-    shift 3
+    shift 4
     local -i idx=1
     local exec=
     while [ $idx -le $# ]; do
@@ -652,7 +652,7 @@ runtime_image_add_service() {
             shift 1
             _runtime_image_add_service_cron $context "$working_dir" $* || return 1
             ;;
-        run)
+        normal)
             shift 1
             _runtime_image_add_service $context "$working_dir" normal $* || return 1
             ;;
@@ -662,21 +662,13 @@ runtime_image_add_service() {
     esac
 }
 
-runtime_image_workdir() {
-    return 1
-}
-
-runtime_image_bootstrap_run() {
-    return 1
-}
-
-runtime_image_pre_build_run() {
-    return 1
-}
-
-runtime_image_post_build_run() {
-    return 1
-}
+#runtime_image_pre_build_run() {
+#    return 1
+#}
+#
+#runtime_image_post_build_run() {
+#    return 1
+#}
 
 runtime_image_pre_build_script_help() {
     echo '
@@ -811,6 +803,6 @@ runtime_image_post_build_script() {
     eval "_SAR_RT_BUILD_${context}_POST_BUILD_SCRIPT_${key}_WORKDIR=$working_dir"
 }
 
-runtime_image_health_check_script() {
-    return 1
-}
+#runtime_image_health_check_script() {
+#    return 1
+#}
