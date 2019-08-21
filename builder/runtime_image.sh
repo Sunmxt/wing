@@ -372,6 +372,19 @@ example:
 }
 
 build_runtime_image() {
+    local mode=$1
+    case $mode in
+        docker)
+            ;;
+        gitlab-docker)
+            ;;
+        *)
+            build_runtime_image_help
+            logerror unsupported mode: $mode
+            ;;
+    esac
+    shift 1
+
     OPTIND=0
     while getopts 't:e:r:c:' opt; do
         case $opt in
@@ -409,15 +422,17 @@ build_runtime_image() {
         local context=system
     fi
 
-    if [ -z "$ci_image_tag" ]; then
-        build_runtime_image_help
-        logerror "[runtime_image_builder]" empty runtime image tag.
-        return 1
-    fi
-    if [ -z "$ci_image_prefix" ]; then
-        build_runtime_image_help
-        logerror "[runtime_image_builder]" empty runtime image prefix.
-        return 1
+    if [ "gitlab-docker" != "$mode" ]; then
+        if [ -z "$ci_image_tag" ]; then
+            build_runtime_image_help
+            logerror "[runtime_image_builder]" empty runtime image tag.
+            return 1
+        fi
+        if [ -z "$ci_image_prefix" ]; then
+            build_runtime_image_help
+            logerror "[runtime_image_builder]" empty runtime image prefix.
+            return 1
+        fi
     fi
 
     # add runtime
@@ -438,8 +453,15 @@ build_runtime_image() {
         local -i idx=idx+1
     done
     shift $optind
-    
-    eval "log_exec _ci_docker_build $opts -- -f \"$dockerfile\" $* ."
+
+    case $mode in
+        docker)
+            eval "log_exec _ci_docker_build $opts -- -f \"$dockerfile\" $* ." || return 1
+            ;;
+        gitlab-docker)
+            eval "log_exec _ci_gitlab_runner_docker_build $opts -- -f \"$dockerfile\" $* ." || return 1
+            ;;
+    esac
 }
 
 runtime_image_base_image_help() {

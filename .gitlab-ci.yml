@@ -21,7 +21,7 @@ test-build-image:
     - source runtime_env
     - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
     - runtime_image_base_image alpine:3.7
-    - build_runtime_image -t ${CI_COMMIT_SHA:0:10} -e ENV -r $CI_REGISTRY_IMAGE
+    - build_runtime_image gitlab-docker -t gitlab_ci_commit_hash -e ENV
 
 test-build-lnmp-image:
     stage: test
@@ -33,7 +33,9 @@ test-build-lnmp-image:
     - runtime_image_post_build_script ci/ci_lnmp_postbuild.sh
     - runtime_image_add_service normal php_fpm /usr/local/sbin/php-fpm
     - runtime_image_add_service normal nginx /usr/sbin/nginx -g 'daemon off;'
-    - build_runtime_image -t ${CI_COMMIT_SHA:0:10} -e ENV -r $CI_REGISTRY_IMAGE/lnmp
+    - build_runtime_image gitlab-docker -t gitlab_ci_commit_hash -e ENV
+    variables:
+        ENV: ci_lnmp
 
 
 package-manifests:
