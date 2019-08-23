@@ -10,12 +10,9 @@ php -r "if (hash_file('sha384', 'composer-setup.php') === 'a5c698ffe4b8e849a443b
 php composer-setup.php --install-dir=/bin --filename=composer
 php -r "unlink('composer-setup.php');"
 mkdir -p /usr/src/php/ext /run/nginx
-wget https://pecl.php.net/get/yac-2.0.2.tgz
-tar -xvf yac-2.0.2.tgz -C /usr/src/php/ext/
-mv /usr/src/php/ext/yac-2.0.2 /usr/src/php/ext/yac
 apk add -t build-deps autoconf gcc g++ make automake linux-headers --cache-dir /apk-cache
-pecl install mongodb redis memcached mcrypt-1.0.2
-docker-php-ext-install pdo mysqli pdo curl fileinfo gd json ldap mbstring pdo_mysql zip yac
-docker-php-ext-enable mongodb redis memcached mcrypt
+pecl install redis
+docker-php-ext-install pdo mysqli
+docker-php-ext-enable redis
 apk del build-deps
 rm -rf /apk-cache
