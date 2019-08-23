@@ -589,18 +589,7 @@ _runtime_image_add_service() {
     local working_dir=$2
     local type=$3
     local name=$4
-    shift 4
-    local -i idx=1
-    local exec=
-    while [ $idx -le $# ]; do
-        eval "local param=\$$idx"
-        if echo "$param" | grep ' ' -q ; then
-            local exec="$exec '$param'"
-        else
-            local exec="$exec $param"
-        fi
-        local -i idx=idx+1
-    done
+    local exec="$5"
 
     local key=`hash_for_key $name`
     eval "_SAR_RT_BUILD_${context}_SVC_${key}_TYPE=$type"
@@ -616,19 +605,8 @@ _runtime_image_add_service_cron() {
     local working_dir=$2
     local name=$3
     local cron=$4
-    shift 3
+    local exec="$5"
 
-    local -i idx=1
-    local exec=
-    while [ $idx -le $# ]; do
-        eval "local param=\$$idx"
-        if echo "$param" | grep ' ' -q ; then
-            local exec="$exec '$param'"
-        else
-            local exec="$exec $param"
-        fi
-        local -i idx=idx+1
-    done
 
     local key=`hash_for_key $name`
     eval "_SAR_RT_BUILD_${context}_SVC_${key}_TYPE=cron"
@@ -665,18 +643,28 @@ runtime_image_add_service() {
     fi
 
     local type=$1
+    local name="$2"
+    shift 2
+
+    local -i idx=1
+    while [ $idx -le $# ]; do
+        eval "local param=\$$idx"
+        if echo "$param" | grep ' ' -q ; then
+            local exec="$exec '$param'"
+        else
+            local exec="$exec $param"
+        fi
+        local -i idx=idx+1
+    done
     case $type in
         system)
-            shift 1
-            _runtime_image_add_service $context "$working_dir" system $* || return 1
+            _runtime_image_add_service $context "$working_dir" system "$name" "$exec" || return 1
             ;;
         cron)
-            shift 1
-            _runtime_image_add_service_cron $context "$working_dir" $* || return 1
+            _runtime_image_add_service_cron $context "$working_dir" "$name" "$exec" || return 1
             ;;
         normal)
-            shift 1
-            _runtime_image_add_service $context "$working_dir" normal $* || return 1
+            _runtime_image_add_service $context "$working_dir" normal "$name" "$exec" || return 1
             ;;
         *)
             logerror "[runtime_image_builder] unknown service type: $type"
