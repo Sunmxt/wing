@@ -23,6 +23,8 @@ _ci_build_generate_registry_path() {
         eval "local path_appended=\$$env"
         if [ ! -z "$path_appended" ]; then
             local registry_path=$registry_path/$path_appended
+        else
+            local registry_path=$registry_path/$env
         fi
     fi
 
@@ -236,6 +238,7 @@ _ci_build_package() {
         logerror Empty package ref.
         return 1
     fi
+
     local ci_package_ref=`path_join "$ci_package_ref" sar__package`
     loginfo build package with registry image: $ci_package_ref
     local ci_package_env_name=`_ci_get_env_value "$ci_package_env_name"`
