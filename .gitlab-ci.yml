@@ -10,8 +10,8 @@ variables:
     ENV: ci
 
 stages:
-  - test
   - package
+  - test
 
 test-build-image:
     stage: test

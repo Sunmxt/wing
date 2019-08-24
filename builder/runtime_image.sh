@@ -407,7 +407,7 @@ build_runtime_image() {
         esac
     done
 
-    eval "local __=\$$OPTIND"
+    eval "local __=\${$OPTIND}"
     local -i optind=$OPTIND
     if [ "$__" != "--" ]; then
         if [ ! -z "$__" ]; then
@@ -493,7 +493,7 @@ runtime_image_base_image() {
                 ;;
         esac
     done
-    eval "local base_image=\$$OPTIND"
+    eval "local base_image=\${$OPTIND}"
     if [ -z "$base_image" ]; then
         runtime_image_base_image_help
         logerror "[runtime_image_builder] base image not specifed."
@@ -546,7 +546,7 @@ runtime_image_add_dependency() {
     if [ -z "$context" ]; then
         local context=system
     fi
-    eval "local place_path=\$$OPTIND"
+    eval "local place_path=\${$OPTIND}"
     if [ -z "$place_path" ]; then
         runtime_image_add_dependency_help
         logerror "[runtime_image_builder] runtime_image_add_dependency: Target path cannot be empty."

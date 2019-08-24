@@ -56,7 +56,7 @@ _ci_docker_build() {
                 ;;
         esac
     done
-    eval "local __=\$$OPTIND"
+    eval "local __=\${$OPTIND}"
     local -i optind=$OPTIND
     if [ "$__" = "--" ]; then
         local -i optind=optind+1
@@ -107,7 +107,7 @@ _ci_gitlab_runner_docker_build() {
     fi
 
     OPTIND=0
-    while getopts ':t:r:' opt; do
+    while getopts 't:r:e:' opt; do
         case $opt in
             t)
                 local ci_build_docker_tag=$OPTARG
@@ -115,11 +115,19 @@ _ci_gitlab_runner_docker_build() {
             r)
                 local ci_build_docker_ref=$OPTARG
                 ;;
+            e)
+                local ci_build_docker_env_name=$OPTARG
+                ;;
         esac
+        eval "local opt=\${$OPTIND}"
+        if [ "${opt:0:2}" = "--" ]; then
+            local has_docker_ext="--"
+            break
+        fi
     done
     local opts=
     local -i idx=1
-    while [ $idx -le $OPTIND ]; do
+    while [ $idx -lt $OPTIND ]; do
         eval "local opts=\"\$opts \$$idx\""
         local -i idx=idx+1
     done
@@ -130,13 +138,15 @@ _ci_gitlab_runner_docker_build() {
         local ci_build_docker_tag=${CI_COMMIT_SHA:0:10}
         local opts="$opts -t $ci_build_docker_tag"
     fi
+    if [ ! -z "$ci_build_docker_env_name" ]; then
+        local opts="$opts -e $ci_build_docker_env_name"
+    fi
     local -i shift_cnt=$OPTIND
     shift $shift_cnt
-    log_exec _ci_docker_build $opts -r $CI_REGISTRY_IMAGE $*
+    log_exec _ci_docker_build $opts -r $CI_REGISTRY_IMAGE $has_docker_ext $*
     return $?
 }
 
-# 这里的逻辑很多是重复的，看能不能合并到一起。
 _ci_gitlab_package_build() {
     if [ -z "$GITLAB_CI" ]; then
         logerror Not a Gitlab CI environment.
@@ -149,7 +159,7 @@ _ci_gitlab_package_build() {
     fi
 
     OPTIND=0
-    while getopts ':t:r:' opt; do
+    while getopts 't:r:e:' opt; do
         case $opt in
             t)
                 local ci_build_docker_tag=$OPTARG
@@ -157,11 +167,19 @@ _ci_gitlab_package_build() {
             r)
                 local ci_build_docker_ref=$OPTARG
                 ;;
+            e)
+                local ci_build_docker_env_name=$OPTARG
+                ;;
         esac
+        eval "local opt=\${$OPTIND}"
+        if [ "${opt:0:2}" = "--" ]; then
+            local has_docker_ext="--"
+            break
+        fi
     done
     local opts=
     local -i idx=1
-    while [ $idx -le $OPTIND ]; do
+    while [ $idx -lt $OPTIND ]; do
         eval "local opts=\"\$opts \$$idx\""
         local -i idx=idx+1
     done
@@ -169,9 +187,15 @@ _ci_gitlab_package_build() {
         local ci_build_docker_tag=${CI_COMMIT_SHA:0:10}
         local opts="$opts -t $ci_build_docker_tag"
     fi
-    local -i shift_cnt=$OPTIND
+    if [ -z "$ci_build_docker_tag" ]; then
+        local ci_build_docker_tag=gitlab_ci_commit_hash
+    fi
+    if [ ! -z "$ci_build_docker_env_name" ]; then
+        local opts="$opts -e $ci_build_docker_env_name"
+    fi
+    local -i shift_cnt=$OPTIND-1
     shift $shift_cnt
-    log_exec _ci_build_package $opts -r $CI_REGISTRY_IMAGE $*
+    log_exec _ci_build_package $opts -r $CI_REGISTRY_IMAGE $has_docker_ext $*
     return $?
 }
 
@@ -215,7 +239,7 @@ _ci_build_package() {
                 ;;
         esac
     done
-    eval "local __=\$$OPTIND"
+    eval "local __=\${$OPTIND}"
     local -i optind=$OPTIND
     if [ "$__" != "--" ] && [ ! -z "$__" ]; then
         local product_path=$__
