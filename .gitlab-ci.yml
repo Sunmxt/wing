@@ -1,5 +1,9 @@
 image: registry.stuhome.com/devops/dockerepo/docker:1.0.1
 
+before_script:
+  - ./install.sh /opt/runtime
+  - source runtime_env
+
 services:
     - docker:18.09.7-dind
 
@@ -17,8 +21,6 @@ test-build-image:
     stage: test
 
     script:
-    - ./install.sh /opt/runtime
-    - source runtime_env
     - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
     - runtime_image_base_image alpine:3.7
     - build_runtime_image gitlab-docker -t gitlab_ci_commit_hash -e ENV
@@ -26,8 +28,6 @@ test-build-image:
 test-build-lnmp-image:
     stage: test
     script:
-    - ./install.sh /opt/runtime
-    - source runtime_env
     - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
     - runtime_image_base_image php:7.2-fpm-alpine
     - runtime_image_post_build_script ci/ci_lnmp_postbuild.sh
@@ -37,13 +37,17 @@ test-build-lnmp-image:
     variables:
         ENV: ci_lnmp
 
+test-pull-package:
+    stage: test
+    script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+    - ci_package_pull -r devops/runtime -e CI_COMMIT_REF_NAME ./testing_pull
+
 
 package-manifests:
     stage: package
 
     script:
-    - ./install.sh /opt/runtime
-    - source runtime_env
     - rm .gitlab-ci.yml 
     - ci_build gitlab-package -t gitlab_ci_commit_hash -e CI_COMMIT_REF_NAME ./
 

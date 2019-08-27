@@ -34,3 +34,7 @@ strip() {
 determine_os_package_manager() {
     echo apk
 }
+
+full_path_of() {
+    echo `cd "$1"; pwd -P `
+}

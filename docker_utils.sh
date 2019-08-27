@@ -26,3 +26,8 @@ is_image_exists() {
     docker manifest inspect $1 2>&1 >/dev/null
     return $?
 }
+
+docker_installed() {
+    docker version -f '{{ .Client.Version }}' 2>&1 >/dev/null
+    return $?
+}

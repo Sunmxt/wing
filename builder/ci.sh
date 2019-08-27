@@ -210,6 +210,8 @@ _ci_build_package_generate_dockerfile() {
     echo '
 FROM '$PACKAGE_BASE_IMAGE'
 
+COPY "'$product_path'" /package/data
+
 RUN set -xe;\
     mkdir -p /_sar_package;\
     touch /_sar_package/meta;\
@@ -217,9 +219,8 @@ RUN set -xe;\
     echo PKG_ENV='\\\'$product_environment\\\'' >> /_sar_package/meta;\
     echo PKG_TAG='\\\'$product_tag\\\'' >> /_sar_package/meta;\
     echo PKG_TYPE=package >> /_sar_package/meta;\
-    mkdir -p /_sar_package/data;
-
-COPY "'$product_path'" /package/data
+    mkdir -p /_sar_package/data;\
+    rm -rf /package/data/.git /package/data/.gitlab-ci.yml;
 '
     
 }
@@ -356,16 +357,129 @@ ci_build() {
     esac
 }
 
-# runtime_image -r be/recruitment2019 -e master -t ci_commit_hash -e master 
-# runtime_image_base_image registry.stuhome.com/devops/php:7-1.0.1
-# runtime_image_add_dependency -r be/recruitment2019 -t 3928ea19 -e master /app
-# runtime_image_add_dependency -r fe/recruitment2019 -t 281919ea -e master /app/statics
-# starconf_set_entry xxxxxx
-# starconf_configure_root xxxx
-# runtime_image_bootstrap_run /app/my_start_script.sh
-# runtime_image_build_start
-# deploy_runtime_image -r be/recruitment2019 -e master -t ci_commit_hash -e master
+ci_login_help() {
+    echo '
+Sign up to ci environment.
 
-runtime_image_add_dependency() {
-    return 0
+usage:
+    ci_login [-p password] <username>
+'
+}
+
+ci_login() {
+    if ! docker_installed ; then
+        logerror [ci_login] docker not installed.
+        return 1
+    fi
+    OPTIND=0
+    while getopts 'p:' opt; do
+        case $opt in
+            p)
+                local password=$OPTARG
+                ;;
+            *)
+                logerror unsupported option: $opt.
+                return 1
+                ;;
+        esac
+    done
+    local password
+    if [ ! -z "$password" ]; then
+        logwarn Attention! Specifing plain password is not recommanded.
+    else
+        while [ -z "$password" ]; do
+            loginfo Empty password.
+            echo -n 'Password: '
+            read -s password
+            echo
+        done
+    fi
+
+    eval "local __=\${$OPTIND}"
+    local username="`strip \"$__\"`"
+    if [ -z "$username" ] ; then
+        logerror username is empty.
+        return 1
+    fi
+
+    docker login "$SAR_CI_REGISTRY" -u "$username" -p "$password"
+}
+
+ci_package_pull_help() {
+    echo '
+Pull package.
+
+usage:
+    ci_package_pull [options] <path>
+
+options:
+      -t <tag>                            Image tag / package tag (package mode)
+      -e <environment>                    Identify docker path by environment variable.
+      -r <ref_prefix>                     Image reference prefix.
+      -f <full_reference>                 Full image reference.
+
+example:
+    ci_package_pull -r devops/runtime -e master ./my_dir
+    ci_package_pull -f registry.stuhome.com/devops/runtime/master/sar__package ./my_dir
+'
+}
+
+ci_package_pull() {
+    if ! docker_installed ; then
+        logerror [ci_package_pull] docker not installed.
+        return 1
+    fi
+
+    OPTIND=0
+    while getopts 't:r:e:f:' opt; do
+        case $opt in
+            t)
+                local ci_build_docker_tag=$OPTARG
+                ;;
+            r)
+                local ci_build_docker_prefix=$OPTARG
+                ;;
+            e)
+                local ci_build_docker_env_name=$OPTARG
+                ;;
+            f)
+                local ci_full_reference=$OPTARG
+                ;;
+        esac
+    done
+
+    eval "local __=\${$OPTIND}"
+    local target_path="`strip \"$__\"`"
+    if [ -z "$target_path" ] ; then
+        logerror target path not specified.
+        return 1
+    fi
+
+    if ! mkdir -p "$target_path"; then
+        logerror cannot create directory.
+        return 1
+    fi
+    local target_path=`full_path_of "$target_path"`
+
+    if [ -z "$ci_full_reference" ]; then
+        if [ -z "$ci_build_docker_tag" ]; then
+            local ci_build_docker_tag=latest
+        fi
+        local ci_full_reference=`_ci_get_package_ref "$ci_build_docker_prefix" "$ci_build_docker_env_name" "$ci_build_docker_tag"`
+        local ci_full_reference="$SAR_CI_REGISTRY/$ci_full_reference"
+    fi
+    if [ -z "$ci_full_reference" ]; then
+        logerror empty image reference.
+        return 1
+    fi
+    if ! log_exec docker pull "$ci_full_reference"; then
+        logerror pull package image "$ci_full_reference" failure.
+        return 1
+    fi
+
+    loginfo extract package to $target_path.
+    if ! docker run --entrypoint='' -v "$target_path:/_sar_package_extract_mount" "$ci_full_reference" sh -c "cp -rv /package/data/* /_sar_package_extract_mount/"; then
+        logerror extract package failure.
+    fi
+    loginfo package extracted to $target_path.
 }
