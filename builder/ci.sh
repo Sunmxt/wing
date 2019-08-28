@@ -43,7 +43,7 @@ _ci_build_generate_registry_path() {
 _ci_docker_build() {
     # Parse normal options
     OPTIND=0
-    while getopts 't:e:r:' opt; do
+    while getopts 't:e:r:s' opt; do
         case $opt in
             t)
                 local ci_build_docker_tag=$OPTARG
@@ -53,6 +53,9 @@ _ci_docker_build() {
                 ;;
             r)
                 local ci_registry_image=$OPTARG
+                ;;
+            s)
+                local ci_no_push=1
                 ;;
         esac
     done
@@ -81,16 +84,19 @@ _ci_docker_build() {
         logerror build failure.
         return 2
     fi
-    
-    if ! log_exec docker push $ci_build_docker_ref; then
-        logerror uploading image $ci_build_docker_ref failure.
-        return 3
+    if [ -z "$ci_no_push" ]; then
+        if ! log_exec docker push $ci_build_docker_ref; then
+            logerror uploading image $ci_build_docker_ref failure.
+            return 3
+        fi
     fi
     if [ "$ci_build_docker_tag" != "latest" ]; then
         log_exec docker tag $ci_build_docker_ref $ci_build_docker_ref_path:latest
-        if ! log_exec docker push $ci_build_docker_ref_path:latest; then
-            logerror uploading image $ci_build_docker_ref_path:latest failure.
-            return 4
+        if [ -z "$ci_no_push" ]; then
+            if ! log_exec docker push $ci_build_docker_ref_path:latest; then
+                logerror uploading image $ci_build_docker_ref_path:latest failure.
+                return 4
+            fi
         fi
     fi
 }
@@ -107,7 +113,7 @@ _ci_gitlab_runner_docker_build() {
     fi
 
     OPTIND=0
-    while getopts 't:r:e:' opt; do
+    while getopts 't:r:e:s' opt; do
         case $opt in
             t)
                 local ci_build_docker_tag=$OPTARG
@@ -117,6 +123,9 @@ _ci_gitlab_runner_docker_build() {
                 ;;
             e)
                 local ci_build_docker_env_name=$OPTARG
+                ;;
+            s)
+                local ci_no_push=1
                 ;;
         esac
         eval "local opt=\${$OPTIND}"
@@ -159,7 +168,7 @@ _ci_gitlab_package_build() {
     fi
 
     OPTIND=0
-    while getopts 't:r:e:' opt; do
+    while getopts 't:r:e:s' opt; do
         case $opt in
             t)
                 local ci_build_docker_tag=$OPTARG
@@ -169,6 +178,9 @@ _ci_gitlab_package_build() {
                 ;;
             e)
                 local ci_build_docker_env_name=$OPTARG
+                ;;
+            s)
+                local ci_no_push=1
                 ;;
         esac
         eval "local opt=\${$OPTIND}"
@@ -227,7 +239,7 @@ RUN set -xe;\
 
 _ci_build_package() {
     OPTIND=0
-    while getopts 't:e:r:' opt; do
+    while getopts 't:e:r:s' opt; do
         case $opt in
             t)
                 local ci_package_tag=$OPTARG
@@ -237,6 +249,9 @@ _ci_build_package() {
                 ;;
             r)
                 local ci_package_prefix=$OPTARG
+                ;;
+            s)
+                local ci_no_push=1
                 ;;
         esac
     done
@@ -284,15 +299,19 @@ _ci_build_package() {
     fi
 
     # upload
-    if ! log_exec docker push $ci_package_ref:$ci_package_tag; then
-        logerror uploading "image(package)" $ci_package_ref:$ci_package_tag failure.
-        return 3
+    if [ -z "$ci_no_push" ]; then
+        if ! log_exec docker push $ci_package_ref:$ci_package_tag; then
+            logerror uploading "image(package)" $ci_package_ref:$ci_package_tag failure.
+            return 3
+        fi
     fi
     if [ "$ci_package_tag" != "latest" ]; then
         log_exec docker tag "${ci_package_ref}:$ci_package_tag" "${ci_package_ref}:latest"
-        if ! log_exec docker push "${ci_package_ref}:latest"; then
-            logerror uploading "image(package)" ${ci_package_tag}:latest failure.
-            return 4
+        if [ -z "$ci_no_push" ]; then
+            if ! log_exec docker push "${ci_package_ref}:latest"; then
+                logerror uploading "image(package)" ${ci_package_tag}:latest failure.
+                return 4
+            fi
         fi
     fi
 
@@ -318,6 +337,7 @@ options:
                                           with actually commit hash.
       -e <environment_variable_name>      Identify docker path by environment variable.
       -r <ref_prefix>                     Image reference prefix.
+      -s                                  Do not push image to regsitry. 
 
 example:
       ci_build gitlab-runner-docker -t gitlab_ci_commit_hash -e ENV .

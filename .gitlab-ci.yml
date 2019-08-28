@@ -43,6 +43,14 @@ test-pull-package:
     - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
     - ci_package_pull -r devops/runtime -e CI_COMMIT_REF_NAME ./testing_pull
 
+test-no-push:
+    stage: test
+    script:
+    - source ci/docker_push_gate.sh
+    - runtime_image_base_image registry.stuhome.com/devops/dockerepo/alpine:3.7
+    - build_runtime_image gitlab-docker -t gitlab_ci_commit_hash -e ENV -s
+    - ci_build gitlab-package -t gitlab_ci_commit_hash -e CI_COMMIT_REF_NAME -s ./
+
 
 package-manifests:
     stage: package
