@@ -1,4 +1,4 @@
-#! /bin/bash
+#! /usr/bin/env bash
 set -xe
 mkdir /apk-cache
 apk update --cache-dir /apk-cache 
