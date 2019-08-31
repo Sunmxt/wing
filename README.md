@@ -21,25 +21,22 @@
 
 ### 使用
 
-任意目录执行
-
-```bash
-source runtime_env
-```
-
-就可以使用runtime的各种拓展命令了。目前支持的拓展命令如下：
+安装后就可以使用runtime的各种拓展命令了。目前已导出拓展命令如下，安装后即可使用：
 
 - log.sh (日志)
   - loginfo
   - logerror
   - logwarn
-  - logexec
 - utils.sh (工具集合)
   - path_join
+  - is_image_exists
+  - docker_installed
 - builder/ci.sh (持续集成、构建相关)
   - ci_build
+  - ci_package_pull
+  - ci_login
 - builder/runtime_image.sh (镜像构建)
-  - runtime_image
+  - build_runtime_image
   - runtime_image_base_image
   - runtime_image_add_dependency
   - runtime_image_bootstrap_run
@@ -48,28 +45,30 @@ source runtime_env
   - runtime_image_pre_build_script
   - runtime_image_post_build_script
   - runtime_image_build_start
-  - runtime_image_health_check_script
-  - runtime_image_publish_port
-  - runtime_image_volume \[后续支持\]
 
 不带任何参数执行相关命令可以查看帮助。
 
+如果要使用未导出的函数，任意目录执行
+
+```bash
+source runtime_env
+```
 
 ## 开发
 
 ### 环境
 
 ```bash
-source debug_env.sh
+source bin/sar_activate
 ```
 
 然后直接调用你写的函数即可。若修改了代码，重新 source 一次或者使用 sar_import 一下相应的文件即可。
 
 ### sar_import
 
-sar_import 用于引入其他脚本的内容。提供这一语句，是为了不用关心 PATH 问题。
+sar_import 用于引入其他脚本的内容，用于替代 source。提供这一语句，是为了不用关心 PATH 问题。
 
-sar_import 指令在开发环境和安装后的运行环境是兼容的，你可以不必关心 PATH 的问题，大胆使用即可。
+sar_import 指令屏蔽了执行环境的差异，开发环境和安装后的运行环境是兼容的，可以不必关心 PATH 的问题。
 
 例子：
 
@@ -81,7 +80,12 @@ sar_import utils.sh # 引入工具库
 loginfo 打一条日志 # loginfo 是由 log.sh 实现的日志打印函数
 ```
 
-### 如何让 install.sh 安装我添加的脚本到安装环境
+### 如何让 install.sh 安装新添加的文件
 
 只需要在 settings/componment.sh 的 COMPONMENT 数组添加你自己的脚本即可。
 
+### 导出命令 (exported command)
+
+导出的命令，指的是安装后，直接可以使用而不必首先 **source runtime_env** 的命令。
+
+若需要导出命令，在 settings/componment.sh 的 EXPORT_COMMANDS 添加相应的命令即可。

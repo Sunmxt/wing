@@ -5,5 +5,12 @@ COMPONENTS=(
 )
 
 EXPORT_COMMANDS=(
-    "ci_build"
+    "ci_build" "ci_package_pull" "ci_login"
+    "runtime_image_post_build_script" "runtime_image_pre_build_script"
+    "runtime_image_add_service" "runtime_image_add_dependency"
+    "runtime_image_base_image" "build_runtime_image"
+    "logerror" "logwarn" "loginfo"
+    "path_join"
+    "is_image_exists"
+    "docker_installed"
 )
