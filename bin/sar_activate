@@ -9,7 +9,7 @@ sar_import() {
     return $?
 }
 
-_reslove_sar_bin_base() {
+_resolve_sar_bin_base() {
     SAR_BIN_BASE=$1
     if [ -z "$SAR_BIN_BASE" ]; then
         return 1
@@ -29,11 +29,11 @@ if [ ! -z "$SAR_BIN_BASE" ] && [ ! -e "`realpath $SAR_BIN_BASE`/bin/sar_activate
     unset SAR_BIN_BASE
 fi
 
-if [ -z "$SAR_BIN_BASE" ] && ! _reslove_sar_bin_base `which "sar_activate"` && ! _reslove_sar_bin_base `which "$0"`; then
+if [ -z "$SAR_BIN_BASE" ] && ! _resolve_sar_bin_base `which "sar_activate" 2>/dev/null` && ! _resolve_sar_bin_base `which "$0" 2>/dev/null` && ! _resolve_sar_bin_base "${BASH_SOURCE[0]}"; then
     echo runtime environemnt init failure. cannot resolve install path.
     return 1
 fi
 
-unset _reslove_sar_bin_base
+unset _resolve_sar_bin_base
 export SAR_BIN_BASE
 sar_import runtime.sh
