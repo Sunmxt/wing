@@ -1,3 +1,5 @@
+sar_import log.sh
+
 path_join() {
     local -i idx=1
     local result=
@@ -38,3 +40,19 @@ determine_os_package_manager() {
 full_path_of() {
     echo `cd "$1"; pwd -P `
 }
+
+hash_content_for_key() {
+    local target=$1
+    if [ -d "$target" ]; then
+        find "$target" -type f | xargs cat | md5sum - | cut -d ' ' -f 1
+    elif [ -f "$target" ]; then
+        cat "$target" | md5sum - | cut -d ' ' -f 1
+    elif [ -e "$target" ]; then
+        logerror \"$target\" not exists.
+        return 1
+    else
+        logerror unknown file type of \"$target\"
+        return 1
+    fi
+}
+

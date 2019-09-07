@@ -33,7 +33,7 @@ test-build-lnmp-image:
     - runtime_image_post_build_script ci/ci_lnmp_postbuild.sh
     - runtime_image_add_service normal php_fpm /usr/local/sbin/php-fpm
     - runtime_image_add_service normal nginx /usr/sbin/nginx -g 'daemon off;'
-    - build_runtime_image gitlab-docker -t gitlab_ci_commit_hash -e ENV
+    - build_runtime_image gitlab-docker -h ci/ci_lnmp_postbuild.sh -e ENV
     variables:
         ENV: ci_lnmp
 
@@ -48,8 +48,8 @@ test-no-push:
     script:
     - source ci/docker_push_gate.sh
     - runtime_image_base_image registry.stuhome.com/devops/dockerepo/alpine:3.7
-    - build_runtime_image gitlab-docker -t gitlab_ci_commit_hash -e ENV -s
-    - ci_build gitlab-package -t gitlab_ci_commit_hash -e CI_COMMIT_REF_NAME -s ./
+    - build_runtime_image gitlab-docker -t gitlab_ci_commit_hash -e ENV -s -f
+    - ci_build gitlab-package -t gitlab_ci_commit_hash -e CI_COMMIT_REF_NAME -s -f ./
 
 
 package-manifests:

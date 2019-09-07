@@ -27,6 +27,8 @@ is_image_exists() {
     return $?
 }
 
+enable_dockercli_experimentals
+
 docker_installed() {
     docker version -f '{{ .Client.Version }}' 2>&1 >/dev/null
     return $?

@@ -366,6 +366,8 @@ mode:
 options:
     -c <context_name>       specified build context. default: system
     -s                      do not push image to registry.
+    -h <path_to_hash>       use file(s) hash for tag.
+    -f                      force to build
 
 example:
     build_runtime_image -t latest -e ENV -r registry.stuhome.com/mine/myproject
@@ -387,7 +389,7 @@ build_runtime_image() {
     shift 1
 
     OPTIND=0
-    while getopts 't:e:r:c:s' opt; do
+    while getopts 't:e:r:c:sh:f' opt; do
         case $opt in
             t)
                 local ci_image_tag=$OPTARG
@@ -403,6 +405,12 @@ build_runtime_image() {
                 ;;
             s)
                 local ci_no_push=1
+                ;;
+            h)
+                local path_to_hash=$OPTARG
+                ;;
+            f)
+                local force_to_build=1
                 ;;
             *)
                 build_runtime_image_help

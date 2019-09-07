@@ -1,6 +1,9 @@
 sar_import lib.sh
 sar_import builder/common.sh
 sar_import settings/image.sh
+sar_import docker_utils.sh
+
+enable_dockercli_experimentals
 
 _ci_build_generate_registry_tag() {
     local tag=$1
@@ -43,7 +46,7 @@ _ci_build_generate_registry_path() {
 _ci_docker_build() {
     # Parse normal options
     OPTIND=0
-    while getopts 't:e:r:s' opt; do
+    while getopts 't:e:r:sfh:' opt; do
         case $opt in
             t)
                 local ci_build_docker_tag=$OPTARG
@@ -56,6 +59,12 @@ _ci_docker_build() {
                 ;;
             s)
                 local ci_no_push=1
+                ;;
+            f)
+                local force_to_build=1
+                ;;
+            h)
+                local hash_target_content="$OPTARG"
                 ;;
         esac
     done
@@ -70,7 +79,16 @@ _ci_docker_build() {
     local ci_build_docker_ref=`_ci_build_generate_registry_path "$ci_registry_image" "$ci_build_docker_env_name"`
 
     if [ -z "$ci_build_docker_tag" ]; then
-        local ci_build_docker_tag=latest
+        if [ ! -z "$hash_target_content" ]; then
+            local ci_build_docker_tag=`hash_content_for_key $hash_target_content`
+            if [ -z "$ci_build_docker_tag" ]; then
+                logerror cannot generate hash by files.
+                return 1
+            fi
+            local ci_build_docker_tag=${ci_build_docker_tag:0:10}
+        else
+            local ci_build_docker_tag=latest
+        fi 
     fi
     if [ -z "$ci_build_docker_ref" ]; then
         logerror Empty image reference.
@@ -79,6 +97,11 @@ _ci_docker_build() {
 
     local ci_build_docker_ref_path=$ci_build_docker_ref
     local ci_build_docker_ref=$ci_build_docker_ref_path:$ci_build_docker_tag
+
+    if is_image_exists "$ci_build_docker_ref" && [ -z "$force_to_build" ]; then
+        logwarn Skip image build: $ci_build_docker_ref
+        return 0
+    fi
 
     if ! log_exec docker build -t $ci_build_docker_ref $*; then
         logerror build failure.
@@ -113,7 +136,7 @@ _ci_gitlab_runner_docker_build() {
     fi
 
     OPTIND=0
-    while getopts 't:r:e:s' opt; do
+    while getopts 't:r:e:sfh:' opt; do
         case $opt in
             t)
                 local ci_build_docker_tag=$OPTARG
@@ -126,6 +149,12 @@ _ci_gitlab_runner_docker_build() {
                 ;;
             s)
                 local ci_no_push=1
+                ;;
+            f)
+                local force_to_build=1
+                ;;
+            h)
+                local hash_target_content="$OPTARG"
                 ;;
         esac
         eval "local opt=\${$OPTIND}"
@@ -168,7 +197,7 @@ _ci_gitlab_package_build() {
     fi
 
     OPTIND=0
-    while getopts 't:r:e:s' opt; do
+    while getopts 't:r:e:sf' opt; do
         case $opt in
             t)
                 local ci_build_docker_tag=$OPTARG
@@ -182,6 +211,9 @@ _ci_gitlab_package_build() {
             s)
                 local ci_no_push=1
                 ;;
+            f)
+                local force_to_build=1
+                ;;
         esac
         eval "local opt=\${$OPTIND}"
         if [ "${opt:0:2}" = "--" ]; then
@@ -192,15 +224,18 @@ _ci_gitlab_package_build() {
     local opts=
     local -i idx=1
     while [ $idx -lt $OPTIND ]; do
-        eval "local opts=\"\$opts \$$idx\""
+        eval "local opt=\${$idx}"
+        local opt=${opt:1:1}
+        if [ "${opt:1:1}" = "c" ]; then
+            local -i idx=idx+2
+            continue
+        fi
+        eval "local opts=\"\$opts \${$idx}\""
         local -i idx=idx+1
     done
     if [ "$ci_build_docker_tag" = "gitlab_ci_commit_hash" ]; then
         local ci_build_docker_tag=${CI_COMMIT_SHA:0:10}
         local opts="$opts -t $ci_build_docker_tag"
-    fi
-    if [ -z "$ci_build_docker_tag" ]; then
-        local ci_build_docker_tag=gitlab_ci_commit_hash
     fi
     if [ ! -z "$ci_build_docker_env_name" ]; then
         local opts="$opts -e $ci_build_docker_env_name"
@@ -239,7 +274,7 @@ RUN set -xe;\
 
 _ci_build_package() {
     OPTIND=0
-    while getopts 't:e:r:s' opt; do
+    while getopts 't:e:r:sf' opt; do
         case $opt in
             t)
                 local ci_package_tag=$OPTARG
@@ -252,6 +287,9 @@ _ci_build_package() {
                 ;;
             s)
                 local ci_no_push=1
+                ;;
+            f)
+                local force_to_build=1
                 ;;
         esac
     done
@@ -279,10 +317,23 @@ _ci_build_package() {
         return 1
     fi
 
+    if [ -z "$ci_package_tag" ]; then
+        local ci_package_tag=`hash_content_for_key "$product_path"`
+        if [ -z "$ci_package_tag" ]; then
+            logerror cannot generate hash by files.
+            return 1
+        fi
+    fi
+
     local ci_package_ref=`path_join "$ci_package_ref" sar__package`
-    loginfo build package with registry image: $ci_package_ref
     local ci_package_env_name=`_ci_get_env_value "$ci_package_env_name"`
     local ci_package_tag=`_ci_build_generate_registry_tag "$ci_package_tag"`
+    loginfo build package with registry image: $ci_package_ref:$ci_package_tag
+
+    if is_image_exists "$ci_package_ref:$ci_package_tag" && [ -z "$force_to_build" ]; then
+        logwarn Skip image build: "$ci_package_ref:$ci_package_tag"
+        return 0
+    fi
 
     # Generate dockerfile
     local dockerfile_path=/tmp/Dockerfile-PACKAGE-$RANDOM$RANDOM$RANDOM
@@ -337,7 +388,9 @@ options:
                                           with actually commit hash.
       -e <environment_variable_name>      Identify docker path by environment variable.
       -r <ref_prefix>                     Image reference prefix.
-      -s                                  Do not push image to regsitry. 
+      -s                                  Do not push image to regsitry.
+      -h <path_to_hash>                   Use file(s) hash for tag.
+      -f                                  force to build.
 
 example:
       ci_build gitlab-runner-docker -t gitlab_ci_commit_hash -e ENV .
