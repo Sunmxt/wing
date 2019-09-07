@@ -64,7 +64,7 @@ _runtime_install() {
             loginfo [install] "\"$bin\" doesn't exist"
             return 1
         fi
-        cp -f "$bin" "$target" 
+        cp -rf "$bin" "$target" 
     done
 
     local installed_cmd_path="$install_path/bin"

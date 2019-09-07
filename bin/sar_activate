@@ -35,5 +35,8 @@ if [ -z "$SAR_BIN_BASE" ] && ! _resolve_sar_bin_base `which "sar_activate" 2>/de
 fi
 
 unset _resolve_sar_bin_base
+
 export SAR_BIN_BASE
+export PATH="$SAR_BIN_BASE/pycmd/bin:$PATH"
+
 sar_import runtime.sh
