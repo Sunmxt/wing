@@ -48,8 +48,8 @@ _generate_supervisor_system_service() {
 command='$exec'
 startsecs=20
 autorestart=true
-stdout_logfile=/var/log/application/'$name.log'
-stderr_logfile=/var/log/application/'$name.err.log'
+stdout_logfile=/dev/stdout
+stderr_logfile=/dev/stderr
 directory='$workdir'
 '
 }
