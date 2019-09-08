@@ -38,5 +38,6 @@ unset _resolve_sar_bin_base
 
 export SAR_BIN_BASE
 export PATH="$SAR_BIN_BASE/pycmd/bin:$PATH"
+export SAR_CURRENT_PLATFORM=`uname | tr '[:upper:]' '[:lower:]'`
 
 sar_import runtime.sh

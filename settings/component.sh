@@ -3,6 +3,7 @@ COMPONENTS=(
     'settings/component.sh' 'settings/image.sh' 'settings/install.sh'
     'builder/ci.sh' 'builder/common.sh' 'builder/runtime_image.sh' 'builder/validate.sh'
     'pycmd'
+    'libexec/yq_darwin_amd64' 'libexec/yq_linux_amd64'
 )
 
 EXPORT_COMMANDS=(
@@ -14,4 +15,5 @@ EXPORT_COMMANDS=(
     "path_join"
     "is_image_exists"
     "docker_installed"
+    "yq"
 )

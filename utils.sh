@@ -56,3 +56,18 @@ hash_content_for_key() {
     fi
 }
 
+case "$SAR_CURRENT_PLATFORM" in
+    darwin)
+        SAR_YQ_BIN=`path_join "$SAR_BIN_BASE" libexec/yq_darwin_amd64`
+        ;;
+    linux)
+        SAR_YQ_BIN=`path_join "$SAR_BIN_BASE" libexec/yq_linux_amd64`
+        ;;
+    *)
+        logwarn "yq doesn't support current platform: $SAR_CURRENT_PLATFORM."
+        ;;
+esac
+
+yq() {
+    "$SAR_YQ_BIN" $*
+}
