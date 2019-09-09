@@ -299,7 +299,7 @@ _ci_build_package() {
         local product_path=$__
     fi
     local -i optind=optind+1
-    eval "local __=\$$optind"
+    eval "local __=\${$optind}"
     if [ "$__" = "--" ]; then
         local -i optind=optind+1
     fi

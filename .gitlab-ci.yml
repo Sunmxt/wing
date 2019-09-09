@@ -57,6 +57,6 @@ package-manifests:
 
     script:
     - rm .gitlab-ci.yml 
-    - ci_build gitlab-package -t gitlab_ci_commit_hash -e CI_COMMIT_REF_NAME ./
+    - ci_build gitlab-package -e CI_COMMIT_REF_NAME ./
 
     allow_failure: false
