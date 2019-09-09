@@ -323,6 +323,7 @@ _ci_build_package() {
             logerror cannot generate hash by files.
             return 1
         fi
+        local ci_package_tag=${ci_package_tag:0:10}
     fi
 
     local ci_package_ref=`path_join "$ci_package_ref" sar__package`
