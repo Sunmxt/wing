@@ -461,7 +461,14 @@ build_runtime_image() {
     local opts=
     local -i idx=1
     while [ $idx -le $optind ]; do
-        eval "local opts=\"\$opts \$$idx\""
+        eval "local opt=\${$idx}"
+        local opt=${opt:1:1}
+        if [ "$opt" = "c" ]; then
+            local -i idx=idx+2
+            continue
+        fi
+
+        eval "local opts=\"\$opts \${$idx}\""
         local -i idx=idx+1
     done
     shift $optind
