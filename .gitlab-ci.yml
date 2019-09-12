@@ -33,7 +33,7 @@ test-build-lnmp-image:
     - runtime_image_post_build_script ci/ci_lnmp_postbuild.sh
     - runtime_image_add_service normal php_fpm /usr/local/sbin/php-fpm
     - runtime_image_add_service normal nginx /usr/sbin/nginx -g 'daemon off;'
-    - build_runtime_image gitlab-docker -h ci/ci_lnmp_postbuild.sh -e ENV
+    - build_runtime_image gitlab-docker -h ci/ci_lnmp_postbuild.sh -e ENV --ignore-runtime
     variables:
         ENV: ci_lnmp
 

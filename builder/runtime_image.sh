@@ -368,6 +368,7 @@ options:
     -s                      do not push image to registry.
     -h <path_to_hash>       use file(s) hash for tag.
     -f                      force to build
+    -i
 
 example:
     build_runtime_image -t latest -e ENV -r registry.stuhome.com/mine/myproject
@@ -388,6 +389,15 @@ build_runtime_image() {
     esac
     shift 1
 
+    LONGOPTIND=0
+    while next_long_opt opt $*; do
+        case $opt in
+            ignore-runtime)
+                local ignore_runtime=1
+                ;;
+        esac
+        eval `eliminate_long_opt`
+    done
     OPTIND=0
     while getopts 't:e:r:c:sh:f' opt; do
         case $opt in
@@ -448,7 +458,9 @@ build_runtime_image() {
     fi
 
     # add runtime
-    runtime_image_add_dependency -c "$context" -r "$SAR_RUNTIME_PKG_PREFIX" -e "$SAR_RUNTIME_PKG_ENV" -t "$SAR_RUNTIME_PKG_TAG" /_sar_package/runtime_install
+    if [ -z "$ignore_runtime" ]; then
+        runtime_image_add_dependency -c "$context" -r "$SAR_RUNTIME_PKG_PREFIX" -e "$SAR_RUNTIME_PKG_ENV" -t "$SAR_RUNTIME_PKG_TAG" /_sar_package/runtime_install
+    fi
 
     local dockerfile=/tmp/Dockerfile-RuntimeImage-$RANDOM$RANDOM$RANDOM
     if ! _generate_runtime_image_dockerfile "$context" "$ci_image_prefix" "$ci_image_env_name" "$ci_image_tag" > "$dockerfile" ; then
@@ -457,28 +469,28 @@ build_runtime_image() {
         return 1
     fi
 
-
-    local opts=
     local -i idx=1
-    while [ $idx -le $optind ]; do
-        eval "local opt=\${$idx}"
+    local -i ref=1
+    local -a opts
+    while [ $ref -le $optind ]; do
+        eval "local opt=\${$ref}"
         local opt=${opt:1:1}
         if [ "$opt" = "c" ]; then
-            local -i idx=idx+2
+            local -i ref=ref+2
             continue
         fi
-
-        eval "local opts=\"\$opts \${$idx}\""
-        local -i idx=idx+1
+        eval "opts[$idx]=\"\${$ref}\""
+        idx=idx+1
+        ref=ref+1
     done
     shift $optind
 
     case $mode in
         docker)
-            eval "log_exec _ci_docker_build $opts -- -f \"$dockerfile\" $* ." || return 1
+            eval "log_exec _ci_docker_build ${opts[@]} -- -f \"$dockerfile\" $* ." || return 1
             ;;
         gitlab-docker)
-            eval "log_exec _ci_gitlab_runner_docker_build $opts -- -f \"$dockerfile\" $* ." || return 1
+            eval "log_exec _ci_gitlab_runner_docker_build ${opts[@]} -- -f \"$dockerfile\" $* ." || return 1
             ;;
     esac
 }
