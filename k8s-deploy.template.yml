@@ -1,0 +1,144 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: wing-${ENV}
+  labels:
+    starstudio.org/app: wing
+  namespace: kube-system
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+  name: wing-${ENV}
+  labels:
+    starstudio.org/app: wing
+rules:
+  - apiGroups:
+      - core
+    resources: ["namespace", "pod"]
+    verbs: ["*"]
+  - apiGroups:
+      - apps
+    resources: ["deployment"]
+    verbs: ["*"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: wing-${ENV}
+  labels:
+    starstudio.org/app: wing
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: wing-${ENV}
+subjects:
+  - kind: ServiceAccount
+    name: wing-${ENV}
+    namespace: kube-system
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: wing-config-${ENV}
+  labels:
+    starstudio.org/app: wing
+  namespace: kube-system
+data:
+  config.yml: |
+    bind: 0.0.0.0:8077
+    database:
+      dsn: "wing_${ENV}:123456@tcp(10.240.0.1:3306)/wing_${ENV}?charset=utf8&parseTime=true"
+      engine: mysql
+    kubernetes:
+      namespacePrefix: wing-${ENV}
+    auth:
+      enableLDAP: true
+      disableLegacyUser: false
+    
+      ldap:
+         server: 10.240.5.1:389
+         bindDN: cn=admin,dc=starstudio,dc=com
+         bindPassword: ${ldap__bind_password}
+         baseDN: dc=starstudio,dc=com
+         searchPattern: (&(objectClass=person)(cn=%v))
+         nameAttribute: cn
+         #syncLegacyUser: false
+         acceptRegistration: true
+         registerRDN: cn=%v
+         registerObjectClasses:
+           - person
+         registerAttributes:
+           sn: "%[1]v"
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wing-${ENV}
+  labels:
+    starstudio.org/app: wing
+  namespace: kube-system
+spec:
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      starstudio.org/app: wing
+  template:
+    metadata:
+      annotations:
+        starstudio.org/wing: wing-server
+      labels:
+        starstudio.org/app: wing
+    spec:
+      containers:
+        - image: ${IMAGE_BASE}
+          name: wing-server-${ENV}
+          command:
+          - /bin/wing
+          args:
+          - serve
+          - -config=/etc/wing/config.yml
+          imagePullPolicy: IfNotPresent
+          ports:
+          - containerPort: 8077
+            protocol: TCP
+          volumeMounts:
+          - name: wing-config
+            mountPath: /etc/wing
+            readOnly: true
+      initContainers:
+        - image: ${IMAGE_BASE}
+          name: wing-server-${ENV}-init
+          command:
+          - /bin/wing
+          args:
+          - init
+          - -config=/etc/wing/config.yml
+          imagePullPolicy: IfNotPresent
+          volumeMounts:
+          - name: wing-config
+            mountPath: /etc/wing
+            readOnly: true
+      dnsPolicy: ClusterFirst
+      volumes:
+      - name: wing-config
+        configMap:
+          name: wing-config-${ENV}
+      serviceAccount: wing-${ENV}
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: wing-${ENV}
+  labels:
+    starstudio.org/app: wing
+  namespace: kube-system
+spec:
+  ports:
+  - port: 80
+    targetPort: 8077
+  selector:
+    starstudio.org/app: wing

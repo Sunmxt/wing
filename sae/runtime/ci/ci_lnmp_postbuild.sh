@@ -12,7 +12,7 @@ php -r "unlink('composer-setup.php');"
 mkdir -p /usr/src/php/ext /run/nginx
 apk add -t build-deps autoconf gcc g++ make automake linux-headers --cache-dir /apk-cache
 pecl install redis
-docker-php-ext-install pdo mysqli
+docker-php-ext-install pdo
 docker-php-ext-enable redis
 apk del build-deps
 rm -rf /apk-cache
