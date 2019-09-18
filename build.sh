@@ -1,1 +1,9 @@
-docker build . -t $DOCKER_BUILD_TAG  --build-arg MAKE_ENV_ARGV="http_proxy=socks5://10.240.0.1:5356 https_proxy=socks5://10.240.0.1:5356"
+#! /usr/bin/env sh
+set -xe
+
+# Build Dashboard
+make bin/dashboard
+
+# Build main executable
+make bin/wing $MAKE_ENV_ARGV SKIP_FE_BUILD=1
+chmod a+x bin/wing

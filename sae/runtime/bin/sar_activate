@@ -1,0 +1,43 @@
+#! /usr/bin/env bash
+
+sar_import() {
+    local module=$1
+    if [ -z "$module" ]; then
+        return 1
+    fi
+    source "$SAR_BIN_BASE/$module"
+    return $?
+}
+
+_resolve_sar_bin_base() {
+    SAR_BIN_BASE=$1
+    if [ -z "$SAR_BIN_BASE" ]; then
+        return 1
+    fi
+
+    while [ -L "$SAR_BIN_BASE" ]; do
+        SAR_BIN_BASE=`readlink "$SAR_BIN_BASE"`
+    done
+    SAR_BIN_BASE="$( cd "$(dirname "$SAR_BIN_BASE")"/.. ; pwd -P )"
+    if [ ! -e "$SAR_BIN_BASE/bin/sar_activate" ] || [ -L "$SAR_BIN_BASE/bin/sar_activate" ] ; then
+        unset SAR_BIN_BASE
+        return 1
+    fi
+}
+
+if [ ! -z "$SAR_BIN_BASE" ] && [ ! -e "`realpath $SAR_BIN_BASE`/bin/sar_activate" ]; then
+    unset SAR_BIN_BASE
+fi
+
+if [ -z "$SAR_BIN_BASE" ] && ! _resolve_sar_bin_base `which "sar_activate" 2>/dev/null` && ! _resolve_sar_bin_base `which "$0" 2>/dev/null` && ! _resolve_sar_bin_base "${BASH_SOURCE[0]}"; then
+    echo runtime environemnt init failure. cannot resolve install path.
+    return 1
+fi
+
+unset _resolve_sar_bin_base
+
+export SAR_BIN_BASE
+export PATH="$SAR_BIN_BASE/pycmd/bin:$PATH"
+export SAR_CURRENT_PLATFORM=`uname | tr '[:upper:]' '[:lower:]'`
+
+sar_import runtime.sh
