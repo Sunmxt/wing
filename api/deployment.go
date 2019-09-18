@@ -6,6 +6,7 @@ import (
 
 	"git.stuhome.com/Sunmxt/wing/common"
 	"git.stuhome.com/Sunmxt/wing/model"
+	mcommon "git.stuhome.com/Sunmxt/wing/model/common"
 	"github.com/gin-gonic/gin"
 	"github.com/jinzhu/gorm"
 )
@@ -90,7 +91,7 @@ func StartDeployment(ctx *gin.Context) {
 		return
 	}
 	deploy := &model.Deployment{
-		Basic: model.Basic{
+		Basic: mcommon.Basic{
 			ID: req.DeploymentID,
 		},
 	}
@@ -185,7 +186,7 @@ func GetDeploymentInfo(ctx *gin.Context) {
 		return
 	}
 	deploy := &model.Deployment{
-		Basic: model.Basic{
+		Basic: mcommon.Basic{
 			ID: req.DeploymentID,
 		},
 	}

@@ -1,19 +1,18 @@
-package common
+package controller
 
 import (
 	"fmt"
 	"git.stuhome.com/Sunmxt/wing/model"
+	"git.stuhome.com/Sunmxt/wing/common"
 	"github.com/jinzhu/gorm"
 	zxcvbn "github.com/nbutton23/zxcvbn-go"
 	ldap "gopkg.in/ldap.v3"
-	"regexp"
 )
 
-var ReMail *regexp.Regexp
 
 func (ctx *OperationContext) NewLDAPSearchRequest(username string) (*ldap.SearchRequest, error) {
 	if ctx.Runtime.Config == nil {
-		return nil, ErrConfigMissing
+		return nil, common.ErrConfigMissing
 	}
 	config := ctx.Runtime.Config
 	searchRequest := ldap.NewSearchRequest(
@@ -36,30 +35,30 @@ func (ctx *OperationContext) LDAPByName(username string) (*ldap.SearchResult, er
 		return nil, err
 	}
 	if result, err = conn.Search(request); err != nil {
-		return nil, NewInternalError(err)
+		return nil, common.NewInternalError(err)
 	}
 	return result, err
 }
 
 func (ctx *OperationContext) AddLDAPAccount(username, password, commonName string) error {
-	if !ReMail.Match([]byte(username)) {
-		return ErrUsernameNotMail
+	if !common.ReMail.Match([]byte(username)) {
+		return common.ErrUsernameNotMail
 	}
 	score := zxcvbn.PasswordStrength(password, []string{username})
 	if score.Score < 2 || len(password) < 6 {
-		return ErrWeakPassword
+		return common.ErrWeakPassword
 	}
 
 	ctx.Log.Infof("add LDAP user \"%v\".", username)
 	if ctx.Runtime.Config == nil {
-		return ErrConfigMissing
+		return common.ErrConfigMissing
 	}
 	config := ctx.Runtime.Config
 	conn, err := ctx.LDAPRootConnection()
 
 	hasher := model.NewMD5Hasher()
 	if password, err = hasher.HashString(password); err != nil {
-		return NewInternalError(err)
+		return common.NewInternalError(err)
 	}
 	req := ldap.NewAddRequest(fmt.Sprintf(config.Auth.LDAP.RegisterRDN, username)+","+config.Auth.LDAP.BaseDN, nil)
 	req.Attribute(config.Auth.LDAP.NameAttribute, []string{commonName})
@@ -70,7 +69,7 @@ func (ctx *OperationContext) AddLDAPAccount(username, password, commonName strin
 	}
 
 	if err = conn.Add(req); err != nil {
-		return NewInternalError(err)
+		return common.NewInternalError(err)
 	}
 	conn.Close()
 
@@ -81,7 +80,7 @@ func (ctx *OperationContext) AuthAsLDAPUser(username, password string) (*model.A
 	ctx.Log.Infof("try to auth \"%v\" via LDAP.", username)
 
 	if ctx.Runtime.Config == nil {
-		return nil, ErrConfigMissing
+		return nil, common.ErrConfigMissing
 	}
 	config := ctx.Runtime.Config
 	conn, err := ctx.LDAPRootConnection()
@@ -96,19 +95,19 @@ func (ctx *OperationContext) AuthAsLDAPUser(username, password string) (*model.A
 		nil,
 	), (*ldap.SearchResult)(nil)
 	if result, err = conn.Search(searchRequest); err != nil {
-		return nil, NewInternalError(err)
+		return nil, common.NewInternalError(err)
 	}
 	if len(result.Entries) < 1 {
-		return nil, ErrInvalidAccount
+		return nil, common.ErrInvalidAccount
 	}
 	if len(result.Entries) > 1 {
 		ctx.Log.Infof("more then 1 LDAP Entries found for user \"%v\".", err.Error())
-		return nil, ErrInvalidAccount
+		return nil, common.ErrInvalidAccount
 	}
 	userDN := result.Entries[0].DN
 	if err = conn.Bind(userDN, password); err != nil {
 		ctx.Log.Infof("bind user DN \"%v\" error: "+err.Error(), userDN)
-		return nil, NewInternalError(err)
+		return nil, common.NewInternalError(err)
 	}
 	conn.Close()
 
@@ -121,8 +120,8 @@ func (ctx *OperationContext) AuthAsLDAPUser(username, password string) (*model.A
 }
 
 func (ctx *OperationContext) LegacyAccountByName(username string, create bool, passwordHash string) (*model.Account, error) {
-	if !ReMail.Match([]byte(username)) {
-		return nil, ErrUsernameNotMail
+	if !common.ReMail.Match([]byte(username)) {
+		return nil, common.ErrUsernameNotMail
 	}
 
 	ctx.Log.Infof("load legacy user \"%v\"", username)
@@ -135,12 +134,12 @@ func (ctx *OperationContext) LegacyAccountByName(username string, create bool, p
 	if err = db.Where(&model.Account{Name: username}).First(account).Error; err != nil {
 		if gorm.IsRecordNotFoundError(err) {
 			if !create {
-				return nil, ErrInvalidUsername
+				return nil, common.ErrInvalidUsername
 			}
 			account.Credentials = passwordHash
 			account.Name = username
 			if err = db.Save(account).Error; err != nil {
-				return nil, NewInternalError(err)
+				return nil, common.NewInternalError(err)
 			}
 			ctx.Log.Infof("new legacy user created: " + username)
 		}
@@ -155,14 +154,14 @@ func (ctx *OperationContext) AuthAsLegacyUser(username, password string) (accoun
 
 	var toVerify string
 	if toVerify, err = hasher.HashString(password); err != nil {
-		return nil, NewInternalError(err)
+		return nil, common.NewInternalError(err)
 	}
 
 	if account, err = ctx.LegacyAccountByName(username, false, ""); err != nil {
 		return nil, err
 	}
 	if toVerify != account.Credentials {
-		return nil, ErrInvalidAccount
+		return nil, common.ErrInvalidAccount
 	}
 	return account, nil
 }
@@ -171,15 +170,15 @@ func (ctx *OperationContext) AddLegacyAccount(username, password string) error {
 	ctx.Log.Infof("try to add legacy account \"%v\".", username)
 	score := zxcvbn.PasswordStrength(password, []string{username})
 	if score.Score < 2 || len(password) < 6 {
-		return ErrWeakPassword
+		return common.ErrWeakPassword
 	}
 
 	account, err := ctx.LegacyAccountByName(username, false, "")
-	if err != nil && err != ErrInvalidUsername {
+	if err != nil && err != common.ErrInvalidUsername {
 		return err
 	}
 	if account != nil {
-		return ErrAccountExists
+		return common.ErrAccountExists
 	}
 	hasher := model.NewMD5Hasher()
 	if password, err = hasher.HashString(password); err != nil {

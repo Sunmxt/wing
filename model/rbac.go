@@ -2,6 +2,7 @@ package model
 
 import (
 	"fmt"
+	"git.stuhome.com/Sunmxt/wing/model/common"
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/mysql"
 	_ "github.com/jinzhu/gorm/dialects/postgres"
@@ -22,7 +23,7 @@ const (
 )
 
 type Account struct {
-	Basic
+	common.Basic
 	Name        string `gorm:"type:varchar(16);unique;not null"`
 	Credentials string `gorm:"type:varchar(64);not null"`
 	CommonName  string `gorm:"type:varchar(128);not null"`
@@ -35,7 +36,7 @@ func (m Account) TableName() string {
 }
 
 type RoleModel struct {
-	Basic
+	common.Basic
 	Name string `gorm:"type:varchar(32);unique;not null"`
 }
 
@@ -44,7 +45,7 @@ func (m RoleModel) TableName() string {
 }
 
 type RoleRecord struct {
-	Basic
+	common.Basic
 	ResourceName string    `gorm:"type:varchar(64);column:resource_name;unique;not null"`
 	Verbs        int64     `gorm:"not null"`
 	Role         RoleModel `gorm:"foreignkey:RoleID"`
@@ -56,7 +57,7 @@ func (m *RoleRecord) TableName() string {
 }
 
 type RoleBinding struct {
-	Basic
+	common.Basic
 
 	Account Account   `gorm:"foreignkey:AccountID"`
 	Role    RoleModel `gorm:"foreignkey:RoleID"`

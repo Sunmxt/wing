@@ -35,3 +35,16 @@ func RequestLogMiddleware(ctx *gin.Context) {
 	logger.Data["remote"] = ctx.Request.RemoteAddr
 	logger.Infof("[request] %v %v %v", ctx.Request.Method, ctx.Request.URL.RequestURI(), ctx.Writer.Status())
 }
+
+type InfoLogger interface {
+	Info(...interface{})
+}
+
+type ErrorLogger interface {
+	Error(...interface{})
+}
+
+type NormalLogger interface {
+	InfoLogger
+	ErrorLogger
+}

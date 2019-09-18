@@ -1,9 +1,10 @@
-package common
+package controller
 
 import (
 	"errors"
 	mlog "git.stuhome.com/Sunmxt/wing/log"
 	"git.stuhome.com/Sunmxt/wing/model"
+	"git.stuhome.com/Sunmxt/wing/common"
 	"github.com/jinzhu/gorm"
 	log "github.com/sirupsen/logrus"
 	ldap "gopkg.in/ldap.v3"
@@ -11,7 +12,7 @@ import (
 )
 
 type OperationContext struct {
-	Runtime     *WingRuntime
+	Runtime     *common.WingRuntime
 	Log         *log.Entry
 	DB          *gorm.DB
 	RBACContext *model.RBACContext
@@ -39,7 +40,7 @@ func (ctx *OperationContext) Database() (db *gorm.DB, err error) {
 		return ctx.DB, nil
 	}
 	if ctx.Runtime.Config == nil {
-		return nil, ErrConfigMissing
+		return nil, common.ErrConfigMissing
 	}
 	if ctx.DB, err = gorm.Open(ctx.Runtime.Config.DB.SQLEngine, ctx.Runtime.Config.DB.SQLDsn); err != nil {
 		return nil, errors.New("Failed to open database: " + err.Error())
@@ -105,15 +106,15 @@ func (ctx *OperationContext) Permitted(resource string, verbs int64) bool {
 
 func (ctx *OperationContext) LDAPRootConnection() (*ldap.Conn, error) {
 	if ctx.Runtime.Config == nil {
-		return nil, ErrConfigMissing
+		return nil, common.ErrConfigMissing
 	}
 	config := ctx.Runtime.Config
 	conn, err := ldap.Dial("tcp", config.Auth.LDAP.Server)
 	if err != nil {
-		return nil, NewInternalError(err)
+		return nil, common.NewInternalError(err)
 	}
 	if err = conn.Bind(config.Auth.LDAP.BindDN, config.Auth.LDAP.BindPassword); err != nil {
-		return nil, NewInternalError(err)
+		return nil, common.NewInternalError(err)
 	}
 	return conn, nil
 }

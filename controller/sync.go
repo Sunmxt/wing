@@ -1,9 +1,11 @@
-package common
+package controller
 
 import (
 	"encoding/json"
 	"fmt"
 	"git.stuhome.com/Sunmxt/wing/model"
+	"git.stuhome.com/Sunmxt/wing/common"
+	mcommon "git.stuhome.com/Sunmxt/wing/model/common"
 	"github.com/jinzhu/gorm"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -122,7 +124,7 @@ func (ctx *OperationContext) UpdateAppContainerFromSpec(container *corev1.Contai
 func (ctx *OperationContext) CreateDeploymentManifestFromSpec(appName string, deployID int, spec *model.AppSpec) (dp *appsv1.Deployment, err error) {
 	dp = &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: GetNormalizedDeploymentName(appName, deployID),
+			Name: common.GetNormalizedDeploymentName(appName, deployID),
 		},
 	}
 	if _, err = ctx.UpdateDeploymentManifestFromSpec(appName, deployID, dp, spec); err != nil {
@@ -181,7 +183,7 @@ func (ctx *OperationContext) UpdateDeploymentManifestFromSpec(appName string, de
 		return false, nil
 	}
 	updated = false
-	deployName := GetNormalizedDeploymentName(appName, deployID)
+	deployName := common.GetNormalizedDeploymentName(appName, deployID)
 	if manifest.ObjectMeta.Name != deployName {
 		updated = true
 		manifest.ObjectMeta.Name = deployName
@@ -252,7 +254,7 @@ func (ctx *OperationContext) SyncDeployment(ID, targetState int) (deploy *model.
 		return nil, false, err
 	}
 	deploy = &model.Deployment{
-		Basic: model.Basic{
+		Basic: mcommon.Basic{
 			ID: ID,
 		},
 	}
@@ -268,7 +270,7 @@ func (ctx *OperationContext) SyncDeployment(ID, targetState int) (deploy *model.
 		return nil, false, err
 	}
 
-	kubeDeployName := GetNormalizedDeploymentName(deploy.App.Name, deploy.Basic.ID)
+	kubeDeployName := common.GetNormalizedDeploymentName(deploy.App.Name, deploy.Basic.ID)
 	ctx.Log.Infof("[SyncDeployment] Start deployment to kubernetes. (Application ID = %v, Name = %v, Normalized name = %v, Target state = %v)", ID, deploy.App.Name, kubeDeployName, targetState)
 
 	// stage 1: determine current state
@@ -426,7 +428,7 @@ func (ctx *OperationContext) GetKubeDeploymentManifest(name string, deploymentID
 		return nil, err
 	}
 
-	kDeployName := GetNormalizedDeploymentName(name, deploymentID)
+	kDeployName := common.GetNormalizedDeploymentName(name, deploymentID)
 	if dp, err = clientset.AppsV1().Deployments(ctx.Runtime.Config.Kube.Namespace).Get(kDeployName, metav1.GetOptions{}); err != nil {
 		return nil, err
 	}
@@ -469,7 +471,7 @@ func (ctx *OperationContext) GetCurrentDeployment(appID int) (deploy *model.Depl
 	return deploy, dp, nil
 }
 
-func (ctx *OperationContext) ListApplicationPodInfo(appName string, deploymentID int) (podInfo []ApplicationPodInfo, err error) {
+func (ctx *OperationContext) ListApplicationPodInfo(appName string, deploymentID int) (podInfo []common.ApplicationPodInfo, err error) {
 	if deploymentID < 1 {
 		return nil, nil
 	}
@@ -485,7 +487,7 @@ func (ctx *OperationContext) ListApplicationPodInfo(appName string, deploymentID
 		return
 	}
 	// Pick information
-	podInfo = make([]ApplicationPodInfo, len(podList.Items))
+	podInfo = make([]common.ApplicationPodInfo, len(podList.Items))
 	for idx, pod := range podList.Items {
 		podInfo[idx].FromManifest(&pod)
 	}

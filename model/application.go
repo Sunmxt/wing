@@ -1,11 +1,15 @@
 package model
 
+import (
+	"git.stuhome.com/Sunmxt/wing/model/common"
+)
+
 const (
 	ReadyToDeploy = 0
 )
 
 type AppSpec struct {
-	Basic
+	common.Basic
 
 	ImageRef string  `gorm:"type:varchar(128);not null"`
 	EnvVar   string  `gorm:"type:longtext;not null"`
@@ -21,7 +25,7 @@ func (m AppSpec) TableName() string {
 }
 
 type Application struct {
-	Basic
+	common.Basic
 
 	Name      string   `gorm:"type:varchar(128);not null;unique"`
 	Owner     *Account `gorm:"foreignkey:OwnerID;not null"`

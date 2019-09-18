@@ -35,4 +35,6 @@ var (
 	ErrRegisterNotAllowed = NewExternalError(errors.New("Register.NotAllowed"))
 	ErrUsernameNotMail    = NewExternalError(errors.New("Account.NotAMail"))
 	ErrWeakPassword       = NewExternalError(errors.New("Account.WeakPassword"))
+
+	ErrEndpointMissing = NewExternalError(errors.New("No avaliable endpoint."))
 )

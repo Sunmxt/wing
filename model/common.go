@@ -3,19 +3,13 @@ package model
 import (
 	"errors"
 	"git.stuhome.com/Sunmxt/wing/cmd/config"
+	"git.stuhome.com/Sunmxt/wing/model/scm"
 	"github.com/jinzhu/gorm"
 	log "github.com/sirupsen/logrus"
 	"strings"
-	"time"
 )
 
-type Basic struct {
-	ID         int       `gorm:"primary_key;not null;auto_increment;unique"`
-	CreateTime time.Time `gorm:"type:datetime;not null"`
-	ModifyTime time.Time `gorm:"type:datetime;not null"`
-}
-
-func Migrate(db *gorm.DB, cfg *config.WingConfiguration) error {
+func Migrate(db *gorm.DB, cfg *config.WingConfiguration) (err error) {
 	db.AutoMigrate(&Account{})
 	db.AutoMigrate(&RoleModel{})
 	db.AutoMigrate(&AppSpec{})
@@ -24,6 +18,11 @@ func Migrate(db *gorm.DB, cfg *config.WingConfiguration) error {
 	db.AutoMigrate(&Application{}).AddForeignKey("owner_id", "account(id)", "RESTRICT", "RESTRICT").AddForeignKey("spec_id", "application_spec(id)", "RESTRICT", "RESTRICT")
 	db.AutoMigrate(&Deployment{}).AddForeignKey("spec_id", "application_spec(id)", "RESTRICT", "RESTRICT").AddForeignKey("app_id", "application(id)", "RESTRICT", "RESTRICT")
 	db.AutoMigrate(&Settings{})
+
+	if err = scm.Migrate(db, cfg); err != nil {
+		return err
+	}
+
 	return initRBACRoot(db, cfg)
 }
 

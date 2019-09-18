@@ -1,6 +1,7 @@
 package api
 
 import (
+	"git.stuhome.com/Sunmxt/wing/api/scm"
 	"github.com/gin-gonic/gin"
 )
 
@@ -25,6 +26,15 @@ func RegisterAPI(engine *gin.Engine) error {
 	engine.GET("/api/application/deploy/list", ListDeployment)
 	engine.GET("/api/application/deploy/info", GetDeploymentInfo)
 	engine.POST("/api/application/deploy/stop", StopDeployment)
+
+	// CICD
+	engine.GET("/api/scm/repository/list", scm.ListRepository)
+	//engine.GET("/api/scm/repository/enable", scm.EnableRepository)
+	//engine.GET("/api/scm/repository/disable", scm.DisableRepository)
+
+	//engine.GET("/api/scm/repository/builds/create", SCMCreateBuild)
+	//engine.GET("/api/scm/repository/builds/edit", SCMEditBuild)
+	//engine.GET("/api/scm/repository/builds/delete", SCMDeleteBuild)
 
 	engine.NoRoute(ServeDefault)
 
