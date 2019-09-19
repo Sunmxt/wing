@@ -28,12 +28,11 @@ func RegisterAPI(engine *gin.Engine) error {
 	engine.GET("/api/application/deploy/info", GetDeploymentInfo)
 	engine.POST("/api/application/deploy/stop", StopDeployment)
 
-	// CICD
+	// Source Code Management
 	engine.GET("/api/scm/list", scm.ListSCMPlatform)
 	engine.GET("/api/scm/repository/list", scm.ListRepository)
-
-	//engine.GET("/api/scm/repository/enable", scm.EnableRepository)
-	//engine.GET("/api/scm/repository/disable", scm.DisableRepository)
+	engine.GET("/api/scm/repository/cicd/enable", scm.EnableRepositoryCICD)
+	engine.GET("/api/scm/repository/cicd/disable", scm.DisableRepositoryCICD)
 
 	//engine.GET("/api/scm/repository/builds/create", SCMCreateBuild)
 	//engine.GET("/api/scm/repository/builds/edit", SCMEditBuild)

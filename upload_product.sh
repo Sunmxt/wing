@@ -2,6 +2,5 @@
 
 mkdir ./output -p
 cp -v ./bin/wing ./output/
-sae/runtime/install.sh /opt/runtime
-source runtime_env
+source controller/sae/runtime/bin/sar_activate
 ci_build gitlab-package -e CI_COMMIT_REF_NAME ./output

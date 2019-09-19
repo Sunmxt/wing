@@ -9,3 +9,13 @@ type Basic struct {
 	CreateTime time.Time `gorm:"type:datetime;not null"`
 	ModifyTime time.Time `gorm:"type:datetime;not null"`
 }
+
+func (b *Basic) BeforeCreate() error {
+	b.CreateTime = time.Now()
+	return nil
+}
+
+func (b *Basic) BeforeSave() error {
+	b.ModifyTime = time.Now()
+	return nil
+}

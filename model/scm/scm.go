@@ -32,7 +32,7 @@ func Migrate(db *gorm.DB, cfg *config.WingConfiguration) (err error) {
 	if db.Error != nil {
 		return db.Error
 	}
-	db.AutoMigrate(&CIRepository{})
+	db.AutoMigrate(&CIRepository{}).AddIndex("idx_reference", "reference")
 	if db.Error != nil {
 		return db.Error
 	}
