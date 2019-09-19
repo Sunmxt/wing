@@ -3,8 +3,8 @@ package controller
 import (
 	"errors"
 	mlog "git.stuhome.com/Sunmxt/wing/log"
-	"git.stuhome.com/Sunmxt/wing/model"
 	"git.stuhome.com/Sunmxt/wing/common"
+	"git.stuhome.com/Sunmxt/wing/model/account"
 	"github.com/jinzhu/gorm"
 	log "github.com/sirupsen/logrus"
 	ldap "gopkg.in/ldap.v3"
@@ -15,8 +15,8 @@ type OperationContext struct {
 	Runtime     *common.WingRuntime
 	Log         *log.Entry
 	DB          *gorm.DB
-	RBACContext *model.RBACContext
-	Account     model.Account
+	RBACContext *account.RBACContext
+	Account     account.Account
 	Client      *kubernetes.Clientset
 }
 
@@ -56,7 +56,7 @@ func (ctx *OperationContext) Database() (db *gorm.DB, err error) {
 	return ctx.DB, nil
 }
 
-func (ctx *OperationContext) GetAccount() *model.Account {
+func (ctx *OperationContext) GetAccount() *account.Account {
 	if ctx.Account.ID > 0 {
 		return &ctx.Account
 	}
@@ -64,7 +64,7 @@ func (ctx *OperationContext) GetAccount() *model.Account {
 	if err != nil {
 		return nil
 	}
-	if err = db.Where(model.Account{Name: ctx.Account.Name}).First(&ctx.Account).Error; err != nil {
+	if err = db.Where(account.Account{Name: ctx.Account.Name}).First(&ctx.Account).Error; err != nil {
 		if gorm.IsRecordNotFoundError(err) {
 			ctx.Log.Info("[Role] Anonymous.")
 		} else {
@@ -75,7 +75,7 @@ func (ctx *OperationContext) GetAccount() *model.Account {
 	return &ctx.Account
 }
 
-func (ctx *OperationContext) RBAC() *model.RBACContext {
+func (ctx *OperationContext) RBAC() *account.RBACContext {
 	if ctx.RBACContext != nil {
 		return ctx.RBACContext
 	}
@@ -83,7 +83,7 @@ func (ctx *OperationContext) RBAC() *model.RBACContext {
 		ctx.Log.Info("[RBAC] Anonymous.")
 		return nil
 	}
-	ctx.RBACContext = model.NewRBACContext(ctx.Account.Name)
+	ctx.RBACContext = account.NewRBACContext(ctx.Account.Name)
 	db, err := ctx.Database()
 	if err != nil {
 		ctx.Log.Warnf("[RBAC] Cannot load RBAC rule for user \"%v\": %v", ctx.Account.Name, err.Error())

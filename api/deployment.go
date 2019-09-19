@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	acommon "git.stuhome.com/Sunmxt/wing/api/common"
 	"git.stuhome.com/Sunmxt/wing/common"
 	"git.stuhome.com/Sunmxt/wing/model"
 	mcommon "git.stuhome.com/Sunmxt/wing/model/common"
@@ -12,7 +13,7 @@ import (
 )
 
 func ListDeployment(ctx *gin.Context) {
-	rctx := NewRequestContext(ctx)
+	rctx := acommon.NewRequestContext(ctx)
 	rctx.FailWithMessage("Not implemented.")
 }
 
@@ -24,12 +25,12 @@ type CreateDeploymentRequest struct {
 	Application string `form:"application" binding:"required"`
 }
 
-func (r *CreateDeploymentRequest) Clean(req *RequestContext) error {
+func (r *CreateDeploymentRequest) Clean(req *acommon.RequestContext) error {
 	return nil
 }
 
 func CreateDeployment(ctx *gin.Context) {
-	rctx, req := NewRequestContext(ctx), &CreateDeploymentRequest{}
+	rctx, req := acommon.NewRequestContext(ctx), &CreateDeploymentRequest{}
 	if !rctx.LoginEnsured(true) || !rctx.BindOrFail(req) {
 		return
 	}
@@ -81,12 +82,12 @@ type SingleDeploymentRequest struct {
 	DeploymentID int `form:"deployment_id" binding:"min=1,required"`
 }
 
-func (r *SingleDeploymentRequest) Clean(ctx *RequestContext) error {
+func (r *SingleDeploymentRequest) Clean(ctx *acommon.RequestContext) error {
 	return nil
 }
 
 func StartDeployment(ctx *gin.Context) {
-	rctx, req, synced := NewRequestContext(ctx), &SingleDeploymentRequest{}, false
+	rctx, req, synced := acommon.NewRequestContext(ctx), &SingleDeploymentRequest{}, false
 	if !rctx.LoginEnsured(true) || !rctx.BindOrFail(req) {
 		return
 	}
@@ -181,7 +182,7 @@ func (m *DeploymentInfoResponse) FromSelf() {
 }
 
 func GetDeploymentInfo(ctx *gin.Context) {
-	rctx, req, resp := NewRequestContext(ctx), &SingleDeploymentRequest{}, &DeploymentInfoResponse{}
+	rctx, req, resp := acommon.NewRequestContext(ctx), &SingleDeploymentRequest{}, &DeploymentInfoResponse{}
 	if !rctx.LoginEnsured(true) || !rctx.BindOrFail(req) {
 		return
 	}

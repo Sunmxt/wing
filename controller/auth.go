@@ -2,8 +2,8 @@ package controller
 
 import (
 	"fmt"
-	"git.stuhome.com/Sunmxt/wing/model"
 	"git.stuhome.com/Sunmxt/wing/common"
+	"git.stuhome.com/Sunmxt/wing/model/account"
 	"github.com/jinzhu/gorm"
 	zxcvbn "github.com/nbutton23/zxcvbn-go"
 	ldap "gopkg.in/ldap.v3"
@@ -56,7 +56,7 @@ func (ctx *OperationContext) AddLDAPAccount(username, password, commonName strin
 	config := ctx.Runtime.Config
 	conn, err := ctx.LDAPRootConnection()
 
-	hasher := model.NewMD5Hasher()
+	hasher := account.NewMD5Hasher()
 	if password, err = hasher.HashString(password); err != nil {
 		return common.NewInternalError(err)
 	}
@@ -76,7 +76,7 @@ func (ctx *OperationContext) AddLDAPAccount(username, password, commonName strin
 	return nil
 }
 
-func (ctx *OperationContext) AuthAsLDAPUser(username, password string) (*model.Account, error) {
+func (ctx *OperationContext) AuthAsLDAPUser(username, password string) (*account.Account, error) {
 	ctx.Log.Infof("try to auth \"%v\" via LDAP.", username)
 
 	if ctx.Runtime.Config == nil {
@@ -112,14 +112,14 @@ func (ctx *OperationContext) AuthAsLDAPUser(username, password string) (*model.A
 	conn.Close()
 
 	ctx.Log.Infof("valid LDAP user \"%v\"", username)
-	var account *model.Account
+	var account *account.Account
 	if account, err = ctx.LegacyAccountByName(username, true, ""); err != nil {
 		return nil, err
 	}
 	return account, nil
 }
 
-func (ctx *OperationContext) LegacyAccountByName(username string, create bool, passwordHash string) (*model.Account, error) {
+func (ctx *OperationContext) LegacyAccountByName(username string, create bool, passwordHash string) (*account.Account, error) {
 	if !common.ReMail.Match([]byte(username)) {
 		return nil, common.ErrUsernameNotMail
 	}
@@ -130,40 +130,40 @@ func (ctx *OperationContext) LegacyAccountByName(username string, create bool, p
 	if err != nil {
 		return nil, err
 	}
-	account := &model.Account{}
-	if err = db.Where(&model.Account{Name: username}).First(account).Error; err != nil {
+	user := &account.Account{}
+	if err = db.Where(&account.Account{Name: username}).First(user).Error; err != nil {
 		if gorm.IsRecordNotFoundError(err) {
 			if !create {
 				return nil, common.ErrInvalidUsername
 			}
-			account.Credentials = passwordHash
-			account.Name = username
-			if err = db.Save(account).Error; err != nil {
+			user.Credentials = passwordHash
+			user.Name = username
+			if err = db.Save(user).Error; err != nil {
 				return nil, common.NewInternalError(err)
 			}
 			ctx.Log.Infof("new legacy user created: " + username)
 		}
 	}
-	return account, nil
+	return user, nil
 }
 
-func (ctx *OperationContext) AuthAsLegacyUser(username, password string) (account *model.Account, err error) {
+func (ctx *OperationContext) AuthAsLegacyUser(username, password string) (user *account.Account, err error) {
 	ctx.Log.Infof("try to auth \"%v\" as legacy user.", username)
 
-	hasher := model.NewMD5Hasher()
+	hasher := account.NewMD5Hasher()
 
 	var toVerify string
 	if toVerify, err = hasher.HashString(password); err != nil {
 		return nil, common.NewInternalError(err)
 	}
 
-	if account, err = ctx.LegacyAccountByName(username, false, ""); err != nil {
+	if user, err = ctx.LegacyAccountByName(username, false, ""); err != nil {
 		return nil, err
 	}
-	if toVerify != account.Credentials {
+	if toVerify != user.Credentials {
 		return nil, common.ErrInvalidAccount
 	}
-	return account, nil
+	return user, nil
 }
 
 func (ctx *OperationContext) AddLegacyAccount(username, password string) error {
@@ -173,14 +173,14 @@ func (ctx *OperationContext) AddLegacyAccount(username, password string) error {
 		return common.ErrWeakPassword
 	}
 
-	account, err := ctx.LegacyAccountByName(username, false, "")
+	user, err := ctx.LegacyAccountByName(username, false, "")
 	if err != nil && err != common.ErrInvalidUsername {
 		return err
 	}
-	if account != nil {
+	if user != nil {
 		return common.ErrAccountExists
 	}
-	hasher := model.NewMD5Hasher()
+	hasher := account.NewMD5Hasher()
 	if password, err = hasher.HashString(password); err != nil {
 		return err
 	}

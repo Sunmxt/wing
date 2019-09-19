@@ -1,6 +1,7 @@
 package api
 
 import (
+	acommon "git.stuhome.com/Sunmxt/wing/api/common"
 	"git.stuhome.com/Sunmxt/wing/api/scm"
 	"github.com/gin-gonic/gin"
 )
@@ -28,7 +29,9 @@ func RegisterAPI(engine *gin.Engine) error {
 	engine.POST("/api/application/deploy/stop", StopDeployment)
 
 	// CICD
+	engine.GET("/api/scm/list", scm.ListSCMPlatform)
 	engine.GET("/api/scm/repository/list", scm.ListRepository)
+
 	//engine.GET("/api/scm/repository/enable", scm.EnableRepository)
 	//engine.GET("/api/scm/repository/disable", scm.DisableRepository)
 
@@ -52,7 +55,7 @@ type WingSettingResponse struct {
 }
 
 func WingSettings(ctx *gin.Context) {
-	rctx := NewRequestContext(ctx)
+	rctx := acommon.NewRequestContext(ctx)
 	config := rctx.ConfigOrFail()
 	if config == nil {
 		return

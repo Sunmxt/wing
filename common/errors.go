@@ -30,11 +30,13 @@ var (
 	ErrInvalidUsername     = NewInternalError(errors.New("Invalid username."))
 
 	// External error
-	ErrInvalidAccount     = NewExternalError(errors.New("Login.InvalidAccount"))
-	ErrAccountExists      = NewExternalError(errors.New("Account.Exists"))
-	ErrRegisterNotAllowed = NewExternalError(errors.New("Register.NotAllowed"))
-	ErrUsernameNotMail    = NewExternalError(errors.New("Account.NotAMail"))
-	ErrWeakPassword       = NewExternalError(errors.New("Account.WeakPassword"))
+	ErrInvalidAccount          = NewExternalError(errors.New("Login.InvalidAccount"))
+	ErrAccountExists           = NewExternalError(errors.New("Account.Exists"))
+	ErrRegisterNotAllowed      = NewExternalError(errors.New("Register.NotAllowed"))
+	ErrUsernameNotMail         = NewExternalError(errors.New("Account.NotAMail"))
+	ErrWeakPassword            = NewExternalError(errors.New("Account.WeakPassword"))
+	ErrSCMPlatformNotFound     = NewExternalError(errors.New("SCM.PlatformNotFound"))
+	ErrSCMPlatformNotSupported = NewExternalError(errors.New("SCM.PlatformNotSupported"))
 
 	ErrEndpointMissing = NewExternalError(errors.New("No avaliable endpoint."))
 )

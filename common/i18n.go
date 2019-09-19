@@ -7,6 +7,10 @@ import (
 
 func registerI18NMessage() {
 	// common
+	message.SetString(language.Chinese, "SCM.PlatformNotFound", "代码管理平台不存在")
+	message.SetString(language.English, "SCM.PlatformNotFound", "SCM Platform not found.")
+	message.SetString(language.Chinese, "SCM.PlatformNotSupported", "Wing 暂不支持这个代码管理平台哦")
+	message.SetString(language.English, "SCM.PlatformNotSupported", "This SCM Platform is not supported by Wing.")
 	message.SetString(language.Chinese, "Partial.InvalidFields", "无效的字段")
 	message.SetString(language.English, "Partial.InvalidFields", "Invalid fields")
 	message.SetString(language.Chinese, "Login.InvalidAccount", "用户名或密码无效")

@@ -1,6 +1,7 @@
 package model
 
 import (
+	"git.stuhome.com/Sunmxt/wing/model/account"
 	"git.stuhome.com/Sunmxt/wing/model/common"
 )
 
@@ -27,8 +28,8 @@ func (m AppSpec) TableName() string {
 type Application struct {
 	common.Basic
 
-	Name      string   `gorm:"type:varchar(128);not null;unique"`
-	Owner     *Account `gorm:"foreignkey:OwnerID;not null"`
+	Name      string           `gorm:"type:varchar(128);not null;unique"`
+	Owner     *account.Account `gorm:"foreignkey:OwnerID;not null"`
 	OwnerID   int
 	Extra     string   `gorm:"type:longtext"`
 	KubeLabel string   `gorm:"type:longtext;not null"`

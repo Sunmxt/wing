@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"time"
 
+	acommon "git.stuhome.com/Sunmxt/wing/api/common"
 	_ "git.stuhome.com/Sunmxt/wing/statik"
 )
 
@@ -27,7 +28,7 @@ func init() {
 	}
 }
 
-func tryOpenStaticFile(rctx *RequestContext, path string, defaultPath string) (file http.File, stat os.FileInfo, err error) {
+func tryOpenStaticFile(rctx *acommon.RequestContext, path string, defaultPath string) (file http.File, stat os.FileInfo, err error) {
 	serveDefault := false
 	setDefault := func() {
 		rctx.OpCtx.Log.Infof("[statics] serve index \"%v\" for path \"%v\".", defaultPath, path)
@@ -64,7 +65,7 @@ func tryOpenStaticFile(rctx *RequestContext, path string, defaultPath string) (f
 }
 
 func ServeDefault(ctx *gin.Context) {
-	rctx, path := NewRequestContext(ctx), ctx.Request.URL.Path
+	rctx, path := acommon.NewRequestContext(ctx), ctx.Request.URL.Path
 
 	rawPaths := RegexpStaticFilePath.FindStringSubmatch(path)
 	if rawPaths == nil || len(rawPaths) < 2 {

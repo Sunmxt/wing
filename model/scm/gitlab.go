@@ -20,6 +20,7 @@ type GitlabNamespace struct {
 }
 
 type GitlabPageInfo struct {
+	Total     uint
 	TotalPage uint
 	PerPage   uint
 	Page      uint
@@ -44,11 +45,38 @@ func (i *GitlabPageInfo) GetPerPage() uint {
 	return 10
 }
 
+func (i *GitlabPageInfo) SetPage(page uint) {
+	if page < 1 {
+		page = 1
+	}
+	i.PrevPage = page - 1
+	i.NextPage = page + 1
+	i.Page = page
+}
+
 func (i *GitlabPageInfo) GetPagnationURLQueries() string {
 	return "page=" + strconv.FormatUint(uint64(i.Page), 10) + "&" + "per_page=" + strconv.FormatUint(uint64(i.GetPerPage()), 10)
 }
 
-func (i *GitlabPageInfo) updateCursorFromResponse(resp *http.Response) {
+func (i *GitlabPageInfo) updateCursorFromResponse(resp *http.Response, q *GitlabProjectQuery) {
+	tryParse := func(headerName string, defaultValue uint) uint {
+		pages, exists := resp.Header[headerName]
+		if exists && len(pages) > 0 && len(pages[0]) > 0 {
+			page, err := strconv.ParseUint(pages[0], 10, 64)
+			if err != nil {
+				q.error("[Gitlab Client] Parse \"" + headerName + "\" with value \"" + pages[0] + "\" failure: " + err.Error())
+			} else {
+				defaultValue = uint(page)
+			}
+		}
+		return defaultValue
+	}
+
+	i.Total = tryParse("X-Total", 0)
+	i.Page = tryParse("X-Page", i.Page+1)
+	i.NextPage = tryParse("X-Next-Page", i.Page+1)
+	i.PrevPage = tryParse("X-Prev-Page", i.Page-1)
+	i.TotalPage = tryParse("X-Total-Pages", i.Total/i.PerPage+1)
 }
 
 func (i *GitlabPageInfo) Reset() {
@@ -58,7 +86,7 @@ func (i *GitlabPageInfo) Reset() {
 }
 
 type GitlabProject struct {
-	ID                int              `json:"id"`
+	ID                uint             `json:"id"`
 	Description       string           `json:"description"`
 	Name              string           `json:"name"`
 	NameWithNamespace string           `json:"name_with_namespace"`
@@ -72,15 +100,14 @@ type GitlabProject struct {
 	WebURL            string           `json:"web_url"`
 	ReadmeURL         string           `json:"readme_url"`
 	AvatarURL         string           `json:"avatar_url"`
-	StarCount         string           `json:"star_count"`
-	ForksCount        string           `json:"forks_count"`
+	StarCount         uint             `json:"star_count"`
+	ForksCount        uint             `json:"forks_count"`
 	LastActivityAt    string           `json:"last_activity_at"`
 	Namespace         *GitlabNamespace `json:"namespace"`
 }
 
 type GitlabProjectQuery struct {
 	Cursor      GitlabPageInfo
-	Total       uint
 	AccessToken string
 	Error       error
 	Endpoint    *url.URL
@@ -113,6 +140,10 @@ func (q *GitlabProjectQuery) ResetCursor() error {
 func (g *GitlabProjectQuery) PerPage(perPage uint) {
 	g.Cursor.PerPage = perPage
 	g.Cursor.Reset()
+}
+
+func (g *GitlabProjectQuery) Page(page uint) {
+	g.Cursor.SetPage(page)
 }
 
 func (q *GitlabProjectQuery) info(args ...interface{}) {
@@ -162,7 +193,8 @@ func (q *GitlabProjectQuery) Refresh() *GitlabProjectQuery {
 }
 
 func (q *GitlabProjectQuery) parseResult(resp *http.Response) *GitlabProjectQuery {
-	q.Cursor.updateCursorFromResponse(resp)
+	q.Cursor.updateCursorFromResponse(resp, q)
+
 	body := make([]byte, resp.ContentLength, resp.ContentLength)
 	if _, err := io.ReadFull(resp.Body, body); err != nil {
 		q.error("[Gitlab Client] read projects response body failure: " + err.Error())

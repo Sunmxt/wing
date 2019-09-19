@@ -1,4 +1,4 @@
-package api
+package common
 
 import (
 	"errors"
@@ -11,7 +11,7 @@ import (
 	"git.stuhome.com/Sunmxt/wing/common"
 	"git.stuhome.com/Sunmxt/wing/controller"
 	mlog "git.stuhome.com/Sunmxt/wing/log"
-	"git.stuhome.com/Sunmxt/wing/model"
+	"git.stuhome.com/Sunmxt/wing/model/account"
 	ss "github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"github.com/jinzhu/gorm"
@@ -137,11 +137,11 @@ func (ctx *RequestContext) Database() (db *gorm.DB, err error) {
 	return ctx.OpCtx.Database()
 }
 
-func (ctx *RequestContext) GetAccount() *model.Account {
+func (ctx *RequestContext) GetAccount() *account.Account {
 	return ctx.OpCtx.GetAccount()
 }
 
-func (ctx *RequestContext) RBAC() *model.RBACContext {
+func (ctx *RequestContext) RBAC() *account.RBACContext {
 	return ctx.OpCtx.RBAC()
 }
 
@@ -225,7 +225,7 @@ func (ctx *RequestContext) LoginEnsured(fail bool) bool {
 	return false
 }
 
-func (ctx *RequestContext) RBACOrDeny() *model.RBACContext {
+func (ctx *RequestContext) RBACOrDeny() *account.RBACContext {
 	rbac := ctx.RBAC()
 	if rbac != nil {
 		ctx.FailWithMessage("Auth.LackOfPermissing")
