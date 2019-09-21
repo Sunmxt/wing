@@ -3,6 +3,7 @@ package controller
 import (
 	"fmt"
 	"git.stuhome.com/Sunmxt/wing/common"
+	ccommon "git.stuhome.com/Sunmxt/wing/controller/common"
 	"git.stuhome.com/Sunmxt/wing/model/account"
 	"github.com/jinzhu/gorm"
 	zxcvbn "github.com/nbutton23/zxcvbn-go"
@@ -10,7 +11,7 @@ import (
 )
 
 
-func (ctx *OperationContext) NewLDAPSearchRequest(username string) (*ldap.SearchRequest, error) {
+func NewLDAPSearchRequest(ctx *ccommon.OperationContext, username string) (*ldap.SearchRequest, error) {
 	if ctx.Runtime.Config == nil {
 		return nil, common.ErrConfigMissing
 	}
@@ -25,13 +26,13 @@ func (ctx *OperationContext) NewLDAPSearchRequest(username string) (*ldap.Search
 	return searchRequest, nil
 }
 
-func (ctx *OperationContext) LDAPByName(username string) (*ldap.SearchResult, error) {
+func LDAPByName(ctx *ccommon.OperationContext, username string) (*ldap.SearchResult, error) {
 	result, request := (*ldap.SearchResult)(nil), (*ldap.SearchRequest)(nil)
 	conn, err := ctx.LDAPRootConnection()
 	if err != nil {
 		return nil, err
 	}
-	if request, err = ctx.NewLDAPSearchRequest(username); err != nil {
+	if request, err = NewLDAPSearchRequest(ctx, username); err != nil {
 		return nil, err
 	}
 	if result, err = conn.Search(request); err != nil {
@@ -40,7 +41,7 @@ func (ctx *OperationContext) LDAPByName(username string) (*ldap.SearchResult, er
 	return result, err
 }
 
-func (ctx *OperationContext) AddLDAPAccount(username, password, commonName string) error {
+func AddLDAPAccount(ctx *ccommon.OperationContext, username, password, commonName string) error {
 	if !common.ReMail.Match([]byte(username)) {
 		return common.ErrUsernameNotMail
 	}
@@ -76,7 +77,7 @@ func (ctx *OperationContext) AddLDAPAccount(username, password, commonName strin
 	return nil
 }
 
-func (ctx *OperationContext) AuthAsLDAPUser(username, password string) (*account.Account, error) {
+func AuthAsLDAPUser(ctx *ccommon.OperationContext, username, password string) (*account.Account, error) {
 	ctx.Log.Infof("try to auth \"%v\" via LDAP.", username)
 
 	if ctx.Runtime.Config == nil {
@@ -113,13 +114,13 @@ func (ctx *OperationContext) AuthAsLDAPUser(username, password string) (*account
 
 	ctx.Log.Infof("valid LDAP user \"%v\"", username)
 	var account *account.Account
-	if account, err = ctx.LegacyAccountByName(username, true, ""); err != nil {
+	if account, err = LegacyAccountByName(ctx, username, true, ""); err != nil {
 		return nil, err
 	}
 	return account, nil
 }
 
-func (ctx *OperationContext) LegacyAccountByName(username string, create bool, passwordHash string) (*account.Account, error) {
+func LegacyAccountByName(ctx *ccommon.OperationContext, username string, create bool, passwordHash string) (*account.Account, error) {
 	if !common.ReMail.Match([]byte(username)) {
 		return nil, common.ErrUsernameNotMail
 	}
@@ -147,7 +148,7 @@ func (ctx *OperationContext) LegacyAccountByName(username string, create bool, p
 	return user, nil
 }
 
-func (ctx *OperationContext) AuthAsLegacyUser(username, password string) (user *account.Account, err error) {
+func AuthAsLegacyUser(ctx *ccommon.OperationContext, username, password string) (user *account.Account, err error) {
 	ctx.Log.Infof("try to auth \"%v\" as legacy user.", username)
 
 	hasher := account.NewMD5Hasher()
@@ -157,7 +158,7 @@ func (ctx *OperationContext) AuthAsLegacyUser(username, password string) (user *
 		return nil, common.NewInternalError(err)
 	}
 
-	if user, err = ctx.LegacyAccountByName(username, false, ""); err != nil {
+	if user, err = LegacyAccountByName(ctx, username, false, ""); err != nil {
 		return nil, err
 	}
 	if toVerify != user.Credentials {
@@ -166,14 +167,14 @@ func (ctx *OperationContext) AuthAsLegacyUser(username, password string) (user *
 	return user, nil
 }
 
-func (ctx *OperationContext) AddLegacyAccount(username, password string) error {
+func AddLegacyAccount(ctx *ccommon.OperationContext, username, password string) error {
 	ctx.Log.Infof("try to add legacy account \"%v\".", username)
 	score := zxcvbn.PasswordStrength(password, []string{username})
 	if score.Score < 2 || len(password) < 6 {
 		return common.ErrWeakPassword
 	}
 
-	user, err := ctx.LegacyAccountByName(username, false, "")
+	user, err := LegacyAccountByName(ctx, username, false, "")
 	if err != nil && err != common.ErrInvalidUsername {
 		return err
 	}
@@ -184,7 +185,7 @@ func (ctx *OperationContext) AddLegacyAccount(username, password string) error {
 	if password, err = hasher.HashString(password); err != nil {
 		return err
 	}
-	if _, err = ctx.LegacyAccountByName(username, true, password); err != nil {
+	if _, err = LegacyAccountByName(ctx, username, true, password); err != nil {
 		return err
 	}
 	return nil

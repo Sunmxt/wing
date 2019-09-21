@@ -3,6 +3,7 @@ package api
 import (
 	acommon "git.stuhome.com/Sunmxt/wing/api/common"
 	"git.stuhome.com/Sunmxt/wing/common"
+	"git.stuhome.com/Sunmxt/wing/controller"
 	"git.stuhome.com/Sunmxt/wing/model/account"
 	"github.com/gin-gonic/gin"
 )
@@ -46,7 +47,7 @@ func AuthLoginV1(ctx *gin.Context) {
 	var user *account.Account
 	var err, ldapAuthError error
 	if rctx.OpCtx.Runtime.Config.Auth.EnableLDAP {
-		if user, ldapAuthError = rctx.OpCtx.AuthAsLDAPUser(req.User, req.Password); err != nil {
+		if user, ldapAuthError = controller.AuthAsLDAPUser(&rctx.OpCtx, req.User, req.Password); err != nil {
 			switch ldapAuthError {
 			case common.ErrInvalidPassword:
 				rctx.FailWithMessage("Login.InvalidAccount")
@@ -59,7 +60,7 @@ func AuthLoginV1(ctx *gin.Context) {
 		}
 	}
 	if user == nil {
-		if user, err = rctx.OpCtx.AuthAsLegacyUser(req.User, req.Password); err != nil {
+		if user, err = controller.AuthAsLegacyUser(&rctx.OpCtx, req.User, req.Password); err != nil {
 			switch err {
 			case common.ErrInvalidPassword:
 				rctx.FailWithMessage("Login.InvalidAccount")
@@ -99,7 +100,7 @@ func RegisterV1(ctx *gin.Context) {
 			return
 		}
 
-		resp, err := rctx.OpCtx.LDAPByName(req.User)
+		resp, err := controller.LDAPByName(&rctx.OpCtx, req.User)
 		if err != nil {
 			rctx.AbortWithError(err)
 			return
@@ -108,12 +109,12 @@ func RegisterV1(ctx *gin.Context) {
 			rctx.AbortWithError(common.ErrAccountExists)
 			return
 		}
-		if err = rctx.OpCtx.AddLDAPAccount(req.User, req.Password, req.User); err != nil {
+		if err = controller.AddLDAPAccount(&rctx.OpCtx, req.User, req.Password, req.User); err != nil {
 			rctx.AbortWithError(err)
 			return
 		}
 	} else {
-		if err := rctx.OpCtx.AddLegacyAccount(req.User, req.Password); err != nil {
+		if err := controller.AddLegacyAccount(&rctx.OpCtx, req.User, req.Password); err != nil {
 			rctx.AbortWithError(err)
 			return
 		}

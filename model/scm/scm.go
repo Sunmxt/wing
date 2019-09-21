@@ -4,9 +4,12 @@ import (
 	"encoding/json"
 	"errors"
 	"git.stuhome.com/Sunmxt/wing/cmd/config"
+	"git.stuhome.com/Sunmxt/wing/log"
 	"git.stuhome.com/Sunmxt/wing/model/account"
 	"git.stuhome.com/Sunmxt/wing/model/common"
+	"git.stuhome.com/Sunmxt/wing/model/scm/gitlab"
 	"github.com/jinzhu/gorm"
+	"strconv"
 )
 
 const (
@@ -15,8 +18,6 @@ const (
 
 	Active   = 1
 	Inactive = 0
-
-	GitlabMergeRequest = 0
 
 	Shell       = 1
 	ShellDocker = 2
@@ -72,16 +73,15 @@ func (scm *SCMPlatform) GitlabExtra() (extra *GitlabSCMExtra) {
 	return extra
 }
 
-func (scm *SCMPlatform) GitlabProjectQuery() (query *GitlabProjectQuery, err error) {
+func (scm *SCMPlatform) GitlabClient(logger log.NormalLogger) (client *gitlab.GitlabClient, err error) {
 	extra := scm.GitlabExtra()
 	if extra == nil {
 		return nil, errors.New("Not Gitlab SCM.")
 	}
-	if query, err = NewGitlabProjectQuery(extra.Endpoint); err != nil {
+	if client, err = gitlab.NewGitlabClient(extra.Endpoint, logger); err != nil {
 		return nil, err
 	}
-	query.AccessToken = extra.AccessToken
-	return
+	return client, nil
 }
 
 func (scm *SCMPlatform) PublicURL() string {
@@ -109,6 +109,10 @@ type CIRepository struct {
 	OwnerID       int
 }
 
+func GetGitlabProjectReference(project *gitlab.Project) string {
+	return strconv.FormatUint(uint64(project.ID), 10)
+}
+
 func (r *CIRepository) TableName() string {
 	return "ci_repository"
 }
@@ -116,13 +120,26 @@ func (r *CIRepository) TableName() string {
 type CIRepositoryApproval struct {
 	common.Basic
 
-	Type        int           `gorm:"tinyint;not null"`
-	Extra       string        `gorm:"longtext"`
-	Repository  *CIRepository `gorm:"foreignkey:RepositionID;not null"`
-	AccessToken string        `gorm:"varchar(128);"`
+	Type        int              `gorm:"tinyint;not null"`
+	SCM         *SCMPlatform     `gorm:"foreignkey:SCMPlatformID;not null"`
+	Reference   string           `gorm:"varchar(128);not null"`
+	Owner       *account.Account `gorm:"foreignkey:OwnerID;not null"`
+	Extra       string           `gorm:"longtext"`
+	Stage       int              `gorm:"tinyint;not null"`
+	AccessToken string           `gorm:"varchar(128);"`
 
-	RepositionID int
+	SCMPlatformID int
+	OwnerID       int
 }
+
+const (
+	ApprovalCreated         = 1
+	ApprovalWaitForAccepted = 2
+	ApprovalAccepted        = 20
+	ApprovalRejected        = 0
+
+	GitlabMergeRequestApproval = 1
+)
 
 func (r *CIRepositoryApproval) TableName() string {
 	return "ci_repository_approval"

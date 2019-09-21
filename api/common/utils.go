@@ -9,7 +9,7 @@ import (
 
 	"git.stuhome.com/Sunmxt/wing/cmd/config"
 	"git.stuhome.com/Sunmxt/wing/common"
-	"git.stuhome.com/Sunmxt/wing/controller"
+	ccommon "git.stuhome.com/Sunmxt/wing/controller/common"
 	mlog "git.stuhome.com/Sunmxt/wing/log"
 	"git.stuhome.com/Sunmxt/wing/model/account"
 	ss "github.com/gin-contrib/sessions"
@@ -96,7 +96,7 @@ func ParseHeaderForLocale(ctx *gin.Context, acceptedLangs ...string) (result str
 
 type RequestContext struct {
 	Gin      *gin.Context
-	OpCtx    controller.OperationContext
+	OpCtx    ccommon.OperationContext
 	Response common.Response
 	Session  ss.Session
 	Lang     string
@@ -109,7 +109,7 @@ func NewRequestContext(ctx *gin.Context) (rctx *RequestContext) {
 			Success: true,
 		},
 		Session: ss.Default(ctx),
-		OpCtx: controller.OperationContext{
+		OpCtx: ccommon.OperationContext{
 			Log:     getLogger(ctx),
 			Runtime: getRuntime(ctx),
 		},

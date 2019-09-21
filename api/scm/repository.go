@@ -4,6 +4,7 @@ import (
 	acommon "git.stuhome.com/Sunmxt/wing/api/common"
 	"git.stuhome.com/Sunmxt/wing/common"
 	"git.stuhome.com/Sunmxt/wing/model/scm"
+	"git.stuhome.com/Sunmxt/wing/model/scm/gitlab"
 	"github.com/gin-gonic/gin"
 	"github.com/jinzhu/gorm"
 	"net/http"
@@ -48,7 +49,7 @@ func (r *ListRepositoryRequest) Clean(ctx *acommon.RequestContext) error {
 	return nil
 }
 
-func pickGitlabSCMRepository(platformID uint, platformName string, projects []scm.GitlabProject) (entries []RepositoryEntry) {
+func pickGitlabSCMRepository(platformID uint, platformName string, projects []gitlab.Project) (entries []RepositoryEntry) {
 	entries = make([]RepositoryEntry, len(projects))
 	for idx, project := range projects {
 		entry := &entries[idx]
@@ -85,16 +86,15 @@ func ListRepository(ctx *gin.Context) {
 
 	switch platform.Type {
 	case scm.GitlabSCM:
-		query, err := platform.GitlabProjectQuery()
+		client, err := platform.GitlabClient(rctx.OpCtx.Log)
 		if err != nil {
 			rctx.AbortWithError(err)
 			return
 		}
+		query := client.ProjectQuery()
 		query.PerPage(request.Limit)
 		query.Page(request.Page)
-		query.Logger = rctx.OpCtx.Log
-		err = query.Refresh().Error
-		if err != nil {
+		if query.Refresh().Error != nil {
 			rctx.AbortWithError(err)
 			return
 		}

@@ -36,7 +36,10 @@ var (
 	ErrUsernameNotMail         = NewExternalError(errors.New("Account.NotAMail"))
 	ErrWeakPassword            = NewExternalError(errors.New("Account.WeakPassword"))
 	ErrSCMPlatformNotFound     = NewExternalError(errors.New("SCM.PlatformNotFound"))
+	ErrRepositoryNotFound      = NewExternalError(errors.New("SCM.RepositoryNotFound"))
 	ErrSCMPlatformNotSupported = NewExternalError(errors.New("SCM.PlatformNotSupported"))
+	ErrInvalidSCMPlatformID    = NewExternalError(errors.New("SCM.InvalidSCMPlatformID"))
+	ErrInvalidRepositoryID     = NewExternalError(errors.New("SCM.InvalidRepositoryID"))
 
 	ErrEndpointMissing = NewExternalError(errors.New("No avaliable endpoint."))
 )

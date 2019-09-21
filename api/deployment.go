@@ -6,6 +6,7 @@ import (
 
 	acommon "git.stuhome.com/Sunmxt/wing/api/common"
 	"git.stuhome.com/Sunmxt/wing/common"
+	"git.stuhome.com/Sunmxt/wing/controller"
 	"git.stuhome.com/Sunmxt/wing/model"
 	mcommon "git.stuhome.com/Sunmxt/wing/model/common"
 	"github.com/gin-gonic/gin"
@@ -50,7 +51,7 @@ func CreateDeployment(ctx *gin.Context) {
 	}
 
 	var deploy *model.Deployment
-	if deploy, _, err = rctx.OpCtx.GetCurrentDeployment(app.Basic.ID); err != nil {
+	if deploy, _, err = controller.GetCurrentDeployment(&rctx.OpCtx, app.Basic.ID); err != nil {
 		rctx.AbortWithDebugMessage(http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -109,7 +110,7 @@ func StartDeployment(ctx *gin.Context) {
 		}
 		return
 	}
-	deploy, synced, err = rctx.OpCtx.SyncDeployment(deploy.Basic.ID, model.Executed)
+	deploy, synced, err = controller.SyncDeployment(&rctx.OpCtx, deploy.Basic.ID, model.Executed)
 	if err != nil {
 		rctx.OpCtx.Log.Error("Failed to sync deployment: " + err.Error())
 		rctx.AbortWithDebugMessage(http.StatusInternalServerError, err.Error())
@@ -203,7 +204,7 @@ func GetDeploymentInfo(ctx *gin.Context) {
 		}
 		return
 	}
-	dp, err := rctx.OpCtx.GetKubeDeploymentManifest(deploy.App.Name, deploy.Basic.ID)
+	dp, err := controller.GetKubeDeploymentManifest(&rctx.OpCtx, deploy.App.Name, deploy.Basic.ID)
 	defer func() {
 		if err != nil {
 			rctx.AbortWithDebugMessage(http.StatusInternalServerError, err.Error())
@@ -212,13 +213,13 @@ func GetDeploymentInfo(ctx *gin.Context) {
 	if err != nil {
 		return
 	}
-	if resp.Status, err = rctx.OpCtx.SyncDeploymentState(deploy, dp); err != nil {
+	if resp.Status, err = controller.SyncDeploymentState(&rctx.OpCtx, deploy, dp); err != nil {
 		return
 	}
-	if resp.Pods, err = rctx.OpCtx.ListApplicationPodInfo(deploy.App.Name, deploy.Basic.ID); err != nil {
+	if resp.Pods, err = controller.ListApplicationPodInfo(&rctx.OpCtx, deploy.App.Name, deploy.Basic.ID); err != nil {
 		return
 	}
-	if resp.TerminatingPods, err = rctx.OpCtx.ListApplicationPodInfo(deploy.App.Name, deploy.Basic.ID-1); err != nil {
+	if resp.TerminatingPods, err = controller.ListApplicationPodInfo(&rctx.OpCtx, deploy.App.Name, deploy.Basic.ID-1); err != nil {
 		return
 	}
 	resp.Application = deploy.App.Name
