@@ -6,9 +6,8 @@ import (
 )
 
 func (ctx *OperationContext) SubmitTask(name string, args []tasks.Arg) (*result.AsyncResult, error) {
-	return nil, nil
-	//tasks.Signature{
-	//	Name: name,
-	//	Args: args,
-	//})
+	return ctx.Runtime.JobServer.SendTask(&tasks.Signature{
+		Name: name,
+		Args: args,
+	})
 }

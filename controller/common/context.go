@@ -2,13 +2,15 @@ package common
 
 import (
 	"errors"
-	mlog "git.stuhome.com/Sunmxt/wing/log"
-	"git.stuhome.com/Sunmxt/wing/common"
-	"git.stuhome.com/Sunmxt/wing/model/account"
+
 	"github.com/jinzhu/gorm"
 	log "github.com/sirupsen/logrus"
 	ldap "gopkg.in/ldap.v3"
 	"k8s.io/client-go/kubernetes"
+
+	mlog "git.stuhome.com/Sunmxt/wing/log"
+	"git.stuhome.com/Sunmxt/wing/common"
+	"git.stuhome.com/Sunmxt/wing/model/account"
 )
 
 type OperationContext struct {
@@ -18,6 +20,13 @@ type OperationContext struct {
 	RBACContext *account.RBACContext
 	Account     account.Account
 	Client      *kubernetes.Clientset
+}
+
+func NewOperationContext(runtime *common.WingRuntime) *OperationContext {
+	return &OperationContext{
+		Runtime: runtime,
+		Log: mlog.OperationLogger(),
+	}
 }
 
 func (ctx *OperationContext) LogContext() {

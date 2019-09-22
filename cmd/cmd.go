@@ -92,7 +92,7 @@ func (c *Wing) ServerInit() error {
 		return err
 	}
 
-	if err = controller.RegisterTasks(&c.Runtime, c.Runtime.JobServer); err != nil {
+	if err = controller.RegisterTasks(&c.Runtime); err != nil {
 		return err
 	}
 

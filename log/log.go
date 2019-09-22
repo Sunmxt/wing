@@ -14,8 +14,13 @@ func RequestLogger(ctx *gin.Context) *log.Entry {
 		request_id = guuid.NewV4().String()
 	}
 	entry.Data["request_id"] = request_id
-	//entry.Data["path"] = ctx.Request.URL.RequestURI()
-	entry.Data["module"] = "request"
+	entry.Data["module"] = "api"
+	return entry
+}
+
+func OperationLogger() *log.Entry {
+	entry := log.NewEntry(log.StandardLogger())
+	entry.Data["module"] = "operation"
 	return entry
 }
 

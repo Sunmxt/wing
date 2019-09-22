@@ -24,10 +24,11 @@ func NewExternalError(err error) ExternalError {
 
 var (
 	// Internal error
-	ErrConfigMissing       = NewInternalError(errors.New("Configuration missing."))
-	ErrInvalidPassword     = NewInternalError(errors.New("Invalid password."))
-	ErrInvalidSessionToken = NewInternalError(errors.New("Invalid session token."))
-	ErrInvalidUsername     = NewInternalError(errors.New("Invalid username."))
+	ErrConfigMissing         = NewInternalError(errors.New("Configuration missing."))
+	ErrInvalidPassword       = NewInternalError(errors.New("Invalid password."))
+	ErrInvalidSessionToken   = NewInternalError(errors.New("Invalid session token."))
+	ErrInvalidUsername       = NewInternalError(errors.New("Invalid username."))
+	ErrRuntimeNotFullyInited = NewInternalError(errors.New("Runtime not fully inited."))
 
 	// External error
 	ErrInvalidAccount          = NewExternalError(errors.New("Login.InvalidAccount"))

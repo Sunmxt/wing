@@ -37,7 +37,11 @@ func Migrate(db *gorm.DB, cfg *config.WingConfiguration) (err error) {
 	if db.Error != nil {
 		return db.Error
 	}
-	db.AutoMigrate(&CIRepositoryApproval{})
+	db.AutoMigrate(&CIRepositoryApproval{}).
+		AddIndex("idx_reference", "reference").
+		AddIndex("idx_owner", "owner_id").
+		AddIndex("idx_scm_platform", "scm_platform_id")
+
 	if db.Error != nil {
 		return db.Error
 	}
@@ -133,10 +137,10 @@ type CIRepositoryApproval struct {
 }
 
 const (
-	ApprovalCreated         = 1
-	ApprovalWaitForAccepted = 2
-	ApprovalAccepted        = 20
 	ApprovalRejected        = 0
+	ApprovalAccepted        = 1
+	ApprovalCreated         = 2
+	ApprovalWaitForAccepted = 4
 
 	GitlabMergeRequestApproval = 1
 )

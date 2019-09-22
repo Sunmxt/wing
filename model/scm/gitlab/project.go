@@ -152,6 +152,9 @@ func (q *ProjectQuery) parseSingleResult(resp *http.Response) *Project {
 		q.Error = err
 		return nil
 	}
+	if project.ID < 1 {
+		return nil
+	}
 	project.Detail = &ProjectDetail{}
 	if err := json.Unmarshal(body, &project.Detail); err != nil {
 		q.error("[Gitlab Client] unmarshal project detail failure:" + err.Error())
@@ -171,7 +174,7 @@ func (q *ProjectQuery) Single(ID uint) *Project {
 	qURL := &url.URL{}
 	*qURL = *q.Client.Endpoint
 
-	qURL.Path = "api/v4/project/" + strconv.FormatUint(uint64(ID), 10)
+	qURL.Path = "api/v4/projects/" + strconv.FormatUint(uint64(ID), 10)
 	qURL.RawPath = ""
 	qURL.ForceQuery = false
 	qURL.RawQuery = ""
