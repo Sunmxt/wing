@@ -1,31 +1,34 @@
 package cmd
 
 import (
+	"crypto/md5"
+	"errors"
 	"flag"
 	"fmt"
-	"git.stuhome.com/Sunmxt/wing/cmd/config"
-	"git.stuhome.com/Sunmxt/wing/common"
-	log "github.com/sirupsen/logrus"
+	"io/ioutil"
 	"os"
 	"strings"
+
+	"github.com/RichardKnop/machinery/v1"
+	machineryLog "github.com/RichardKnop/machinery/v1/log"
+	"github.com/denisbrodbeck/machineid"
+	"github.com/satori/go.uuid"
+	log "github.com/sirupsen/logrus"
+
+	"git.stuhome.com/Sunmxt/wing/cmd/config"
+	"git.stuhome.com/Sunmxt/wing/common"
+	"git.stuhome.com/Sunmxt/wing/controller"
 )
 
 const HelpTextHeader string = `Wing is server of application platform.
 
 command:
     init        init platform.
-    serve       run platform web server.
-
-    instance    service instance resource.
+    serve       run platform server.
+    worker      run platform distrubuted job worker.
 
 options:
 `
-
-var CommandDepth map[string]int = map[string]int{
-	"init":     0,
-	"serve":    0,
-	"instance": 1,
-}
 
 type Wing struct {
 	ConfigFile string
@@ -67,6 +70,34 @@ func (c *Wing) Flags() *flag.FlagSet {
 	return c.flags
 }
 
+func (c *Wing) ServerInit() error {
+	if c.Runtime.Config == nil {
+		c.Runtime.Config = &config.WingConfiguration{}
+	}
+
+	if err := c.Runtime.Config.Load(c.ConfigFile); err != nil {
+		c.LogConfig()
+		log.Error("Cannot load configuration: " + err.Error())
+		return err
+	}
+
+	err := c.initMachineID()
+	if err != nil {
+		log.Error("Cannot determine machine ID. Wing refuses to launch for safety consideration. exiting...")
+		return err
+	}
+
+	if c.Runtime.JobServer, err = machinery.NewServer(&c.Runtime.Config.Session.Job.MachineryConfig); err != nil {
+		log.Error("[Worker] cannot create machinery server: " + err.Error())
+		return err
+	}
+
+	if err = controller.RegisterTasks(&c.Runtime, c.Runtime.JobServer); err != nil {
+		return err
+	}
+
+	return nil
+}
 func (c *Wing) Parse() string {
 	if len(os.Args) < 2 {
 		c.Help()
@@ -81,13 +112,7 @@ func (c *Wing) Parse() string {
 		return ""
 	}
 
-	if c.Runtime.Config == nil {
-		c.Runtime.Config = &config.WingConfiguration{}
-	}
-
-	if err := c.Runtime.Config.Load(c.ConfigFile); err != nil {
-		c.LogConfig()
-		log.Error("Cannot load configuration: " + err.Error())
+	if err := c.ServerInit(); err != nil {
 		return ""
 	}
 
@@ -108,6 +133,74 @@ func (c *Wing) Help() {
 	fmt.Println("\nRun \"" + os.Args[0] + " <command> --help\" to get help of specific command.")
 }
 
+func (c *Wing) initMachineID() error {
+	var idmeta []byte
+
+	writeMachineID := func() {
+		id := fmt.Sprintf("%x", md5.Sum(idmeta))
+		log.Info("Generated machine ID: " + id)
+		c.Runtime.MachineID = id
+	}
+
+	// machine ID from configuration "NodeName".
+	if c.Runtime.Config.NodeName != "" {
+		idmeta = []byte(c.Runtime.Config.NodeName)
+		writeMachineID()
+		log.Info("Generate machine ID from node name.")
+		return nil
+	}
+
+	// Get machine ID from environment.
+	if id, err := machineid.ID(); err == nil {
+		if len(id) <= 128 {
+			log.Info("Generate machine ID from environment.")
+			idmeta = []byte(id)
+			writeMachineID()
+			return nil
+		}
+		log.Warn("Machine ID too long.")
+	} else {
+		log.Warn("Cannot retrieve machine ID from running environment: " + err.Error())
+	}
+
+	log.Info("Generate random machind ID.")
+
+	machineIDPath := "/var/run/wing_machine_id"
+
+	file, err := os.OpenFile(machineIDPath, os.O_RDWR|os.O_CREATE, 0755)
+	if err != nil {
+		log.Error("Open machine id file failure:" + err.Error())
+		return err
+	}
+	defer file.Close()
+
+	var info os.FileInfo
+	if info, err = file.Stat(); err != nil {
+		log.Error("cannot get fileinfo:" + err.Error())
+		return err
+	}
+	if info.Size() == 0 {
+		uuid := strings.Replace(uuid.NewV1().String(), "-", "", -1)
+		idmeta = []byte(uuid)
+		file.Write(idmeta)
+		writeMachineID()
+		return nil
+
+	} else if info.Size() > 1024 {
+		err = errors.New("Machine ID file may be broken. You may delete \"" + machineIDPath + "\" then restart Wing server.")
+		log.Error(err.Error())
+		return err
+	}
+
+	if idmeta, err = ioutil.ReadAll(file); err != nil {
+		err = errors.New("Cannot read machine ID file:" + err.Error())
+		log.Error(err.Error())
+		return err
+	}
+	writeMachineID()
+
+	return nil
+}
 func (c *Wing) Exec() {
 	c.initLogger()
 
@@ -116,6 +209,8 @@ func (c *Wing) Exec() {
 		c.Serve()
 	case "init":
 		c.Init()
+	case "worker":
+		c.Worker()
 	case "":
 	default:
 		fmt.Println("Unrecognized command - \"" + cmd + "\".")
@@ -126,4 +221,7 @@ func (c *Wing) initLogger() {
 	log.SetFormatter(&log.TextFormatter{
 		FullTimestamp: true,
 	})
+	machineryLog.Set(log.WithFields(log.Fields{
+		"module": "machinery",
+	}))
 }

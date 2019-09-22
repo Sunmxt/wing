@@ -2,9 +2,14 @@ module git.stuhome.com/Sunmxt/wing
 
 go 1.12
 
-replace k8s.io/apimachinery => k8s.io/apimachinery v0.0.0-20190404173353-6a84e37a896d
+replace (
+	git.apache.org/thrift.git => github.com/apache/thrift v0.0.0-20181218151757-9b75e4fe745a
+	k8s.io/apimachinery => k8s.io/apimachinery v0.0.0-20190404173353-6a84e37a896d
+)
 
 require (
+	github.com/RichardKnop/machinery v1.6.9
+	github.com/denisbrodbeck/machineid v1.0.1
 	github.com/gin-contrib/sessions v0.0.0-20190512062852-3cb4c4f2d615
 	github.com/gin-gonic/gin v1.4.0
 	github.com/go-playground/locales v0.12.1 // indirect
@@ -26,7 +31,6 @@ require (
 	gopkg.in/bluesuncorp/validator.v8 v8.18.2
 	gopkg.in/bluesuncorp/validator.v9 v9.29.0
 	gopkg.in/go-playground/validator.v8 v8.18.2
-	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/ldap.v3 v3.0.3
 	k8s.io/api v0.0.0-20190515023547-db5a9d1c40eb
 	k8s.io/apimachinery v0.0.0-20190515023456-b74e4c97951f

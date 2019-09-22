@@ -50,7 +50,7 @@ func (ctx *OperationContext) Database() (db *gorm.DB, err error) {
 	}
 	ctx.DB.SetLogger(mlog.GormLogger{
 		Log: ctx.Log.WithFields(log.Fields{
-			"type": "gorm",
+			"module": "gorm",
 		}),
 	})
 	return ctx.DB, nil

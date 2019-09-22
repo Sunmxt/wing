@@ -15,7 +15,7 @@ func RequestLogger(ctx *gin.Context) *log.Entry {
 	}
 	entry.Data["request_id"] = request_id
 	//entry.Data["path"] = ctx.Request.URL.RequestURI()
-	entry.Data["type"] = "request"
+	entry.Data["module"] = "request"
 	return entry
 }
 
@@ -33,6 +33,7 @@ func RequestLogMiddleware(ctx *gin.Context) {
 	logger.Data["status"] = ctx.Writer.Status()
 	//logger.Data["method"] = ctx.Request.Method
 	logger.Data["remote"] = ctx.Request.RemoteAddr
+	logger.Data["module"] = "api"
 	logger.Infof("[request] %v %v %v", ctx.Request.Method, ctx.Request.URL.RequestURI(), ctx.Writer.Status())
 }
 

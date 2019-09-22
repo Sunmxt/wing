@@ -16,7 +16,7 @@ import (
 
 func (c *Wing) Serve() {
 	c.LogConfig()
-	log.Info("[bootstrap] Wing server bootstraping...")
+	log.Info("[bootstrap] Wing server bootstrapping...")
 
 	if !c.Debug {
 		log.Info("[bootstrap] Production mode.")
@@ -30,7 +30,7 @@ func (c *Wing) Serve() {
 	router.Use(mlog.RequestLogMiddleware)
 
 	// Session
-	store := cookie.NewStore([]byte(c.Runtime.Config.SessionToken))
+	store := cookie.NewStore([]byte(c.Runtime.Config.Session.Token))
 	router.Use(ss.Sessions("wing_session", store))
 
 	// Wing
