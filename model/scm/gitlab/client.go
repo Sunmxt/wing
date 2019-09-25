@@ -3,12 +3,13 @@ package gitlab
 import (
 	"git.stuhome.com/Sunmxt/wing/common"
 	"git.stuhome.com/Sunmxt/wing/log"
+	"io"
 	"net/http"
 	"net/url"
 	"strconv"
 )
 
-type GitlabPagnation struct {
+type GitlabPagination struct {
 	Total     uint
 	TotalPage uint
 	PerPage   uint
@@ -26,7 +27,7 @@ type GitlabNamespace struct {
 	ParentID int    `json:"parent_id"`
 }
 
-func (i *GitlabPagnation) Next() bool {
+func (i *GitlabPagination) Next() bool {
 	if i.Page != 0 && i.Page >= i.TotalPage {
 		return false
 	}
@@ -36,14 +37,14 @@ func (i *GitlabPagnation) Next() bool {
 	return true
 }
 
-func (i *GitlabPagnation) GetPerPage() uint {
+func (i *GitlabPagination) GetPerPage() uint {
 	if i.PerPage > 0 {
 		return i.PerPage
 	}
 	return 10
 }
 
-func (i *GitlabPagnation) SetPage(page uint) {
+func (i *GitlabPagination) SetPage(page uint) {
 	if page < 1 {
 		page = 1
 	}
@@ -52,11 +53,11 @@ func (i *GitlabPagnation) SetPage(page uint) {
 	i.Page = page
 }
 
-func (i *GitlabPagnation) GetPagnationURLQueries() string {
+func (i *GitlabPagination) GetPagnationURLQueries() string {
 	return "page=" + strconv.FormatUint(uint64(i.Page), 10) + "&" + "per_page=" + strconv.FormatUint(uint64(i.GetPerPage()), 10)
 }
 
-func (i *GitlabPagnation) updateCursorFromResponse(resp *http.Response, q *ProjectQuery) {
+func (i *GitlabPagination) updateCursorFromResponse(resp *http.Response, q *ProjectQuery) {
 	tryParse := func(headerName string, defaultValue uint) uint {
 		pages, exists := resp.Header[headerName]
 		if exists && len(pages) > 0 && len(pages[0]) > 0 {
@@ -77,16 +78,17 @@ func (i *GitlabPagnation) updateCursorFromResponse(resp *http.Response, q *Proje
 	i.TotalPage = tryParse("X-Total-Pages", i.Total/i.PerPage+1)
 }
 
-func (i *GitlabPagnation) Reset() {
+func (i *GitlabPagination) Reset() {
 	i.Page = 1
 	i.NextPage = 2
 	i.PrevPage = 0
 }
 
 type GitlabClient struct {
-	Error    error
-	Endpoint *url.URL
-	Logger   log.NormalLogger
+	Error       error
+	Endpoint    *url.URL
+	Logger      log.NormalLogger
+	AccessToken string
 }
 
 func NewGitlabClient(endpoint string, logger log.NormalLogger) (*GitlabClient, error) {
@@ -112,8 +114,40 @@ func NewGitlabClient(endpoint string, logger log.NormalLogger) (*GitlabClient, e
 	return q, nil
 }
 
+func (c *GitlabClient) Err(args ...interface{}) {
+	if c.Logger == nil {
+		return
+	}
+	c.Logger.Error(args...)
+}
+
+func (c *GitlabClient) Info(args ...interface{}) {
+	if c.Logger == nil {
+		return
+	}
+	c.Logger.Info(args...)
+}
+
 func (c *GitlabClient) ProjectQuery() *ProjectQuery {
 	return NewProjectQuery(c)
+}
+
+func (c *GitlabClient) MergeRequest() *MergeRequestContext {
+	return NewMergeRequestContext(c)
+}
+
+func (c *GitlabClient) User() *UserContext {
+	return NewUserContext(c)
+}
+
+func (c *GitlabClient) NewRequest(method string, url string, body io.Reader) (req *http.Request, err error) {
+	if req, err = http.NewRequest(method, url, body); err != nil {
+		return nil, err
+	}
+	if c.AccessToken != "" {
+		req.Header.Add("Private-Token", c.AccessToken)
+	}
+	return req, nil
 }
 
 func (c *GitlabClient) EndpointClone() (*url.URL, error) {

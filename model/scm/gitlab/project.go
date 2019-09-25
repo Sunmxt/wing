@@ -125,7 +125,7 @@ type ProjectDetail struct {
 //}
 
 type ProjectQuery struct {
-	Cursor   GitlabPagnation
+	Cursor   GitlabPagination
 	Projects []Project
 	Client   *GitlabClient
 	Error    error

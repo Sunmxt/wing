@@ -23,10 +23,12 @@ type OperationContext struct {
 }
 
 func NewOperationContext(runtime *common.WingRuntime) *OperationContext {
-	return &OperationContext{
+	octx := &OperationContext{
 		Runtime: runtime,
 		Log: mlog.OperationLogger(),
 	}
+	octx.Log.Data["machine"] = runtime.MachineID
+	return octx
 }
 
 func (ctx *OperationContext) LogContext() {

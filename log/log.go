@@ -36,7 +36,6 @@ func RequestLogMiddleware(ctx *gin.Context) {
 
 	logger.Data["cost"] = latency
 	logger.Data["status"] = ctx.Writer.Status()
-	//logger.Data["method"] = ctx.Request.Method
 	logger.Data["remote"] = ctx.Request.RemoteAddr
 	logger.Data["module"] = "api"
 	logger.Infof("[request] %v %v %v", ctx.Request.Method, ctx.Request.URL.RequestURI(), ctx.Writer.Status())

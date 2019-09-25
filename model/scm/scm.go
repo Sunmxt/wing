@@ -136,6 +136,11 @@ type CIRepositoryApproval struct {
 	OwnerID       int
 }
 
+type GitlabApprovalExtra struct {
+	WebURL         string `json:"web_url"`
+	MergeRequestID uint   `json:"mr_id"`
+}
+
 const (
 	ApprovalRejected        = 0
 	ApprovalAccepted        = 1
@@ -147,6 +152,23 @@ const (
 
 func (r *CIRepositoryApproval) TableName() string {
 	return "ci_repository_approval"
+}
+
+func (r *CIRepositoryApproval) GitlabExtra() *GitlabApprovalExtra {
+	extra := &GitlabApprovalExtra{}
+	if err := json.Unmarshal([]byte(r.Extra), extra); err != nil {
+		return nil
+	}
+	return extra
+}
+
+func (r *CIRepositoryApproval) SetGitlabExtra(extra *GitlabApprovalExtra) error {
+	bin, err := json.Marshal(extra)
+	if err != nil {
+		return err
+	}
+	r.Extra = string(bin)
+	return nil
 }
 
 //type CIRepositoryBuild struct {

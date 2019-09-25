@@ -5,6 +5,7 @@ import (
 	machineryConfig "github.com/RichardKnop/machinery/v1/config"
 	"github.com/jinzhu/configor"
 	log "github.com/sirupsen/logrus"
+	"path/filepath"
 	"strconv"
 )
 
@@ -46,6 +47,7 @@ type JobConfiguration struct {
 	Username      string `yaml:"username"`
 	RedisDatabase string `yaml:"redisDatabase"`
 	MachineryDSN  string `yaml:"machineryDSN"`
+	GitWorkingDir string `yaml:"gitWorkingDir" default:"/var/lib/wing/git"`
 
 	MachineryConfig machineryConfig.Config `yaml:"-"`
 }
@@ -67,11 +69,13 @@ func (c *JobConfiguration) GenerateMachineryDSN() (dsn string) {
 }
 
 func (c *JobConfiguration) Clean() (err error) {
-	failureIf := func(message string, assert bool) {
+	failureIf := func(message string, assert bool) bool {
 		if assert {
 			err = errors.New(message)
 			log.Error("[config] " + err.Error())
+			return true
 		}
+		return false
 	}
 	failureIf("job broker address required", c.Address == "")
 	failureIf("job broker port required", c.Port < 1)
@@ -96,6 +100,14 @@ func (c *JobConfiguration) Clean() (err error) {
 	c.MachineryConfig.ResultsExpireIn = 0
 	c.MachineryConfig.NoUnixSignals = false
 
+	c.GitWorkingDir, err = filepath.Abs(c.GitWorkingDir)
+	if err != nil {
+		failureIf(err.Error(), true)
+		return err
+	}
+	if failureIf("git working directory should not be blank.", c.GitWorkingDir == "") {
+		return err
+	}
 	return nil
 }
 

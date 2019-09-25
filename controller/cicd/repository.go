@@ -43,23 +43,41 @@ func SubmitGitlabRepositoryCIApproval(ctx *ccommon.OperationContext, platform *s
 	if tx.Error != nil {
 		return nil, tx.Error
 	}
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+		}
+	}()
 	// Only one approval can be in progress.
-	if err = db.Where(approval).Where("stage >= (?)", scm.ApprovalCreated).First(&approval).Error; err != nil && !gorm.IsRecordNotFoundError(err) {
+	if err = tx.Where(approval).Where("stage >= (?)", scm.ApprovalCreated).First(&approval).Error; err != nil && !gorm.IsRecordNotFoundError(err) {
 		return nil, err
 	}
 	if approval.Basic.ID > 0 {
-		tx.Rollback()
 		return approval, nil
 	}
+	// Should not submit approval for ci enabled project.
+	repo := &scm.CIRepository{
+		SCMPlatformID: platform.Basic.ID,
+		Reference: approval.Reference,
+		Active: scm.Active,
+	}
+	if err = tx.Select("id").Where(repo).First(repo).Error; err != nil && !gorm.IsRecordNotFoundError(err) {
+		return nil, err
+	}
+	if repo.Basic.ID > 0 {
+		return nil, common.ErrRepositoryCIAlreadyEnabled
+	}
 	approval.Stage = scm.ApprovalCreated
+	approval.AccessToken = common.GenerateRandomToken()
 	if err = tx.Save(approval).Error; err != nil {
-		tx.Rollback()
 		return nil, err
 	}
 	tx.Commit()
 
 	// submit job to create mr.
-	AsyncSubmitCIApprovalMergeRequest(ctx, platform.Basic.ID, uint(repoID), approval.Basic.ID)
+	if _, err = AsyncSubmitCIApprovalGitlabMergeRequest(ctx, platform.Basic.ID, uint(repoID), approval.Basic.ID, 10); err != nil {
+		return approval, err
+	}
 
 	return approval, nil
 }

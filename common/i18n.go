@@ -19,6 +19,8 @@ func registerI18NMessage() {
 	message.SetString(language.English, "SCM.InvalidSCMPlatformID", "Invalid SCM platform ID.")
 	message.SetString(language.Chinese, "SCM.CIApprovalCreationFailure", "创建 CI 审核失败.")
 	message.SetString(language.English, "SCM.CIApprovalCreationFailure", "Create CI approval failure.")
+	message.SetString(language.Chinese, "SCM.RepositoryCIAlreadyEnabled", "代码仓库已开启自动构建")
+	message.SetString(language.English, "SCM.RepositoryCIAlreadyEnabled", "CI has already enabled for this repository.")
 
 	message.SetString(language.Chinese, "Partial.InvalidFields", "无效的字段")
 	message.SetString(language.English, "Partial.InvalidFields", "Invalid fields")
