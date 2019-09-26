@@ -85,6 +85,7 @@ func (scm *SCMPlatform) GitlabClient(logger log.NormalLogger) (client *gitlab.Gi
 	if client, err = gitlab.NewGitlabClient(extra.Endpoint, logger); err != nil {
 		return nil, err
 	}
+	client.AccessToken = extra.AccessToken
 	return client, nil
 }
 

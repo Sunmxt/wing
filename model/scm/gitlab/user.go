@@ -1,11 +1,6 @@
 package gitlab
 
 import (
-	"encoding/json"
-	"io"
-	"net/http"
-	"net/url"
-
 	"git.stuhome.com/Sunmxt/wing/common"
 )
 
@@ -34,11 +29,11 @@ type User struct {
 	Organization     string         `json:"organization"`
 	LastSignInAt     string         `json:"last_sign_in_at"`
 	ConfirmedAt      string         `json:"confirmed_at"`
-	ThemeID          string         `json:"theme_id"`
+	ThemeID          uint           `json:"theme_id"`
 	LastActivityOn   string         `json:"last_activity_on"`
-	ColorSchemeID    string         `json:"color_scheme_id"`
+	ColorSchemeID    uint           `json:"color_scheme_id"`
 	ProjectsLimit    uint           `json:"projects_limit"`
-	CurrentSignInAt  uint           `json:"current_sign_in_at"`
+	CurrentSignInAt  string         `json:"current_sign_in_at"`
 	Identities       []UserIdentity `json:"identities"`
 	CanCreateGroup   bool           `json:"can_create_group"`
 	CanCreateProject bool           `json:"can_create_project"`
@@ -59,53 +54,38 @@ func NewUserContext(client *GitlabClient) *UserContext {
 	}
 }
 
-func (c *UserContext) parseUserDetail(resp *http.Response, user *User) *User {
-	body := make([]byte, resp.ContentLength)
-	if _, err := io.ReadFull(resp.Body, body); err != nil {
-		c.Client.Err("[Gitlab Client] read user detail response body failure: " + err.Error())
-		c.Error = err
-		return nil
-	}
-	if user == nil {
-		user = &User{}
-	}
-	if err := json.Unmarshal(body, user); err != nil {
-		c.Client.Err("[Gitlab Client] unmarshal user detail failure: " + err.Error())
-		c.Error = err
-		return nil
-	}
-	return user
-}
+//func (c *UserContext) parseUserDetail(resp *http.Response, user *User) *User {
+//	body := make([]byte, resp.ContentLength)
+//	if _, err := io.ReadFull(resp.Body, body); err != nil {
+//		c.Client.Err("[Gitlab Client] read user detail response body failure: " + err.Error())
+//		c.Error = err
+//		return nil
+//	}
+//	if user == nil {
+//		user = &User{}
+//	}
+//	if err := json.Unmarshal(body, user); err != nil {
+//		c.Client.Err("[Gitlab Client] unmarshal user detail failure: " + err.Error())
+//		c.Error = err
+//		return nil
+//	}
+//	return user
+//}
 
 func (c *UserContext) Current() *User {
 	if c.Client == nil || c.Client.Endpoint == nil {
 		c.Error = common.ErrEndpointMissing
 		return nil
 	}
-	qURL := &url.URL{}
-	*qURL = *c.Client.Endpoint
-	qURL.Path = "api/v4/user"
-	qURL.RawPath = ""
-	qURL.ForceQuery = false
-	qURL.RawQuery = ""
-	qURL.Fragment = ""
-
-	req, err := c.Client.NewRequest("GET", qURL.String(), nil)
+	req, err := c.Client.NewRequestV2("GET", "api/v4/user", nil)
 	if err != nil {
 		c.Error = err
 		return nil
 	}
-
-	var resp *http.Response
-	client := http.Client{}
-	c.Client.Info("[Gitlab Client] get current user. " + qURL.String())
-	if resp, err = client.Do(req); err != nil {
-		c.Client.Err("[GItlab Client] get current user failure: " + err.Error())
+	user := &User{}
+	if _, err = c.Client.Do(req, user); err != nil {
 		c.Error = err
 		return nil
 	}
-
-	user := &User{}
-
-	return c.parseUserDetail(resp, user)
+	return user
 }

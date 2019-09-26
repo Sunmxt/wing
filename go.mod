@@ -9,6 +9,7 @@ replace (
 
 require (
 	github.com/RichardKnop/machinery v1.6.9
+	github.com/Sunmxt/form v1.5.1
 	github.com/denisbrodbeck/machineid v1.0.1
 	github.com/gin-contrib/sessions v0.0.0-20190512062852-3cb4c4f2d615
 	github.com/gin-gonic/gin v1.4.0

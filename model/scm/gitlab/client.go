@@ -1,12 +1,16 @@
 package gitlab
 
 import (
+	"encoding/json"
 	"git.stuhome.com/Sunmxt/wing/common"
 	"git.stuhome.com/Sunmxt/wing/log"
 	"io"
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
+
+	"github.com/Sunmxt/form"
 )
 
 type GitlabPagination struct {
@@ -140,6 +144,10 @@ func (c *GitlabClient) User() *UserContext {
 	return NewUserContext(c)
 }
 
+func (c *GitlabClient) Variable() *VariableContext {
+	return NewVariableContext(c)
+}
+
 func (c *GitlabClient) NewRequest(method string, url string, body io.Reader) (req *http.Request, err error) {
 	if req, err = http.NewRequest(method, url, body); err != nil {
 		return nil, err
@@ -148,6 +156,54 @@ func (c *GitlabClient) NewRequest(method string, url string, body io.Reader) (re
 		req.Header.Add("Private-Token", c.AccessToken)
 	}
 	return req, nil
+}
+
+func (c *GitlabClient) NewRequestV2(method string, path string, options interface{}) (req *http.Request, err error) {
+	if c.Endpoint == nil {
+		err = common.ErrEndpointMissing
+		c.Error = err
+		return req, err
+	}
+	qURL := &url.URL{}
+	*qURL = *c.Endpoint
+	qURL.Path = path
+	qURL.RawPath = ""
+	qURL.ForceQuery = false
+	qURL.RawQuery = ""
+	qURL.Fragment = ""
+	var body io.Reader
+	if options != nil {
+		values, err := form.EncodeToValues(options)
+		if err != nil {
+			return nil, err
+		}
+		body = strings.NewReader(values.Encode())
+	}
+	if req, err = http.NewRequest(method, qURL.String(), body); err != nil {
+		return nil, err
+	}
+	if body != nil {
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	}
+	if c.AccessToken != "" {
+		req.Header.Set("Private-Token", c.AccessToken)
+	}
+	return req, nil
+}
+
+func (c *GitlabClient) Do(req *http.Request, result interface{}) (resp *http.Response, err error) {
+	c.Error = nil
+	client := http.Client{}
+	c.Info("[Gitlab Client] send http request " + req.URL.String())
+	if resp, err = client.Do(req); err != nil {
+		c.Err("[Gitlab Client] http request get failure: " + err.Error())
+		c.Error = err
+		return nil, err
+	}
+	if result != nil {
+		err = json.NewDecoder(resp.Body).Decode(result)
+	}
+	return
 }
 
 func (c *GitlabClient) EndpointClone() (*url.URL, error) {
