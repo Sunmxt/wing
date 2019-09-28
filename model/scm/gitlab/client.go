@@ -2,14 +2,16 @@ package gitlab
 
 import (
 	"encoding/json"
-	"git.stuhome.com/Sunmxt/wing/common"
-	"git.stuhome.com/Sunmxt/wing/log"
+	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
 
+	"git.stuhome.com/Sunmxt/wing/common"
+	"git.stuhome.com/Sunmxt/wing/log"
 	"github.com/Sunmxt/form"
 )
 
@@ -31,6 +33,10 @@ type GitlabNamespace struct {
 	Kind     string `json:"kind"`
 	FullPath string `json:"full_path"`
 	ParentID int    `json:"parent_id"`
+}
+
+type GitlabErrorMessage struct {
+	Message string `json:"message"`
 }
 
 func (i *GitlabPagination) Next() bool {
@@ -201,6 +207,9 @@ func (c *GitlabClient) Do(req *http.Request, results ...interface{}) (resp *http
 		c.Error = err
 		return nil, err
 	}
+	if err = c.parseError(resp); err != nil {
+		return nil, err
+	}
 	for _, result := range results {
 		err = json.NewDecoder(resp.Body).Decode(result)
 		if err != nil {
@@ -209,6 +218,18 @@ func (c *GitlabClient) Do(req *http.Request, results ...interface{}) (resp *http
 		}
 	}
 	return
+}
+
+func (c *GitlabClient) parseError(resp *http.Response) error {
+	if resp.StatusCode < 300 && resp.StatusCode >= 200 {
+		return nil
+	}
+	msg := &GitlabErrorMessage{}
+	err := json.NewDecoder(resp.Body).Decode(msg)
+	if err != nil {
+		return fmt.Errorf("[Gitlab Client] Request got status %v, but cannot parse error message: "+err.Error(), resp.StatusCode)
+	}
+	return errors.New(msg.Message)
 }
 
 func (c *GitlabClient) EndpointClone() (*url.URL, error) {
