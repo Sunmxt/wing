@@ -130,7 +130,7 @@ func (c *MergeRequestContext) Create(mr *MergeRequest) error {
 	}
 	mr.ProjectID = projectID
 	projectIDString := strconv.FormatUint(uint64(projectID), 10)
-	req, err := c.Client.NewRequestV2("POST", "api/v4/projects/"+projectIDString+"/merge_requests", mr)
+	req, err := c.Client.NewRequest("POST", "api/v4/projects/"+projectIDString+"/merge_requests", mr)
 	if err != nil {
 		c.Error = err
 		return err

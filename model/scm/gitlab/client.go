@@ -13,6 +13,8 @@ import (
 	"github.com/Sunmxt/form"
 )
 
+type GitlabClientLogger log.NormalLogger
+
 type GitlabPagination struct {
 	Total     uint
 	TotalPage uint
@@ -61,20 +63,19 @@ func (i *GitlabPagination) GetPagnationURLQueries() string {
 	return "page=" + strconv.FormatUint(uint64(i.Page), 10) + "&" + "per_page=" + strconv.FormatUint(uint64(i.GetPerPage()), 10)
 }
 
-func (i *GitlabPagination) updateCursorFromResponse(resp *http.Response, q *ProjectQuery) {
+func (i *GitlabPagination) updateCursorFromResponse(client *GitlabClient, resp *http.Response) {
 	tryParse := func(headerName string, defaultValue uint) uint {
 		pages, exists := resp.Header[headerName]
 		if exists && len(pages) > 0 && len(pages[0]) > 0 {
 			page, err := strconv.ParseUint(pages[0], 10, 64)
 			if err != nil {
-				q.error("[Gitlab Client] Parse \"" + headerName + "\" with value \"" + pages[0] + "\" failure: " + err.Error())
+				client.Err("[Gitlab Client] Parse \"" + headerName + "\" with value \"" + pages[0] + "\" failure: " + err.Error())
 			} else {
 				defaultValue = uint(page)
 			}
 		}
 		return defaultValue
 	}
-
 	i.Total = tryParse("X-Total", 0)
 	i.Page = tryParse("X-Page", i.Page+1)
 	i.NextPage = tryParse("X-Next-Page", i.Page+1)
@@ -91,7 +92,7 @@ func (i *GitlabPagination) Reset() {
 type GitlabClient struct {
 	Error       error
 	Endpoint    *url.URL
-	Logger      log.NormalLogger
+	Logger      GitlabClientLogger
 	AccessToken string
 }
 
@@ -148,29 +149,29 @@ func (c *GitlabClient) Variable() *VariableContext {
 	return NewVariableContext(c)
 }
 
-func (c *GitlabClient) NewRequest(method string, url string, body io.Reader) (req *http.Request, err error) {
-	if req, err = http.NewRequest(method, url, body); err != nil {
-		return nil, err
-	}
-	if c.AccessToken != "" {
-		req.Header.Add("Private-Token", c.AccessToken)
-	}
-	return req, nil
-}
-
-func (c *GitlabClient) NewRequestV2(method string, path string, options interface{}) (req *http.Request, err error) {
+func (c *GitlabClient) NewRequest(method string, requestURL string, options interface{}) (req *http.Request, err error) {
 	if c.Endpoint == nil {
 		err = common.ErrEndpointMissing
 		c.Error = err
 		return req, err
 	}
-	qURL := &url.URL{}
-	*qURL = *c.Endpoint
-	qURL.Path = path
-	qURL.RawPath = ""
+	qURL, err := url.Parse(requestURL)
+	if qURL.Scheme == "" {
+		qURL.Scheme = c.Endpoint.Scheme
+	}
+	if qURL.Opaque == "" {
+		qURL.Opaque = c.Endpoint.Opaque
+	}
+	if qURL.User == nil {
+		qURL.User = c.Endpoint.User
+	}
+	if qURL.Host == "" {
+		qURL.Host = c.Endpoint.Host
+	}
 	qURL.ForceQuery = false
-	qURL.RawQuery = ""
-	qURL.Fragment = ""
+	if qURL.Fragment == "" {
+		qURL.Fragment = c.Endpoint.Fragment
+	}
 	var body io.Reader
 	if options != nil {
 		values, err := form.EncodeToValues(options)
@@ -191,7 +192,7 @@ func (c *GitlabClient) NewRequestV2(method string, path string, options interfac
 	return req, nil
 }
 
-func (c *GitlabClient) Do(req *http.Request, result interface{}) (resp *http.Response, err error) {
+func (c *GitlabClient) Do(req *http.Request, results ...interface{}) (resp *http.Response, err error) {
 	c.Error = nil
 	client := http.Client{}
 	c.Info("[Gitlab Client] send http request " + req.URL.String())
@@ -200,8 +201,12 @@ func (c *GitlabClient) Do(req *http.Request, result interface{}) (resp *http.Res
 		c.Error = err
 		return nil, err
 	}
-	if result != nil {
+	for _, result := range results {
 		err = json.NewDecoder(resp.Body).Decode(result)
+		if err != nil {
+			c.Error = err
+			break
+		}
 	}
 	return
 }

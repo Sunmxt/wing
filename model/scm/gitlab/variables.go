@@ -86,7 +86,7 @@ func (c *VariableContext) Create(variable *Variable) error {
 		return c.Error
 	}
 	projectIDString := strconv.FormatUint(uint64(c.Project.ID), 10)
-	req, err := c.Client.NewRequestV2("POST", "api/v4/projects/"+projectIDString+"/variables", variable)
+	req, err := c.Client.NewRequest("POST", "api/v4/projects/"+projectIDString+"/variables", variable)
 	if err != nil {
 		c.Error = err
 		return err
@@ -108,7 +108,7 @@ func (c *VariableContext) Save(variable *Variable) error {
 	}
 	projectIDString := strconv.FormatUint(uint64(c.Project.ID), 10)
 	method := "PUT"
-	req, err := c.Client.NewRequestV2(method, "api/v4/projects/"+projectIDString+"/variables/"+variable.Key, variable)
+	req, err := c.Client.NewRequest(method, "api/v4/projects/"+projectIDString+"/variables/"+variable.Key, variable)
 	if err != nil {
 		c.Error = err
 		return err

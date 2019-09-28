@@ -1,11 +1,8 @@
 package gitlab
 
 import (
-	"encoding/json"
 	"git.stuhome.com/Sunmxt/wing/common"
-	"io"
 	"net/http"
-	"net/url"
 	"strconv"
 )
 
@@ -30,7 +27,6 @@ type Project struct {
 	Namespace         *GitlabNamespace `json:"namespace"`
 
 	Detail *ProjectDetail `json:"-"`
-	Query  *ProjectQuery  `json:"-"`
 }
 
 //func (q *Project) MergeRequest() *GitlabMergeRequestContext {
@@ -118,12 +114,6 @@ type ProjectDetail struct {
 	Links                                  *ProjectLinks            `json:"_links"`
 }
 
-//func (p *Project) MergeRequest() *GitlabMergeRequestContext {
-//	return &GitlabMergeRequestContext{
-//		Project: p,
-//	}
-//}
-
 type ProjectQuery struct {
 	Cursor   GitlabPagination
 	Projects []Project
@@ -139,62 +129,23 @@ func NewProjectQuery(client *GitlabClient) (q *ProjectQuery) {
 	return q
 }
 
-func (q *ProjectQuery) parseSingleResult(resp *http.Response) *Project {
-	body := make([]byte, resp.ContentLength)
-	if _, err := io.ReadFull(resp.Body, body); err != nil {
-		q.error("[Gitlab Client] read project detail response body failure: " + err.Error())
-		q.Error = err
-		return nil
-	}
-	project := &Project{}
-	if err := json.Unmarshal(body, project); err != nil {
-		q.error("[Gitlab Client] unmarshal project detail failure:" + err.Error())
-		q.Error = err
-		return nil
-	}
-	if project.ID < 1 {
-		return nil
-	}
-	project.Detail = &ProjectDetail{}
-	if err := json.Unmarshal(body, &project.Detail); err != nil {
-		q.error("[Gitlab Client] unmarshal project detail failure:" + err.Error())
-		q.Error = err
-		return nil
-	}
-	return project
-}
-
 func (q *ProjectQuery) Single(ID uint) *Project {
 	q.Error = nil
-
-	if q.Client.Endpoint == nil {
+	if q.Client == nil || q.Client.Endpoint == nil {
 		q.Error = common.ErrEndpointMissing
 		return nil
 	}
-	qURL := &url.URL{}
-	*qURL = *q.Client.Endpoint
-
-	qURL.Path = "api/v4/projects/" + strconv.FormatUint(uint64(ID), 10)
-	qURL.RawPath = ""
-	qURL.ForceQuery = false
-	qURL.RawQuery = ""
-	qURL.Fragment = ""
-
-	req, err := http.NewRequest("GET", qURL.String(), nil)
+	req, err := q.Client.NewRequest("POST", "api/v4/projects/"+strconv.FormatUint(uint64(ID), 10), nil)
 	if err != nil {
 		q.Error = err
 		return nil
 	}
-	client := http.Client{}
-
-	var resp *http.Response
-	q.info("[Gitlab Client] get project details. " + qURL.String())
-	if resp, err = client.Do(req); err != nil {
-		q.error("[Gitlab Client] get project detail failure:" + err.Error())
+	project := &Project{}
+	if _, err = q.Client.Do(req, project, &project.Detail); err != nil {
 		q.Error = err
 		return nil
 	}
-	return q.parseSingleResult(resp)
+	return project
 }
 
 func (q *ProjectQuery) ResetCursor() error {
@@ -211,76 +162,27 @@ func (g *ProjectQuery) Page(page uint) {
 	g.Cursor.SetPage(page)
 }
 
-func (q *ProjectQuery) info(args ...interface{}) {
-	if q.Client.Logger == nil {
-		return
-	}
-	q.Client.Logger.Info(args...)
-}
-
-func (q *ProjectQuery) error(args ...interface{}) {
-	if q.Client.Logger == nil {
-		return
-	}
-	q.Client.Logger.Error(args...)
-}
-
 func (q *ProjectQuery) Refresh() *ProjectQuery {
 	q.Error = nil
-
-	if q.Client.Endpoint == nil {
+	if q.Client == nil || q.Client.Endpoint == nil {
 		q.Error = common.ErrEndpointMissing
-		return nil
+		return q
 	}
-	qURL := &url.URL{}
-	*qURL = *q.Client.Endpoint
-
-	qURL.Path = "api/v4/projects"
-	qURL.RawPath = ""
-	qURL.ForceQuery = false
-	qURL.RawQuery = q.Cursor.GetPagnationURLQueries()
-	qURL.Fragment = ""
-
-	req, err := http.NewRequest("GET", qURL.String(), nil)
+	req, err := q.Client.NewRequest("GET", "api/v4/projects?"+q.Cursor.GetPagnationURLQueries(), nil)
 	if err != nil {
 		q.Error = err
-		return nil
+		return q
 	}
-	client := http.Client{}
-
+	if q.Projects != nil {
+		q.Projects = q.Projects[0:0]
+	}
 	var resp *http.Response
-	q.info("[Gitlab Client] list gitlab projects. " + qURL.String())
-	if resp, err = client.Do(req); err != nil {
-		q.error("[Gitlab Client] list gitlab projects failure: " + err.Error())
+	if resp, err = q.Client.Do(req, &q.Projects); err != nil {
+		q.Client.Err("[Gitlab Client] list gitlab projects failure: " + err.Error())
 		q.Error = err
-		return nil
+		return q
 	}
-
-	return q.parseResult(resp)
-}
-
-func (q *ProjectQuery) parseResult(resp *http.Response) *ProjectQuery {
-	q.Cursor.updateCursorFromResponse(resp, q)
-
-	body := make([]byte, resp.ContentLength)
-	if _, err := io.ReadFull(resp.Body, body); err != nil {
-		q.error("[Gitlab Client] read projects response body failure: " + err.Error())
-		q.Error = err
-		return nil
-	}
-	if q.Projects == nil {
-		q.Projects = make([]Project, q.Cursor.GetPerPage())
-	}
-	if err := json.Unmarshal(body, &q.Projects); err != nil {
-		q.error("[Gitlab Client] unmarshal projects response failure: " + err.Error())
-		q.Error = err
-		return nil
-	}
-
-	for _, project := range q.Projects {
-		project.Query = q
-	}
-
+	q.Cursor.updateCursorFromResponse(q.Client, resp)
 	return q
 }
 

@@ -77,7 +77,7 @@ func (c *UserContext) Current() *User {
 		c.Error = common.ErrEndpointMissing
 		return nil
 	}
-	req, err := c.Client.NewRequestV2("GET", "api/v4/user", nil)
+	req, err := c.Client.NewRequest("GET", "api/v4/user", nil)
 	if err != nil {
 		c.Error = err
 		return nil
