@@ -16,7 +16,11 @@ format: build-path
 
 bin/wing: dep-init bin/dashboard
 	statik -src=$$(pwd)/bin/dashboard/
-	go install -v -gcflags='all=-N -l' git.stuhome.com/Sunmxt/wing
+	@if [ "$${TYPE:=release}" = "debug" ]; then 						\
+		go install -v -gcflags='all=-N -l' git.stuhome.com/Sunmxt/wing; \
+	else																\
+	    go install -v -ldflags='all=-s -w' git.stuhome.com/Sunmxt/wing; \
+	fi;
 
 bin/dashboard: build-path
 	@if ! [ -z "$(SKIP_FE_BUILD)" ]; then 			\
