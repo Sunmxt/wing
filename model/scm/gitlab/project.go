@@ -135,7 +135,7 @@ func (q *ProjectQuery) Single(ID uint) *Project {
 		q.Error = common.ErrEndpointMissing
 		return nil
 	}
-	req, err := q.Client.NewRequest("POST", "api/v4/projects/"+strconv.FormatUint(uint64(ID), 10), nil)
+	req, err := q.Client.NewRequest("GET", "api/v4/projects/"+strconv.FormatUint(uint64(ID), 10), nil)
 	if err != nil {
 		q.Error = err
 		return nil

@@ -1,10 +1,12 @@
 package gitlab
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -36,7 +38,8 @@ type GitlabNamespace struct {
 }
 
 type GitlabErrorMessage struct {
-	Message string `json:"message"`
+	Message      string `json:"message"`
+	ErrorMessage string `json:"error"`
 }
 
 func (i *GitlabPagination) Next() bool {
@@ -201,23 +204,29 @@ func (c *GitlabClient) NewRequest(method string, requestURL string, options inte
 func (c *GitlabClient) Do(req *http.Request, results ...interface{}) (resp *http.Response, err error) {
 	c.Error = nil
 	client := http.Client{}
-	c.Info("[Gitlab Client] send http request " + req.URL.String())
-	if resp, err = client.Do(req); err != nil {
-		c.Err("[Gitlab Client] http request get failure: " + err.Error())
+
+	resp, err = client.Do(req)
+	c.Info("[Gitlab Client] sent http request " + req.URL.String() + ". got status " + strconv.FormatUint(uint64(resp.StatusCode), 10))
+	if err != nil {
+		c.Err("[Gitlab Client] http request get failure with code: " + err.Error())
 		c.Error = err
 		return nil, err
 	}
 	if err = c.parseError(resp); err != nil {
 		return nil, err
 	}
+
+	buf := bytes.Buffer{}
+	bodyReader := io.TeeReader(resp.Body, &buf)
 	for _, result := range results {
-		err = json.NewDecoder(resp.Body).Decode(result)
-		if err != nil {
+		if err = json.NewDecoder(bodyReader).Decode(result); err != nil {
 			c.Error = err
 			break
 		}
+		bodyReader = bytes.NewReader(buf.Bytes())
 	}
-	return
+	resp.Body = ioutil.NopCloser(bodyReader)
+	return resp, nil
 }
 
 func (c *GitlabClient) parseError(resp *http.Response) error {
@@ -229,7 +238,14 @@ func (c *GitlabClient) parseError(resp *http.Response) error {
 	if err != nil {
 		return fmt.Errorf("[Gitlab Client] Request got status %v, but cannot parse error message: "+err.Error(), resp.StatusCode)
 	}
-	return errors.New(msg.Message)
+	message := "status: " + strconv.FormatUint(uint64(resp.StatusCode), 10)
+	if msg.Message != "" {
+		message = "message: " + msg.Message + ". "
+	}
+	if msg.ErrorMessage != "" {
+		message += "error: " + msg.ErrorMessage + ". "
+	}
+	return errors.New(message)
 }
 
 func (c *GitlabClient) EndpointClone() (*url.URL, error) {
