@@ -11,6 +11,11 @@ import (
 
 func SubmitGitlabRepositoryCIApproval(ctx *ccommon.OperationContext, platform *scm.SCMPlatform, ownerID uint, repositoryID string) (*scm.CIRepositoryApproval ,error) {
 	repoID, err := strconv.ParseUint(repositoryID, 10, 64)
+	defer func () {
+		if err != nil {
+			ctx.Log.Error(err.Error())
+		}
+	}()
 	if err != nil {
 		return nil, common.ErrInvalidRepositoryID
 	}
@@ -21,7 +26,7 @@ func SubmitGitlabRepositoryCIApproval(ctx *ccommon.OperationContext, platform *s
 	query := client.ProjectQuery()
 	project := query.Single(uint(repoID))
 	if query.Error != nil {
-		return nil, err
+		return nil, query.Error
 	}
 	if project == nil {
 		return nil, common.ErrInvalidRepositoryID
@@ -69,7 +74,14 @@ func SubmitGitlabRepositoryCIApproval(ctx *ccommon.OperationContext, platform *s
 	}
 	approval.Stage = scm.ApprovalCreated
 	approval.AccessToken = common.GenerateRandomToken()
+	approval.SetGitlabExtra(&scm.GitlabApprovalExtra{
+		RepositoryID: uint(repoID),
+	})
 	if err = tx.Save(approval).Error; err != nil {
+		return nil, err
+	}
+	// Save Log
+	if _, _, err = scm.LogApprovalStageChanged(tx, platform.Basic.ID, int(repoID), approval.Basic.ID, -1, approval.Stage); err != nil {
 		return nil, err
 	}
 	tx.Commit()

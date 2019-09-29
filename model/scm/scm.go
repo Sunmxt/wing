@@ -41,6 +41,8 @@ func Migrate(db *gorm.DB, cfg *config.WingConfiguration) (err error) {
 		AddIndex("idx_reference", "reference").
 		AddIndex("idx_owner", "owner_id").
 		AddIndex("idx_scm_platform", "scm_platform_id")
+	db.AutoMigrate(&CIRepositoryLog{}).
+		AddIndex("idx_reference", "reference")
 
 	if db.Error != nil {
 		return db.Error
@@ -122,6 +124,49 @@ func (r *CIRepository) TableName() string {
 	return "ci_repository"
 }
 
+func (r *CIRepository) GitlabProjectID() uint {
+	id, err := strconv.ParseUint(r.Reference, 10, 64)
+	if err != nil {
+		return 0
+	}
+	return uint(id)
+}
+
+type CIRepositoryLog struct {
+	common.Basic
+
+	Type      int
+	Reference string `gorm:"varchar(255)"`
+	Extra     string `gorm:"longtext"`
+}
+
+type CIRepositoryLogApprovalStageChangedExtra struct {
+	OldStage   int `json:"old_stage"`
+	NewStage   int `json:"new_stage"`
+	ApprovalID int `json:"approval_id"`
+}
+
+const (
+	CILogApprovalStageChanged               = 1
+	CILogRuntimeProductPackageImageUploaded = 2
+)
+
+func (l *CIRepositoryLog) EncodeExtra(extra interface{}) error {
+	bin, err := json.Marshal(extra)
+	if err != nil {
+		return err
+	}
+	l.Extra = string(bin)
+	return nil
+}
+
+func (l *CIRepositoryLog) DecodeExtra(extra interface{}) error {
+	if err := json.Unmarshal([]byte(l.Extra), extra); err != nil {
+		return err
+	}
+	return nil
+}
+
 type CIRepositoryApproval struct {
 	common.Basic
 
@@ -138,6 +183,7 @@ type CIRepositoryApproval struct {
 }
 
 type GitlabApprovalExtra struct {
+	RepositoryID   uint   `json:"repo_id"`
 	WebURL         string `json:"web_url"`
 	MergeRequestID uint   `json:"mr_id"`
 }

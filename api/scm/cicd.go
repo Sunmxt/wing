@@ -75,15 +75,188 @@ func EnableRepositoryCICD(ctx *gin.Context) {
 
 }
 
-//type DisableRepositoryCICDRequest struct {
-//	PlatformID   uint   `form:"platform_id" binding:"required"`
-//	RepositoryID string `form:"repository_id" binding:"required"`
-//}
-//
-//func DisableRepositoryCICD(ctx *gin.Context) {
-//	rctx, request := acommon.NewRequestContext(ctx), &DisableRepositoryCICDRequest{}
-//	db := rctx.DatabaseOrFail()
-//	if db == nil || !rctx.BindOrFail(request) {
-//		return
-//	}
-//}
+type DisableRepositoryCICDRequest struct {
+	PlatformID   uint   `form:"platform_id" binding:"required"`
+	RepositoryID string `form:"repository_id" binding:"required"`
+}
+
+func (r *DisableRepositoryCICDRequest) Clean(rctx *acommon.RequestContext) error {
+	return nil
+}
+
+func DisableRepositoryCICD(ctx *gin.Context) {
+	rctx, request := acommon.NewRequestContext(ctx), &DisableRepositoryCICDRequest{}
+	db := rctx.DatabaseOrFail()
+	if db == nil || !rctx.BindOrFail(request) {
+		return
+	}
+}
+
+type GetCICDApprovalDetailRequest struct {
+	ApprovalID int `form:"approval_id" binding:"required"`
+}
+
+type FlowStage struct {
+	Name   string      `json:"name"`
+	Prompt string      `json:"prompt"`
+	State  uint        `json:"status"`
+	Extra  interface{} `json:"extra"`
+}
+
+const (
+	FlowStageWait      = 0
+	FlowStageInProcess = 1
+	FlowStagePassed    = 2
+	FlowStageRejected  = 3
+	FlowStageError     = 4
+	FlowStageSkip      = 5
+)
+
+type GetCICDApprovalDetailResponse struct {
+	ID           int         `json:"approval_id"`
+	CurrentStage int         `json:"current_stage_index"`
+	Stages       []FlowStage `json:"stages"`
+}
+
+func (r *GetCICDApprovalDetailRequest) Clean(rctx *acommon.RequestContext) error {
+	return nil
+}
+
+func GetCICDApprovalDetail(ctx *gin.Context) {
+	rctx, request, response := acommon.NewRequestContext(ctx), &GetCICDApprovalDetailRequest{}, GetCICDApprovalDetailResponse{}
+	db := rctx.DatabaseOrFail()
+	if db == nil || !rctx.BindOrFail(request) {
+		return
+	}
+	approval := scm.CIRepositoryApproval{}
+	err := approval.ByID(db.Preload("SCM").Order("modify_time desc"), request.ApprovalID)
+	if err != nil {
+		rctx.AbortWithError(err)
+		return
+	}
+	if approval.Basic.ID < 1 {
+		rctx.AbortWithError(common.ErrInvalidApprovalID)
+		return
+	}
+	if approval.SCM == nil {
+		rctx.AbortWithError(common.ErrSCMPlatformNotFound)
+		return
+	}
+	var repoID int
+	switch approval.SCM.Type {
+	case scm.GitlabSCM:
+		extra := approval.GitlabExtra()
+		if extra == nil {
+			rctx.AbortWithDebugMessage(http.StatusInternalServerError, "cannot get gitlab scm extra.")
+			return
+		}
+		repoID = int(extra.RepositoryID)
+
+	default:
+		rctx.AbortWithError(common.ErrSCMPlatformNotSupported)
+		return
+	}
+
+	logs, err := scm.GetApprovalStageChangedLogs(db, approval.SCMPlatformID, repoID, approval.Basic.ID)
+	if err != nil {
+		rctx.AbortWithError(err)
+		return
+	}
+
+	// pick
+	response.Stages = make([]FlowStage, 3)
+	response.Stages[0].Name = rctx.TranslateMessage("UI.Flow.Stage.SubmitRepositoryBuildEnableApproval")
+	response.Stages[1].Name = rctx.TranslateMessage("UI.Flow.Stage.SubmitGitlabMergeRequestApproval")
+	response.Stages[2].Name = rctx.TranslateMessage("UI.Flow.Stage.RepositoryBuildEnabled")
+	response.Stages[0].Prompt = rctx.TranslateMessage("UI.Flow.Stage.Prompt.SubmitRepositoryBuildEnableApproval")
+	response.Stages[1].Prompt = rctx.TranslateMessage("UI.Flow.Stage.Prompt.SubmitGitlabMergeRequestApproval")
+	response.Stages[2].Prompt = rctx.TranslateMessage("UI.Flow.Stage.Prompt.RepositoryBuildEnabled")
+	response.Stages[0].State = FlowStageWait
+	response.Stages[1].State = FlowStageWait
+	response.Stages[2].State = FlowStageWait
+
+	// pick workflow status according to latest ci log.
+	stageAccepted, extra := true, &scm.CIRepositoryLogApprovalStageChangedExtra{}
+	if len(logs) > 0 {
+		if err := logs[0].DecodeExtra(extra); err != nil {
+			rctx.AbortWithError(err)
+			return
+		}
+		if extra.OldStage < 0 {
+			switch extra.NewStage {
+			case scm.ApprovalAccepted:
+				response.Stages[0].State = FlowStagePassed
+				response.Stages[1].State = FlowStageSkip
+				response.Stages[2].State = FlowStagePassed
+				response.CurrentStage = 3
+
+			case scm.ApprovalRejected:
+				response.Stages[0].State = FlowStageRejected
+				response.CurrentStage = 1
+
+			case scm.ApprovalCreated:
+				response.Stages[0].State = FlowStageInProcess
+				response.CurrentStage = 1
+
+			case scm.ApprovalWaitForAccepted:
+				response.Stages[0].State = FlowStagePassed
+				response.Stages[1].State = FlowStageInProcess
+				response.CurrentStage = 2
+
+			default:
+				stageAccepted = false
+			}
+		} else {
+			switch extra.OldStage {
+			case scm.ApprovalCreated:
+				switch extra.NewStage {
+				case scm.ApprovalWaitForAccepted:
+					response.Stages[0].State = FlowStagePassed
+					response.Stages[1].State = FlowStageInProcess
+					response.CurrentStage = 2
+
+				case scm.ApprovalAccepted:
+					response.Stages[0].State = FlowStagePassed
+					response.Stages[1].State = FlowStageSkip
+					response.Stages[2].State = FlowStagePassed
+					response.CurrentStage = 3
+
+				case scm.ApprovalRejected:
+					response.Stages[0].State = FlowStagePassed
+					response.Stages[1].State = FlowStageRejected
+					response.CurrentStage = 2
+				default:
+					stageAccepted = false
+				}
+
+			case scm.ApprovalWaitForAccepted:
+				switch extra.NewStage {
+				case scm.ApprovalAccepted:
+					response.Stages[0].State = FlowStagePassed
+					response.Stages[1].State = FlowStagePassed
+					response.Stages[2].State = FlowStagePassed
+					response.CurrentStage = 3
+
+				case scm.ApprovalRejected:
+					response.Stages[0].State = FlowStagePassed
+					response.Stages[1].State = FlowStageRejected
+					response.CurrentStage = 2
+				default:
+					stageAccepted = false
+				}
+			default:
+				stageAccepted = false
+			}
+		}
+	}
+	if !stageAccepted {
+		rctx.OpCtx.Log.Warnf("Unrecognized state changing: %v -- > %v", extra.OldStage, extra.NewStage)
+	}
+	response.ID = request.ApprovalID
+	rctx.Response.Data = response
+	rctx.Succeed()
+}
+
+func GetBuildJobScript(ctx *gin.Context) {
+	return
+}

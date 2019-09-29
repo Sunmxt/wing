@@ -302,8 +302,13 @@ func SubmitCIApprovalGitlabMergeRequest(ctx *common.WingRuntime) (func (int, uin
 		approvalExtra.MergeRequestID = mr.ID
 		approvalExtra.WebURL = mr.WebURL
 		approval.SetGitlabExtra(approvalExtra)
+		oldApprovalStage := approval.Stage
 		approval.Stage = scm.ApprovalWaitForAccepted
 		tx.Save(approval)
+		if _, _, err = scm.LogApprovalStageChanged(tx, platformID, int(repositoryID), approvalID, oldApprovalStage, approval.Stage); err != nil {
+			err = errors.New("[SubmitCIApprovalGitlabMergeRequest] cannot save repo ci log: " + err.Error())
+			return err
+		}
 		return nil
 	}
 }
