@@ -53,7 +53,7 @@ type MergeRequest struct {
 	Assignees       []Author `json:"assignees" form:"-"`
 	SourceProjectID uint     `json:"source_project_id" form:"-"`
 	TargetProjectID uint     `json:"target_project_id" form:"target_project_id,omitempty"`
-	Labels          []string `json:"labels" form:"labels,omitempty"`
+	//Labels          []string `json:"labels" form:"labels,omitempty"`
 	//WorkInProgresss           uint       `json:"work_in_progress" form:"-"`
 	Milestone                 *Milestone `json:"milestone" form:"-"`
 	MilestoneID               uint       `json:"-" form:"milestone_id,omitempty"`
@@ -68,13 +68,13 @@ type MergeRequest struct {
 	AllowCollaboration        bool       `json:"allow_collaboration" form:"allow_collaboration,omitempty"`
 	AllowMaintainerToPush     bool       `json:"allow_maintainer_to_push" form:"allow_maintainer_to_push,omitempty"`
 	WebURL                    string     `json:"web_url" form:"-"`
-	TimeStats                 *struct {
+	TimeStats                 struct {
 		TimeEstimate      uint `json:"time_estimate" form:"-"`
 		TotalTimeSpent    uint `json:"total_time_spent" form:"-"`
 		HumanTimeEstimate uint `json:"human_time_estimate" form:"-"`
 	} `json:"time_stats" form:"-"`
 	Squash               bool `json:"squash" form:"squash,omitempty"`
-	TaskCompletionStatus *struct {
+	TaskCompletionStatus struct {
 		Count          uint `json:"count" form:"-"`
 		CompletedCount uint `json:"completed_count" form:"-"`
 	} `json:"task_completion_status" form:"-"`

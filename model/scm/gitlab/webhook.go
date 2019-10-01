@@ -1,139 +1,455 @@
 package gitlab
 
-//type RawMergeRequestEvent struct {
-//	ObjectKind string `json:"object_kind"`
-//	User struct {
-//		Name string `json:"name"`
-//		Description       string           `json:"description"`
-//		WebURL            string           `json:"web_url"`
-//		AvatarURL         string           `json:"avatar_url"`
-//		SSHURLToRepo      string           `json:"git_ssh_url"`
-//		HTTPURLToRepo     string           `json:"git_http_url"`
-//		Namespace         string `json:"namespace"`
-//		VisibilityLevel uint `json:"visibility_level"`
-//		PathWithNamespace string           `json:"path_with_namespace"`
-//		DefaultBranch     string           `json:"default_branch"`
-//		CIConfigPath string `json:"ci_config_path"`
-//		Homepage  string `json:"homepage"`
-//		URL string `json:"url"`
-//		SSHURL string `json:"ssh_url"`
-//		HTTPURL string `json:"http_url"`
-//
-//	} `json:"user"`
-//
-//}
-//
-//{
-//	//"object_kind": "merge_request",
-//	//"user": {
-//	  "name": "Administrator",
-//	  "username": "root",
-//	  "avatar_url": "http://www.gravatar.com/avatar/e64c7d89f26bd1972efa854d13d7dd61?s=80&d=identicon"
-//	},
-//	"project": {
-//	  "name": "Example",
-//	  "description": "",
-//	  "web_url": "http://example.com/jsmith/example",
-//	  "avatar_url": null,
-//	  "git_ssh_url": "git@example.com:jsmith/example.git",
-//	  "git_http_url": "http://example.com/jsmith/example.git",
-//	  "namespace": "Jsmith",
-//	  "visibility_level": 0,
-//	  "path_with_namespace": "jsmith/example",
-//	  "default_branch": "master",
-//	  "ci_config_path": "",
-//	  "homepage": "http://example.com/jsmith/example",
-//	  "url": "git@example.com:jsmith/example.git",
-//	  "ssh_url": "git@example.com:jsmith/example.git",
-//	  "http_url": "http://example.com/jsmith/example.git"
-//	},
-//	"object_attributes": {
-//	  "id": 90,
-//	  "target_branch": "master",
-//	  "source_branch": "ms-viewport",
-//	  "source_project_id": 14,
-//	  "author_id": 51,
-//	  "assignee_id": 6,
-//	  "title": "MS-Viewport",
-//	  "created_at": "2017-09-20T08:31:45.944Z",
-//	  "updated_at": "2017-09-28T12:23:42.365Z",
-//	  "milestone_id": null,
-//	  "state": "opened",
-//	  "merge_status": "unchecked",
-//	  "target_project_id": 14,
-//	  "iid": 1,
-//	  "description": "",
-//	  "updated_by_id": 1,
-//	  "merge_error": null,
-//	  "merge_params": {
-//		"force_remove_source_branch": "0"
-//	  },
-//	  "merge_when_pipeline_succeeds": false,
-//	  "merge_user_id": null,
-//	  "merge_commit_sha": null,
-//	  "deleted_at": null,
-//	  "in_progress_merge_commit_sha": null,
-//	  "lock_version": 5,
-//	  "time_estimate": 0,
-//	  "last_edited_at": "2017-09-27T12:43:37.558Z",
-//	  "last_edited_by_id": 1,
-//	  "head_pipeline_id": 61,
-//	  "ref_fetched": true,
-//	  "merge_jid": null,
-//	  "source": {
-//		"name": "Awesome Project",
-//		"description": "",
-//		"web_url": "http://example.com/awesome_space/awesome_project",
-//		"avatar_url": null,
-//		"git_ssh_url": "git@example.com:awesome_space/awesome_project.git",
-//		"git_http_url": "http://example.com/awesome_space/awesome_project.git",
-//		"namespace": "root",
-//		"visibility_level": 0,
-//		"path_with_namespace": "awesome_space/awesome_project",
-//		"default_branch": "master",
-//		"ci_config_path": "",
-//		"homepage": "http://example.com/awesome_space/awesome_project",
-//		"url": "http://example.com/awesome_space/awesome_project.git",
-//		"ssh_url": "git@example.com:awesome_space/awesome_project.git",
-//		"http_url": "http://example.com/awesome_space/awesome_project.git"
-//	  },
-//	  "target": {
-//		"name": "Awesome Project",
-//		"description": "Aut reprehenderit ut est.",
-//		"web_url": "http://example.com/awesome_space/awesome_project",
-//		"avatar_url": null,
-//		"git_ssh_url": "git@example.com:awesome_space/awesome_project.git",
-//		"git_http_url": "http://example.com/awesome_space/awesome_project.git",
-//		"namespace": "Awesome Space",
-//		"visibility_level": 0,
-//		"path_with_namespace": "awesome_space/awesome_project",
-//		"default_branch": "master",
-//		"ci_config_path": "",
-//		"homepage": "http://example.com/awesome_space/awesome_project",
-//		"url": "http://example.com/awesome_space/awesome_project.git",
-//		"ssh_url": "git@example.com:awesome_space/awesome_project.git",
-//		"http_url": "http://example.com/awesome_space/awesome_project.git"
-//	  },
-//	  "last_commit": {
-//		"id": "ba3e0d8ff79c80d5b0bbb4f3e2e343e0aaa662b7",
-//		"message": "fixed readme",
-//		"timestamp": "2017-09-26T16:12:57Z",
-//		"url": "http://example.com/awesome_space/awesome_project/commits/da1560886d4f094c3e6c9ef40349f7d38b5d27d7",
-//		"author": {
-//		  "name": "GitLab dev user",
-//		  "email": "gitlabdev@dv6700.(none)"
-//		}
-//	  },
-//	  "work_in_progress": false,
-//	  "total_time_spent": 0,
-//	  "human_total_time_spent": null,
-//	  "human_time_estimate": null
-//	},
-//	"labels": null,
-//	"repository": {
-//	  "name": "git-gpg-test",
-//	  "url": "git@example.com:awesome_space/awesome_project.git",
-//	  "description": "",
-//	  "homepage": "http://example.com/awesome_space/awesome_project"
-//	}
-//  }
+import (
+	"bytes"
+	"encoding/json"
+	"errors"
+	"io"
+	"io/ioutil"
+	"net/http"
+	"reflect"
+	"sync"
+	"sync/atomic"
+
+	"git.stuhome.com/Sunmxt/wing/common"
+)
+
+const (
+	MergeRequestClose  = 1
+	MergeRequestOpen   = 2
+	MergeRequestMerged = 3
+)
+
+type MergeRequestEvent struct {
+	Event int
+
+	User
+	SourceProject *Project
+	TargetProject *Project
+	MergeRequest
+}
+
+type RawMergeRequestEventProject struct {
+	Name              string `json:"name"`
+	Description       string `json:"description"`
+	WebURL            string `json:"web_url"`
+	AvatarURL         string `json:"avatar_url"`
+	GitSSHURL         string `json:"git_ssh_url"`
+	GitHTTPURL        string `json:"git_http_url"`
+	Namespace         string `json:"namespace"`
+	VisibilityLevel   uint   `json:"visibility_level"`
+	PathWithNamespace string `json:"path_with_namespace"`
+	DefaultBranch     string `json:"default_branch"`
+	CIConfigPath      string `json:"ci_config_path"`
+	Homepage          string `json:"homepage"`
+	URL               string `json:"url"`
+	SSHURL            string `json:"ssh_url"`
+	HTTPURL           string `json:"http_url"`
+}
+
+type RawMergeRequestEvent struct {
+	ObjectKind string `json:"object_kind"`
+	User       `json:"user"`
+	Project    *RawMergeRequestEventProject `json:"project"`
+
+	ObjectAttrs struct {
+		ID              uint   `json:"id"`
+		TargetBranch    string `json:"target_branch"`
+		SourceBranch    string `json:"source_branch"`
+		SourceProjectID uint   `json:"source_project_id"`
+		AuthorID        uint   `json:"author_id"`
+		AssigneeID      uint   `json:"assignee_id"`
+		Title           string `json:"title"`
+		CreateAt        string `json:"create_at"`
+		UpdateAt        string `json:"update_at"`
+		MilestoneID     uint   `json:"milestone_id"`
+		State           string `json:"state"`
+		MergeStatus     string `json:"merge_status"`
+		TargetProjectID uint   `json:target_project_id`
+		InternalID      uint   `json:"iid"`
+		Description     string `json:"description"`
+		UpdatedByID     uint   `json:"updated_by_id"`
+		//MergeError
+		MergeParams struct {
+			ForceRemoveSourceBranch bool `json:"force_remove_source_branch"`
+		} `json:"merge_params"`
+		MergeWhenPipelineSucceeds bool                         `json:"merge_when_pipeline_succeeds"`
+		MergeUserID               uint                         `json:"merge_user_id"`
+		MergeCommitSHA            string                       `json:"merge_commit_sha"`
+		DeleteAt                  string                       `json:"delete_at"`
+		InProgressMergeCommitSHA  string                       `json:"in_progress_merge_commit_sha"`
+		LockVersion               uint                         `json:"lock_version"`
+		TimeEstimate              uint                         `json:"time_estimate"`
+		LastEditedAt              string                       `json:"LastEditedAt"`
+		LastEditedByID            uint                         `json:"last_edited_by_id"`
+		HeadPipelineID            uint                         `json:"head_pipeline_id"`
+		RefFetched                bool                         `json:"ref_fetched"`
+		MergeJID                  uint                         `json:"merge_jid"`
+		Source                    *RawMergeRequestEventProject `json:"source"`
+		Target                    *RawMergeRequestEventProject `json:"target"`
+		LastCommit                struct {
+			ID        string `json:"id"`
+			Message   string `json:"message"`
+			Timestamp string `json:"timestamp"`
+			URL       string `json:"url"`
+			Author    struct {
+				Name  string `json:"name"`
+				Email string `json:"email"`
+			} `json:"author"`
+		} `json:"last_commit"`
+		WorkInProgress      bool   `json:"work_in_progress"`
+		TotalTimeSpent      uint   `json:"total_time_spent"`
+		HumanTotalTimeSpent uint   `json:"human_total_time_spent"`
+		HumanTimeEstimate   uint   `json:"human_total_time_estimate"`
+		Action              string `json:"action"`
+	} `json:"object_attributes"`
+	//Labels     []string `json:"labels"`
+	Repository struct {
+		Name        string `json:"name"`
+		URL         string `json:"url"`
+		Description string `json:"description"`
+		Homepage    string `json:"homepage"`
+	} `json:"repository"`
+}
+
+type EventObjectKind struct {
+	ObjectKind string `json:"object_kind"`
+}
+
+type MergeRequestEventHandler func(*http.Request, *MergeRequestEvent) error
+
+type eventHubCore struct {
+	watch             map[uint64]struct{}
+	watchProject      map[uint64][]uint64
+	watchMergeRequest map[uint64][]uint64
+	listener          struct {
+		MergeRequest map[uint64]MergeRequestEventHandler
+	}
+}
+
+func newEventHubCore() *eventHubCore {
+	ctx := &eventHubCore{
+		watch:             make(map[uint64]struct{}),
+		watchProject:      make(map[uint64][]uint64),
+		watchMergeRequest: make(map[uint64][]uint64),
+	}
+	ctx.listener.MergeRequest = make(map[uint64]MergeRequestEventHandler)
+	return ctx
+}
+
+func (c *eventHubCore) Clone() *eventHubCore {
+	new := newEventHubCore()
+	for k, v := range c.watch {
+		new.watch[k] = v
+	}
+	for k, v := range c.watchProject {
+		new.watchProject[k] = v
+	}
+	for k, v := range c.watchMergeRequest {
+		new.watchMergeRequest[k] = v
+	}
+	for k, v := range c.listener.MergeRequest {
+		new.listener.MergeRequest[k] = v
+	}
+	return new
+}
+
+type eventHubExecuteContext struct {
+	projectIDs []uint64
+	mrIDs      []uint64
+}
+
+func newEventHubExecuteContext() *eventHubExecuteContext {
+	return &eventHubExecuteContext{
+		projectIDs: make([]uint64, 0),
+		mrIDs:      make([]uint64, 0),
+	}
+}
+
+func (c *eventHubExecuteContext) Clone() *eventHubExecuteContext {
+	new := newEventHubExecuteContext()
+	copy(new.projectIDs, c.projectIDs)
+	copy(new.mrIDs, c.mrIDs)
+	return new
+}
+
+type EventHub struct {
+	Error   error
+	Logger  GitlabClientLogger
+	core    *eventHubCore
+	context *eventHubExecuteContext
+
+	handlerIDCounter uint64
+	lock             sync.RWMutex
+}
+
+func NewEventHub() *EventHub {
+	return &EventHub{
+		core:    newEventHubCore(),
+		context: newEventHubExecuteContext(),
+	}
+}
+
+func (h *EventHub) Clone() *EventHub {
+	return &EventHub{
+		core:    h.core.Clone(),
+		context: h.context.Clone(),
+	}
+}
+
+func (h *EventHub) ContextClone() *EventHub {
+	return &EventHub{
+		core:    h.core,
+		context: h.context.Clone(),
+	}
+}
+
+func (h *EventHub) Project(projects ...interface{}) *EventHub {
+	new := h.ContextClone()
+	for _, project := range projects {
+		var projectID uint64
+
+		switch ty := project.(type) {
+		case Project:
+			projectID = uint64(ty.ID)
+		case *Project:
+			if ty != nil {
+				projectID = uint64(ty.ID)
+			}
+		case uint, int, uint8, uint16, uint32, int8, int16, int32:
+			v := reflect.ValueOf(ty).Uint()
+			if v > 0 {
+				projectID = v
+			}
+		}
+		if projectID > 0 {
+			new.context.projectIDs = append(new.context.projectIDs, projectID)
+		}
+	}
+	return new
+}
+
+func (h *EventHub) MergeRequest(mrs ...interface{}) *EventHub {
+	new := h.ContextClone()
+	for _, mr := range mrs {
+		var mrID uint64
+		switch ty := mr.(type) {
+		case MergeRequest:
+			mrID = uint64(ty.ID)
+		case *MergeRequest:
+			if ty != nil {
+				mrID = uint64(ty.ID)
+			}
+		case uint, int, uint8, uint16, uint32, int8, int16, int32:
+			v := reflect.ValueOf(ty).Uint()
+			if v > 0 {
+				mrID = v
+			}
+		}
+		if mrID > 0 {
+			new.context.mrIDs = append(new.context.mrIDs, mrID)
+		}
+	}
+	return new
+}
+
+func (h *EventHub) Handle(handler interface{}) error {
+	switch ty := handler.(type) {
+	case MergeRequestEventHandler:
+		return h.handleMergeRequest(ty)
+	}
+	return errors.New("Unsupported handler type.")
+}
+
+func (h *EventHub) nextHandlerID() uint64 {
+	return atomic.AddUint64(&h.handlerIDCounter, 1)
+}
+
+func (h *EventHub) handleMergeRequest(handler MergeRequestEventHandler) error {
+	h.lock.Lock()
+	defer h.lock.Unlock()
+
+	handlerID := h.nextHandlerID()
+	if len(h.context.projectIDs) < 1 && len(h.context.mrIDs) < 1 {
+		h.core.listener.MergeRequest[handlerID] = handler
+		return nil
+	}
+	for _, projectID := range h.context.projectIDs {
+		ids, ok := h.core.watchProject[projectID]
+		if !ok {
+			ids = []uint64{handlerID}
+		} else {
+			ids = append(ids, handlerID)
+		}
+		h.core.watchProject[projectID] = ids
+	}
+	for _, mrID := range h.context.mrIDs {
+		ids, ok := h.core.watchMergeRequest[mrID]
+		if !ok {
+			ids = []uint64{handlerID}
+		} else {
+			ids = append(ids, handlerID)
+		}
+		h.core.watchMergeRequest[mrID] = ids
+	}
+	return nil
+}
+
+func (h *EventHub) Err(args ...interface{}) {
+	if h.Logger == nil {
+		return
+	}
+	h.Logger.Error(args...)
+}
+
+func (h *EventHub) Info(args ...interface{}) {
+	if h.Logger == nil {
+		return
+	}
+	h.Logger.Info(args...)
+}
+
+func (h *EventHub) ProcessWebhook(req *http.Request) (uint, error) {
+	buf := bytes.Buffer{}
+	bodyReader := io.TeeReader(req.Body, &buf)
+
+	kind := &EventObjectKind{}
+	if err := json.NewDecoder(bodyReader).Decode(kind); err != nil {
+		h.Info("cannot decode request body: " + err.Error())
+		return http.StatusBadRequest, err
+	}
+	req.Body = ioutil.NopCloser(bytes.NewReader(buf.Bytes()))
+
+	switch kind.ObjectKind {
+	case "merge_request":
+		return h.processMergeRequest(req, &buf)
+	}
+
+	return http.StatusBadRequest, errors.New("Not supported webhook object.")
+}
+
+func (h *EventHub) processMergeRequest(req *http.Request, buf *bytes.Buffer) (uint, error) {
+	var bodyReader io.Reader
+
+	if buf == nil {
+		buf = &bytes.Buffer{}
+		bodyReader = io.TeeReader(req.Body, buf)
+	}
+
+	rawEvent := &RawMergeRequestEvent{}
+	if err := json.NewDecoder(bodyReader).Decode(rawEvent); err != nil {
+		h.Info("cannot decode request body as merge request event: " + err.Error())
+		return http.StatusBadRequest, err
+	}
+
+	// construct event.
+	// missing: Path, CreateAt, TagList, ReadmeURL, StarCount, ForkCount, LastActivityAt
+	event := &MergeRequestEvent{
+		User: rawEvent.User,
+		SourceProject: &Project{
+			ID:                rawEvent.ObjectAttrs.SourceProjectID,
+			Description:       rawEvent.ObjectAttrs.Description,
+			Name:              rawEvent.ObjectAttrs.Source.Name,
+			PathWithNamespace: rawEvent.ObjectAttrs.Source.PathWithNamespace,
+			DefaultBranch:     rawEvent.ObjectAttrs.Source.DefaultBranch,
+			SSHURLToRepo:      rawEvent.ObjectAttrs.Source.GitSSHURL,
+			HTTPURLToRepo:     rawEvent.ObjectAttrs.Source.GitHTTPURL,
+			WebURL:            rawEvent.ObjectAttrs.Source.WebURL,
+			AvatarURL:         rawEvent.ObjectAttrs.Source.AvatarURL,
+			Namespace: &GitlabNamespace{
+				Name: rawEvent.ObjectAttrs.Source.Namespace,
+			},
+		},
+		TargetProject: &Project{
+			ID:                rawEvent.ObjectAttrs.TargetProjectID,
+			Description:       rawEvent.ObjectAttrs.Description,
+			Name:              rawEvent.ObjectAttrs.Target.Name,
+			PathWithNamespace: rawEvent.ObjectAttrs.Target.PathWithNamespace,
+			DefaultBranch:     rawEvent.ObjectAttrs.Target.DefaultBranch,
+			SSHURLToRepo:      rawEvent.ObjectAttrs.Target.GitSSHURL,
+			HTTPURLToRepo:     rawEvent.ObjectAttrs.Target.GitHTTPURL,
+			WebURL:            rawEvent.ObjectAttrs.Target.WebURL,
+			AvatarURL:         rawEvent.ObjectAttrs.Target.AvatarURL,
+			Namespace: &GitlabNamespace{
+				Name: rawEvent.ObjectAttrs.Target.Namespace,
+			},
+		},
+		MergeRequest: MergeRequest{
+			ID:          rawEvent.ObjectAttrs.ID,
+			InternalID:  rawEvent.ObjectAttrs.InternalID,
+			ProjectID:   rawEvent.ObjectAttrs.SourceProjectID,
+			Title:       rawEvent.ObjectAttrs.Title,
+			Description: rawEvent.ObjectAttrs.Description,
+			State:       rawEvent.ObjectAttrs.State,
+			MergeBy: &User{
+				ID: rawEvent.ObjectAttrs.MergeUserID,
+			},
+			UpdateAt:     rawEvent.ObjectAttrs.UpdateAt,
+			TargetBranch: rawEvent.ObjectAttrs.TargetBranch,
+			SourceBranch: rawEvent.ObjectAttrs.SourceBranch,
+			Author: &Author{
+				ID: rawEvent.ObjectAttrs.AuthorID,
+			},
+			Assignee: &Author{
+				ID: rawEvent.ObjectAttrs.AssigneeID,
+			},
+			SourceProjectID: rawEvent.ObjectAttrs.SourceProjectID,
+			TargetProjectID: rawEvent.ObjectAttrs.TargetProjectID,
+			Milestone: &Milestone{
+				ID: rawEvent.ObjectAttrs.MilestoneID,
+			},
+			MilestoneID:               rawEvent.ObjectAttrs.MilestoneID,
+			MergeWhenPipelineSucceeds: rawEvent.ObjectAttrs.MergeWhenPipelineSucceeds,
+			MergeStatus:               rawEvent.ObjectAttrs.MergeStatus,
+			MergeCommitSHA:            rawEvent.ObjectAttrs.MergeCommitSHA,
+			ShouldRemoveSourceBranch:  rawEvent.ObjectAttrs.MergeParams.ForceRemoveSourceBranch,
+		},
+	}
+	event.TimeStats.TimeEstimate = rawEvent.ObjectAttrs.TimeEstimate
+	event.TimeStats.TotalTimeSpent = rawEvent.ObjectAttrs.TotalTimeSpent
+	event.TimeStats.HumanTimeEstimate = rawEvent.ObjectAttrs.HumanTimeEstimate
+
+	switch rawEvent.ObjectAttrs.Action {
+	case "open":
+		event.Event = MergeRequestOpen
+	case "close":
+		event.Event = MergeRequestClose
+	case "merged":
+		event.Event = MergeRequestMerged
+	}
+
+	for _, handler := range h.pickMergeRequestEventHandler(event.TargetProject.ID, event.MergeRequest.ID) {
+		handler(req, event)
+	}
+
+	return http.StatusOK, nil
+}
+
+func (h *EventHub) pickMergeRequestEventHandler(projectID uint, mergeRequestID uint) (handlers []MergeRequestEventHandler) {
+	handlerIDSet := common.NewUint64Set()
+	for id, _ := range h.core.watch {
+		handlerIDSet.Add(id)
+	}
+	if projectID > 0 {
+		handlerIDs, ok := h.core.watchProject[uint64(projectID)]
+		if ok {
+			handlerIDSet.Intersect(handlerIDs...)
+		}
+	}
+	if mergeRequestID > 0 {
+		handlerIDs, ok := h.core.watchMergeRequest[uint64(mergeRequestID)]
+		if ok {
+			handlerIDSet.Intersect(handlerIDs...)
+		}
+	}
+	handlers = make([]MergeRequestEventHandler, 0, handlerIDSet.Len())
+	handlerIDSet.Visit(func(x uint64) bool {
+		handler, ok := h.core.listener.MergeRequest[x]
+		if !ok {
+			return true
+		}
+		handlers = append(handlers, handler)
+		return true
+	})
+	return
+}

@@ -16,8 +16,9 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"git.stuhome.com/Sunmxt/wing/cmd/config"
-	"git.stuhome.com/Sunmxt/wing/common"
+	"git.stuhome.com/Sunmxt/wing/cmd/runtime"
 	"git.stuhome.com/Sunmxt/wing/controller"
+	"git.stuhome.com/Sunmxt/wing/model/scm/gitlab"
 )
 
 const HelpTextHeader string = `Wing is server of application platform.
@@ -34,7 +35,7 @@ type Wing struct {
 	ConfigFile string
 	ShowHelp   bool
 	Debug      bool
-	Runtime    common.WingRuntime
+	Runtime    runtime.WingRuntime
 	flags      *flag.FlagSet
 
 	Args    []string
@@ -91,6 +92,8 @@ func (c *Wing) ServerInit() error {
 		log.Error("[Worker] cannot create machinery server: " + err.Error())
 		return err
 	}
+
+	c.Runtime.GitlabWebhookEventHub = gitlab.NewEventHub()
 
 	if err = controller.RegisterTasks(&c.Runtime); err != nil {
 		return err

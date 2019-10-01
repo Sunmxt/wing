@@ -8,10 +8,12 @@ import (
 	"strings"
 
 	"git.stuhome.com/Sunmxt/wing/cmd/config"
+	"git.stuhome.com/Sunmxt/wing/cmd/runtime"
 	"git.stuhome.com/Sunmxt/wing/common"
 	ccommon "git.stuhome.com/Sunmxt/wing/controller/common"
 	mlog "git.stuhome.com/Sunmxt/wing/log"
 	"git.stuhome.com/Sunmxt/wing/model/account"
+
 	ss "github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"github.com/jinzhu/gorm"
@@ -36,12 +38,12 @@ func getLogger(ctx *gin.Context) (logger *log.Entry) {
 	return mlog.RequestLogger(ctx)
 }
 
-func getRuntime(ctx *gin.Context) (runtime *common.WingRuntime) {
+func getRuntime(ctx *gin.Context) *runtime.WingRuntime {
 	raw, ok := ctx.Get("runtime")
 	if !ok {
 		return nil
 	}
-	rt, _ := raw.(*common.WingRuntime)
+	rt, _ := raw.(*runtime.WingRuntime)
 	return rt
 }
 
@@ -163,9 +165,13 @@ func (ctx *RequestContext) ConfigOrFail() *config.WingConfiguration {
 }
 
 func (ctx *RequestContext) FailWithMessage(message string) {
+	ctx.FailCodeWithMessage(http.StatusOK, message)
+}
+
+func (ctx *RequestContext) FailCodeWithMessage(code uint, message string) {
 	ctx.Response.Message = ctx.TranslateMessage(message)
 	ctx.Response.Success = false
-	ctx.Gin.JSON(http.StatusOK, ctx.Response)
+	ctx.Gin.JSON(int(code), ctx.Response)
 }
 
 func (ctx *RequestContext) SucceedWithMessage(message string) {
@@ -196,20 +202,24 @@ func (ctx *RequestContext) GetDebugMessageForResponse(message string) string {
 	return message
 }
 
-func (ctx *RequestContext) AbortWithDebugMessage(code int, message string) {
+func (ctx *RequestContext) AbortWithDebugMessage(code uint, message string) {
 	message = ctx.GetDebugMessageForResponse(message)
 	ctx.Response.Message = message
 	ctx.Response.Success = false
-	ctx.Gin.JSON(code, ctx.Response)
+	ctx.Gin.JSON(int(code), ctx.Response)
 }
 
 func (ctx *RequestContext) AbortWithError(err error) {
+	ctx.AbortCodeWithError(http.StatusOK, err)
+}
+
+func (ctx *RequestContext) AbortCodeWithError(code uint, err error) {
 	message := ""
 	if _, isExternal := err.(common.ExternalError); !isExternal {
 		message = ctx.GetDebugMessageForResponse(err.Error())
-		ctx.FailWithMessage(message)
+		ctx.FailCodeWithMessage(code, message)
 	} else {
-		ctx.FailWithMessage(err.Error())
+		ctx.FailCodeWithMessage(code, err.Error())
 	}
 	ctx.OpCtx.Log.Error("error: " + err.Error())
 }

@@ -1,18 +1,23 @@
-package common
+package runtime
 
 import (
 	"errors"
-	"git.stuhome.com/Sunmxt/wing/cmd/config"
+	"reflect"
+
 	"github.com/RichardKnop/machinery/v1"
 	"k8s.io/client-go/rest"
-	"reflect"
+
+	"git.stuhome.com/Sunmxt/wing/cmd/config"
+	"git.stuhome.com/Sunmxt/wing/common"
+	"git.stuhome.com/Sunmxt/wing/model/scm/gitlab"
 )
 
 type WingRuntime struct {
-	Config        *config.WingConfiguration
-	ClusterConfig *rest.Config
-	MachineID     string
-	JobServer     *machinery.Server
+	Config                *config.WingConfiguration
+	ClusterConfig         *rest.Config
+	MachineID             string
+	JobServer             *machinery.Server
+	GitlabWebhookEventHub *gitlab.EventHub
 }
 
 func (w *WingRuntime) RegisterTask(name string, taskProc interface{}) error {
@@ -20,7 +25,7 @@ func (w *WingRuntime) RegisterTask(name string, taskProc interface{}) error {
 		return errors.New("Task name cannot be blank.")
 	}
 	if w.JobServer == nil {
-		return ErrRuntimeNotFullyInited
+		return common.ErrRuntimeNotFullyInited
 	}
 	ty := reflect.TypeOf(taskProc)
 	if ty.Kind() != reflect.Func {

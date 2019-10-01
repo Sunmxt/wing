@@ -1,7 +1,8 @@
 package cicd
 
 import (
-	"git.stuhome.com/Sunmxt/wing/common"
+    "git.stuhome.com/Sunmxt/wing/common"
+	"git.stuhome.com/Sunmxt/wing/cmd/runtime"
 	"git.stuhome.com/Sunmxt/wing/model/scm/gitlab"
 	"git.stuhome.com/Sunmxt/wing/model/scm"
 	ccommon "git.stuhome.com/Sunmxt/wing/controller/common"
@@ -26,7 +27,7 @@ import (
 )
 
 
-func RegisterTasks(runtime *common.WingRuntime) (err error) {
+func RegisterTasks(runtime *runtime.WingRuntime) (err error) {
 	tasks := map[string]interface{}{
 		"SubmitCIApprovalGitlabMergeRequest": SubmitCIApprovalGitlabMergeRequest,
 	}
@@ -115,7 +116,7 @@ func SyncGitlabCISettingWithBuilds(ctx *ccommon.OperationContext, gitlabCIConfig
 	return false, nil
 }
 
-func SubmitCIApprovalGitlabMergeRequest(ctx *common.WingRuntime) (func (int, uint, int) error) {
+func SubmitCIApprovalGitlabMergeRequest(ctx *runtime.WingRuntime) (func (int, uint, int) error) {
 	return func (platformID int, repositoryID uint, approvalID int) error {
 		octx, platform := ccommon.NewOperationContext(ctx), &scm.SCMPlatform{}
 		db, err := octx.Database()
@@ -315,7 +316,7 @@ func SubmitCIApprovalGitlabMergeRequest(ctx *common.WingRuntime) (func (int, uin
 
 
 // SyncCIApproval submit related tasks to recover from inconsistent states caused by system failures. 
-func SyncCIApproval(ctx *common.WingRuntime) (func() error) {
+func SyncCIApproval(ctx *runtime.WingRuntime) (func() error) {
 	return func () error {
 		return nil
 	}

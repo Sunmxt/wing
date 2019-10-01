@@ -40,11 +40,12 @@ func (r *ListSCMPlatformRequest) Clean(ctx *acommon.RequestContext) error {
 
 func ListSCMPlatform(ctx *gin.Context) {
 	rctx, request, response := acommon.NewRequestContext(ctx), &ListSCMPlatformRequest{}, &ListSCMPlatformResponse{}
+	// TODO: Verify permission: Admin
+
 	db := rctx.DatabaseOrFail()
 	if db == nil || !rctx.BindOrFail(request) {
 		return
 	}
-
 	scmQuery, totalCount := db.Model(&scm.SCMPlatform{}).Order("modify_time desc"), uint(0)
 	if err := scmQuery.Count(&totalCount).Error; err != nil {
 		rctx.AbortWithDebugMessage(http.StatusInternalServerError, err.Error())
@@ -82,4 +83,10 @@ func ListSCMPlatform(ctx *gin.Context) {
 	}
 	rctx.Response.Data = response
 	rctx.Succeed()
+}
+
+type SCMPlatformDetailRequest struct {
+}
+
+func SCMPlatformDetail(ctx *gin.Context) {
 }

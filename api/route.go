@@ -30,7 +30,10 @@ func RegisterAPI(engine *gin.Engine) error {
 
 	// Source Code Management
 	engine.GET("/api/scm/list", scm.ListSCMPlatform)
+	engine.GET("/api/scm/detail", scm.SCMPlatformDetail)
 	engine.GET("/api/scm/repository/list", scm.ListRepository)
+	engine.GET("/api/scm/gitlab/webhook/:platform_id/:token", scm.GitlabWebhookCallbackWithToken)
+	engine.GET("/api/scm/gitlab/webhook/:platform_id", scm.GitlabWebhookCallback)
 	engine.POST("/api/scm/repository/cicd/enable", scm.EnableRepositoryCICD)
 	engine.GET("/api/scm/repository/cicd/disable", scm.DisableRepositoryCICD)
 	engine.GET("/api/scm/repository/cicd/approval", scm.GetCICDApprovalDetail)

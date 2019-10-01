@@ -10,11 +10,12 @@ import (
 
 	mlog "git.stuhome.com/Sunmxt/wing/log"
 	"git.stuhome.com/Sunmxt/wing/common"
+	"git.stuhome.com/Sunmxt/wing/cmd/runtime"
 	"git.stuhome.com/Sunmxt/wing/model/account"
 )
 
 type OperationContext struct {
-	Runtime     *common.WingRuntime
+	Runtime     *runtime.WingRuntime
 	Log         *log.Entry
 	DB          *gorm.DB
 	RBACContext *account.RBACContext
@@ -22,7 +23,7 @@ type OperationContext struct {
 	Client      *kubernetes.Clientset
 }
 
-func NewOperationContext(runtime *common.WingRuntime) *OperationContext {
+func NewOperationContext(runtime *runtime.WingRuntime) *OperationContext {
 	octx := &OperationContext{
 		Runtime: runtime,
 		Log: mlog.OperationLogger(),

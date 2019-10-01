@@ -56,6 +56,7 @@ type SCMPlatform struct {
 
 	Active      int    `gorm:"tinyint;not null;"`
 	Type        int    `gorm:"tinyint;not null;"`
+	Token       string `gorm:"varchar(128);not null;"`
 	Name        string `gorm:"varchar(128);not null;"`
 	Description string `gorm:"longtext"`
 	Extra       string `gorm:"longtext"`
