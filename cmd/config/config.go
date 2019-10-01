@@ -10,20 +10,20 @@ import (
 )
 
 type AuthConfiguration struct {
-	EnableLDAP        bool              `default:"false" yaml:"enableLDAP"`
-	DisableLegacyUser bool              `default:"false" yaml:"disableLegacyUser"`
+	EnableLDAP        bool              `default:"false" yaml:"enableLDAP" env:"ENABLE_LDAP"`
+	DisableLegacyUser bool              `default:"false" yaml:"disableLegacyUser" env:"DISABLE_LEGACY_USER"`
 	LDAP              LDAPConfiguration `yaml:"ldap"`
 }
 
 type LDAPConfiguration struct {
-	Server                string            `yaml:"server"`
-	BindDN                string            `yaml:"bindDN"`
-	BindPassword          string            `yaml:"bindPassword"`
-	BaseDN                string            `yaml:"baseDN"`
-	SearchPattern         string            `yaml:"searchPattern"`
-	NameAttribute         string            `yaml:"nameAttribute"`
-	AcceptRegistration    bool              `yaml:"acceptRegistration"`
-	RegisterRDN           string            `yaml:"registerRDN"`
+	Server                string            `yaml:"server" env:"LDAP_SERVER"`
+	BindDN                string            `yaml:"bindDN" env:"LDAP_BIND_DN"`
+	BindPassword          string            `yaml:"bindPassword" env:"LDAP_BIND_PASSWORD"`
+	BaseDN                string            `yaml:"baseDN" env:"LDAP_BASE_DN"`
+	SearchPattern         string            `yaml:"searchPattern" env:"LDAP_SEARCH_PATTERN"`
+	NameAttribute         string            `yaml:"nameAttribute" env:"LDAP_NAME_ATTRIBUTE"`
+	AcceptRegistration    bool              `yaml:"acceptRegistration" env:"LDAP_ACCEPT_REGISTERATION"`
+	RegisterRDN           string            `yaml:"registerRDN" env:"LDAP_REGISTER_ROOT_DN"`
 	RegisterObjectClasses []string          `yaml:"registerObjectClasses"`
 	RegisterAttributes    map[string]string `yaml:"registerAttributes"`
 }
@@ -116,6 +116,16 @@ type SessionConfiguration struct {
 	Token string           `yaml:"token" default:"zPD78HgLVKoQsyCbdnBb4fSVDoZXc40JGMvHNuJ+wBM="`
 }
 
+type GelfConfiguration struct {
+	Endpoint string                 `yaml:"endpoint" env:"GELF_ENDPOINT"`
+	Tags     map[string]interface{} `yaml:"tags"`
+}
+
+type LoggingConfiguration struct {
+	Driver string             `yaml:"driver" env:"LOG_DRIVER"`
+	Gelf   *GelfConfiguration `yaml:"gelf"`
+}
+
 type WingConfiguration struct {
 	Bind                    string                  `default:"0.0.0.0:8098" yaml:"bind"`
 	DB                      DatabaseConfiguration   `yaml:"database"`
@@ -125,7 +135,8 @@ type WingConfiguration struct {
 	DefaultLanguage         string                  `yaml:"defaultLanguage" default:"en"`
 	Auth                    AuthConfiguration       `yaml:"auth"`
 	Session                 SessionConfiguration    `yaml:"session"`
-	NodeName                string                  `yaml:"nodeName" default:""`
+	NodeName                string                  `yaml:"nodeName" default:"" env:"NODE_NAME"`
+	Log                     LoggingConfiguration    `yaml:"logging"`
 }
 
 func (c *WingConfiguration) Load(configFile string) error {
@@ -176,4 +187,8 @@ func (c *WingConfiguration) LogConfig() {
 	log.Infof("[config]     session.job.redisDatabase: %v", c.Session.Job.RedisDatabase)
 	log.Infof("[config]     session.job.machineryDSN: %v", c.Session.Job.MachineryDSN)
 	log.Infof("[config]     session.job.gitWorkingDir: %v", c.Session.Job.GitWorkingDir)
+	log.Infof("[config]     logging.driver: %v", c.Log.Driver)
+	if c.Log.Gelf != nil {
+		log.Infof("[config]     logging.gelf.endpoint: %v", c.Log.Gelf.Endpoint)
+	}
 }

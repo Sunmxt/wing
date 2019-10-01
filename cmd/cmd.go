@@ -12,6 +12,7 @@ import (
 	"github.com/RichardKnop/machinery/v1"
 	machineryLog "github.com/RichardKnop/machinery/v1/log"
 	"github.com/denisbrodbeck/machineid"
+	"github.com/gemnasium/logrus-graylog-hook/v3"
 	"github.com/satori/go.uuid"
 	log "github.com/sirupsen/logrus"
 
@@ -94,9 +95,18 @@ func (c *Wing) ServerInit() error {
 	}
 
 	c.Runtime.GitlabWebhookEventHub = gitlab.NewEventHub()
-
 	if err = controller.RegisterTasks(&c.Runtime); err != nil {
 		return err
+	}
+
+	// Remote logger
+	switch c.Runtime.Config.Log.Driver {
+	case "":
+	case "gelf":
+		hook := graylog.NewGraylogHook(c.Runtime.Config.Log.Gelf.Endpoint, c.Runtime.Config.Log.Gelf.Tags)
+		log.AddHook(hook)
+	default:
+		log.Warn("Unsupported log driver: " + c.Runtime.Config.Log.Driver)
 	}
 
 	return nil
