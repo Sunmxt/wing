@@ -4,6 +4,7 @@ go 1.12
 
 replace (
 	git.apache.org/thrift.git => github.com/apache/thrift v0.0.0-20181218151757-9b75e4fe745a
+	gopkg.in/inf.v0 => github.com/go-inf/inf v0.9.1
 	k8s.io/apimachinery => k8s.io/apimachinery v0.0.0-20190404173353-6a84e37a896d
 )
 
