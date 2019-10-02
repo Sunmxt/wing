@@ -31,12 +31,14 @@ func (w *WingRuntime) RegisterTask(name string, taskProc interface{}) error {
 	if ty.Kind() != reflect.Func {
 		return errors.New("taskProc is not an function. got " + ty.String() + ".")
 	}
-	if ty.NumOut() == 1 && ty.NumIn() == 1 &&
-		ty.Out(0).Kind() == reflect.Func && ty.In(0) == reflect.TypeOf(w) {
+	if ty.NumOut() == 1 && ty.NumIn() == 1 && ty.In(0) == reflect.TypeOf(w) {
 		// TaskFactory
-		taskProc = reflect.ValueOf(taskProc).Call([]reflect.Value{
+		guess := reflect.ValueOf(taskProc).Call([]reflect.Value{
 			reflect.ValueOf(w),
 		})[0].Interface()
+		if reflect.TypeOf(taskProc).Kind() == reflect.Func {
+			taskProc = guess
+		}
 	}
 	return w.JobServer.RegisterTask(name, taskProc)
 }

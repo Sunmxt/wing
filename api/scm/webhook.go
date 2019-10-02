@@ -10,10 +10,15 @@ import (
 	acommon "git.stuhome.com/Sunmxt/wing/api/common"
 	"git.stuhome.com/Sunmxt/wing/cmd/runtime"
 	"git.stuhome.com/Sunmxt/wing/common"
+	"git.stuhome.com/Sunmxt/wing/controller/cicd"
 	ccommon "git.stuhome.com/Sunmxt/wing/controller/common"
 	"git.stuhome.com/Sunmxt/wing/model/scm"
 	"git.stuhome.com/Sunmxt/wing/model/scm/gitlab"
 )
+
+func RegisterGitlabWebhookWatcher(runtime *runtime.WingRuntime) error {
+	return runtime.GitlabWebhookEventHub.Handle(GitlabMergeRequestStateChanged(runtime))
+}
 
 func GitlabWebhookCallbackWithToken(ctx *gin.Context) {
 	GitlabWebhookCallback(ctx)
@@ -58,10 +63,15 @@ func GitlabWebhookCallback(ctx *gin.Context) {
 	rctx.Succeed()
 }
 
-func RegisterGitlabWebhookWatcher(runtime *runtime.WingRuntime) error {
-	return runtime.GitlabWebhookEventHub.Handle(func(req *http.Request, event *gitlab.MergeRequestEvent) error {
+func GitlabMergeRequestStateChanged(runtime *runtime.WingRuntime) interface{} {
+	return func(req *http.Request, event *gitlab.MergeRequestEvent) error {
 		ctx := ccommon.NewOperationContext(runtime)
-		ctx.Log.Info(event)
+		if event.Event == gitlab.MergeRequestMerged {
+			ctx.Log.Error("[async] task to finish gitlab merge request ci approval.")
+			if _, err := cicd.AsyncGitlabMergeRequestFinishCIApproval(ctx, event.Project.ID, event.MergeRequest.ID); err != nil {
+				ctx.Log.Error("[async] GitlabMergeRequestStateChanged() submit task failure: " + err.Error())
+			}
+		}
 		return nil
-	})
+	}
 }

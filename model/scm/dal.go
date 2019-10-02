@@ -5,8 +5,8 @@ import (
 	"strconv"
 )
 
-func pickByID(db *gorm.DB, elem interface{}, id int) (err error) {
-	err = db.Model(elem).Where("id = ?", id).First(elem).Error
+func pickByColumn(db *gorm.DB, columnName string, elem interface{}, val interface{}) (err error) {
+	err = db.Model(elem).Where(columnName+"= ?", val).First(elem).Error
 	if gorm.IsRecordNotFoundError(err) {
 		err = nil
 	}
@@ -14,11 +14,15 @@ func pickByID(db *gorm.DB, elem interface{}, id int) (err error) {
 }
 
 func (p *SCMPlatform) ByID(db *gorm.DB, platformID int) error {
-	return pickByID(db, p, platformID)
+	return pickByColumn(db, "id", p, platformID)
 }
 
 func (a *CIRepositoryApproval) ByID(db *gorm.DB, approvalID int) error {
-	return pickByID(db, a, approvalID)
+	return pickByColumn(db, "id", a, approvalID)
+}
+
+func (a *CIRepositoryApproval) ByReference(db *gorm.DB, reference string) error {
+	return pickByColumn(db, "reference", a, reference)
 }
 
 func ReferenceLogApprovalStageChanged(platformID, repositoryID int) string {

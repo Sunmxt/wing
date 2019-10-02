@@ -34,29 +34,12 @@ func RegisterTasks(runtime *runtime.WingRuntime) (err error) {
 
 	for name, task := range tasks {
 		if err := runtime.RegisterTask(name, task); err != nil {
-			log.Error("Register task \"" + name + "\" failure:" + err.Error())
+			log.Error("Register task \"" + name + "\" failure: " + err.Error())
 			return err
 		}
 		log.Info("Register task \"" + name + "\".")
 	}
 	return nil
-}
-
-func AsyncSubmitCIApprovalGitlabMergeRequest(ctx *ccommon.OperationContext, platformID int, repositoryID uint, approvalID int, retry uint) (*result.AsyncResult, error) {
-	return ctx.SubmitTask("SubmitCIApprovalGitlabMergeRequest", []tasks.Arg{
-		{
-			Type: "int",
-			Value: platformID,
-		},
-		{
-			Type: "uint",
-			Value: repositoryID,
-		},
-		{
-			Type: "int",
-			Value: approvalID,
-		},
-	}, retry)
 }
 
 
@@ -116,7 +99,65 @@ func SyncGitlabCISettingWithBuilds(ctx *ccommon.OperationContext, gitlabCIConfig
 	return false, nil
 }
 
-func SubmitCIApprovalGitlabMergeRequest(ctx *runtime.WingRuntime) (func (int, uint, int) error) {
+func AsyncGitlabMergeRequestFinishCIApproval(ctx *ccommon.OperationContext, projectID, mergeRequestID uint) (*result.AsyncResult, error) {
+	return ctx.SubmitTask("GitlabMergeRequestFinishCIApproval", []tasks.Arg{
+		{Type: "uint", Value: projectID},
+		{Type: "uint", Value: mergeRequestID},
+	}, 5)
+}
+
+func GitlabMergeRequestFinishCIApproval(ctx *runtime.WingRuntime) interface{} {
+	return func (projectID, mergeRequestID uint) error {
+		octx := ccommon.NewOperationContext(ctx)
+		octx.Log.Data["task"] = "GitlabMergeRequestFinishCIApproval"
+		db, err := octx.Database()
+		defer func() {
+			if err != nil {
+				octx.Log.Error(err.Error())
+			}
+		}()
+		if err != nil {
+			return err
+		}
+		octx.Log.Infof("Start finish approval related to gitlab merge request %v", mergeRequestID)
+		reference := strconv.FormatUint(uint64(projectID), 10)
+		approval := scm.CIRepositoryApproval{}
+		tx := db.Begin()
+		defer func() {
+			if err != nil {
+				tx.Rollback()
+			}
+		}()
+		if err = approval.ByReference(tx, reference); err != nil {
+			return err
+		}
+		if approval.Basic.ID < 1 {
+			octx.Log.Errorf("related approval not found for gitlab merge request %v", mergeRequestID)
+			return nil
+		}
+		if approval.Stage != scm.ApprovalCreated || approval.Stage != scm.ApprovalWaitForAccepted {
+			octx.Log.Errorf("unrecognized approval state %v", approval.Stage)
+			return nil
+		}
+		approval.Stage = scm.ApprovalAccepted
+		if err = tx.Save(approval).Error; err != nil {
+			octx.Log.Errorf("save error: " + err.Error())
+			return err
+		}
+		err = tx.Commit().Error
+		return err
+	}
+}
+
+func AsyncSubmitCIApprovalGitlabMergeRequest(ctx *ccommon.OperationContext, platformID int, repositoryID uint, approvalID int, retry uint) (*result.AsyncResult, error) {
+	return ctx.SubmitTask("SubmitCIApprovalGitlabMergeRequest", []tasks.Arg{
+		{ Type: "int", Value: platformID },
+		{ Type: "uint", Value: repositoryID },
+		{ Type: "int", Value: approvalID },
+	}, retry)
+}
+
+func SubmitCIApprovalGitlabMergeRequest(ctx *runtime.WingRuntime) interface{} {
 	return func (platformID int, repositoryID uint, approvalID int) error {
 		octx, platform := ccommon.NewOperationContext(ctx), &scm.SCMPlatform{}
 		db, err := octx.Database()
