@@ -17,7 +17,7 @@ import (
 	"github.com/Sunmxt/form"
 )
 
-type GitlabClientLogger log.NormalLogger
+type GitlabClientLogger log.DetailedLogger
 
 type GitlabPagination struct {
 	Total     uint
@@ -105,7 +105,7 @@ type GitlabClient struct {
 	AccessToken string
 }
 
-func NewGitlabClient(endpoint string, logger log.NormalLogger) (*GitlabClient, error) {
+func NewGitlabClient(endpoint string, logger log.DetailedLogger) (*GitlabClient, error) {
 	if endpoint == "" {
 		return nil, common.ErrEndpointMissing
 	}

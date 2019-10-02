@@ -8,16 +8,16 @@ import (
 	"io/ioutil"
 	"net/http"
 	"reflect"
+	"strconv"
 	"sync"
 	"sync/atomic"
-
-	"git.stuhome.com/Sunmxt/wing/common"
 )
 
 const (
 	MergeRequestClose  = 1
 	MergeRequestOpen   = 2
 	MergeRequestMerged = 3
+	MergeRequestReopen = 4
 )
 
 type MergeRequestEvent struct {
@@ -71,7 +71,7 @@ type RawMergeRequestEvent struct {
 		UpdatedByID     uint   `json:"updated_by_id"`
 		//MergeError
 		MergeParams struct {
-			ForceRemoveSourceBranch bool `json:"force_remove_source_branch"`
+			ForceRemoveSourceBranch string `json:"force_remove_source_branch"`
 		} `json:"merge_params"`
 		MergeWhenPipelineSucceeds bool                         `json:"merge_when_pipeline_succeeds"`
 		MergeUserID               uint                         `json:"merge_user_id"`
@@ -118,20 +118,20 @@ type EventObjectKind struct {
 
 type MergeRequestEventHandler func(*http.Request, *MergeRequestEvent) error
 
+var typeMergeRequestEventHandler reflect.Type = reflect.TypeOf((MergeRequestEventHandler)(nil))
+
 type eventHubCore struct {
-	watch             map[uint64]struct{}
-	watchProject      map[uint64][]uint64
-	watchMergeRequest map[uint64][]uint64
-	listener          struct {
+	watch map[uint64]struct{}
+	//watchProject      map[uint64][]uint64
+	//watchMergeRequest map[uint64][]uint64
+	listener struct {
 		MergeRequest map[uint64]MergeRequestEventHandler
 	}
 }
 
 func newEventHubCore() *eventHubCore {
 	ctx := &eventHubCore{
-		watch:             make(map[uint64]struct{}),
-		watchProject:      make(map[uint64][]uint64),
-		watchMergeRequest: make(map[uint64][]uint64),
+		watch: make(map[uint64]struct{}),
 	}
 	ctx.listener.MergeRequest = make(map[uint64]MergeRequestEventHandler)
 	return ctx
@@ -142,12 +142,6 @@ func (c *eventHubCore) Clone() *eventHubCore {
 	for k, v := range c.watch {
 		new.watch[k] = v
 	}
-	for k, v := range c.watchProject {
-		new.watchProject[k] = v
-	}
-	for k, v := range c.watchMergeRequest {
-		new.watchMergeRequest[k] = v
-	}
 	for k, v := range c.listener.MergeRequest {
 		new.listener.MergeRequest[k] = v
 	}
@@ -155,21 +149,14 @@ func (c *eventHubCore) Clone() *eventHubCore {
 }
 
 type eventHubExecuteContext struct {
-	projectIDs []uint64
-	mrIDs      []uint64
 }
 
 func newEventHubExecuteContext() *eventHubExecuteContext {
-	return &eventHubExecuteContext{
-		projectIDs: make([]uint64, 0),
-		mrIDs:      make([]uint64, 0),
-	}
+	return &eventHubExecuteContext{}
 }
 
 func (c *eventHubExecuteContext) Clone() *eventHubExecuteContext {
 	new := newEventHubExecuteContext()
-	copy(new.projectIDs, c.projectIDs)
-	copy(new.mrIDs, c.mrIDs)
 	return new
 }
 
@@ -204,59 +191,19 @@ func (h *EventHub) ContextClone() *EventHub {
 	}
 }
 
-func (h *EventHub) Project(projects ...interface{}) *EventHub {
-	new := h.ContextClone()
-	for _, project := range projects {
-		var projectID uint64
-
-		switch ty := project.(type) {
-		case Project:
-			projectID = uint64(ty.ID)
-		case *Project:
-			if ty != nil {
-				projectID = uint64(ty.ID)
-			}
-		case uint, int, uint8, uint16, uint32, int8, int16, int32:
-			v := reflect.ValueOf(ty).Uint()
-			if v > 0 {
-				projectID = v
-			}
-		}
-		if projectID > 0 {
-			new.context.projectIDs = append(new.context.projectIDs, projectID)
-		}
-	}
-	return new
-}
-
-func (h *EventHub) MergeRequest(mrs ...interface{}) *EventHub {
-	new := h.ContextClone()
-	for _, mr := range mrs {
-		var mrID uint64
-		switch ty := mr.(type) {
-		case MergeRequest:
-			mrID = uint64(ty.ID)
-		case *MergeRequest:
-			if ty != nil {
-				mrID = uint64(ty.ID)
-			}
-		case uint, int, uint8, uint16, uint32, int8, int16, int32:
-			v := reflect.ValueOf(ty).Uint()
-			if v > 0 {
-				mrID = v
-			}
-		}
-		if mrID > 0 {
-			new.context.mrIDs = append(new.context.mrIDs, mrID)
-		}
-	}
-	return new
-}
-
 func (h *EventHub) Handle(handler interface{}) error {
-	switch ty := handler.(type) {
-	case MergeRequestEventHandler:
-		return h.handleMergeRequest(ty)
+	tryConvert := func(target reflect.Type, value interface{}) interface{} {
+		if value == nil {
+			return nil
+		}
+		ty := reflect.TypeOf(value)
+		if ty.ConvertibleTo(target) {
+			return reflect.ValueOf(handler).Convert(target).Interface()
+		}
+		return nil
+	}
+	if converted := tryConvert(typeMergeRequestEventHandler, handler); converted != nil {
+		return h.handleMergeRequest(converted.(MergeRequestEventHandler))
 	}
 	return errors.New("Unsupported handler type.")
 }
@@ -270,28 +217,8 @@ func (h *EventHub) handleMergeRequest(handler MergeRequestEventHandler) error {
 	defer h.lock.Unlock()
 
 	handlerID := h.nextHandlerID()
-	if len(h.context.projectIDs) < 1 && len(h.context.mrIDs) < 1 {
-		h.core.listener.MergeRequest[handlerID] = handler
-		return nil
-	}
-	for _, projectID := range h.context.projectIDs {
-		ids, ok := h.core.watchProject[projectID]
-		if !ok {
-			ids = []uint64{handlerID}
-		} else {
-			ids = append(ids, handlerID)
-		}
-		h.core.watchProject[projectID] = ids
-	}
-	for _, mrID := range h.context.mrIDs {
-		ids, ok := h.core.watchMergeRequest[mrID]
-		if !ok {
-			ids = []uint64{handlerID}
-		} else {
-			ids = append(ids, handlerID)
-		}
-		h.core.watchMergeRequest[mrID] = ids
-	}
+	h.core.listener.MergeRequest[handlerID] = handler
+	h.core.watch[handlerID] = struct{}{}
 	return nil
 }
 
@@ -334,13 +261,17 @@ func (h *EventHub) processMergeRequest(req *http.Request, buf *bytes.Buffer) (ui
 	if buf == nil {
 		buf = &bytes.Buffer{}
 		bodyReader = io.TeeReader(req.Body, buf)
+	} else {
+		bodyReader = bytes.NewReader(buf.Bytes())
 	}
 
 	rawEvent := &RawMergeRequestEvent{}
 	if err := json.NewDecoder(bodyReader).Decode(rawEvent); err != nil {
-		h.Info("cannot decode request body as merge request event: " + err.Error())
+		h.Err("cannot decode request body as merge request event: " + err.Error())
 		return http.StatusBadRequest, err
 	}
+
+	h.Info("[Gitlab Webhook] got merge request event of merge request " + strconv.FormatUint(uint64(rawEvent.ObjectAttrs.ID), 10) + ".")
 
 	// construct event.
 	// missing: Path, CreateAt, TagList, ReadmeURL, StarCount, ForkCount, LastActivityAt
@@ -402,7 +333,7 @@ func (h *EventHub) processMergeRequest(req *http.Request, buf *bytes.Buffer) (ui
 			MergeWhenPipelineSucceeds: rawEvent.ObjectAttrs.MergeWhenPipelineSucceeds,
 			MergeStatus:               rawEvent.ObjectAttrs.MergeStatus,
 			MergeCommitSHA:            rawEvent.ObjectAttrs.MergeCommitSHA,
-			ShouldRemoveSourceBranch:  rawEvent.ObjectAttrs.MergeParams.ForceRemoveSourceBranch,
+			//ShouldRemoveSourceBranch:  rawEvent.ObjectAttrs.MergeParams.ForceRemoveSourceBranch,
 		},
 	}
 	event.TimeStats.TimeEstimate = rawEvent.ObjectAttrs.TimeEstimate
@@ -416,6 +347,10 @@ func (h *EventHub) processMergeRequest(req *http.Request, buf *bytes.Buffer) (ui
 		event.Event = MergeRequestClose
 	case "merged":
 		event.Event = MergeRequestMerged
+	case "reopen":
+		event.Event = MergeRequestReopen
+	default:
+		return http.StatusOK, nil
 	}
 
 	for _, handler := range h.pickMergeRequestEventHandler(event.TargetProject.ID, event.MergeRequest.ID) {
@@ -426,30 +361,16 @@ func (h *EventHub) processMergeRequest(req *http.Request, buf *bytes.Buffer) (ui
 }
 
 func (h *EventHub) pickMergeRequestEventHandler(projectID uint, mergeRequestID uint) (handlers []MergeRequestEventHandler) {
-	handlerIDSet := common.NewUint64Set()
-	for id, _ := range h.core.watch {
-		handlerIDSet.Add(id)
-	}
-	if projectID > 0 {
-		handlerIDs, ok := h.core.watchProject[uint64(projectID)]
-		if ok {
-			handlerIDSet.Intersect(handlerIDs...)
-		}
-	}
-	if mergeRequestID > 0 {
-		handlerIDs, ok := h.core.watchMergeRequest[uint64(mergeRequestID)]
-		if ok {
-			handlerIDSet.Intersect(handlerIDs...)
-		}
-	}
-	handlers = make([]MergeRequestEventHandler, 0, handlerIDSet.Len())
-	handlerIDSet.Visit(func(x uint64) bool {
+	handlers = make([]MergeRequestEventHandler, 0)
+	appendListener := func(x uint64) {
 		handler, ok := h.core.listener.MergeRequest[x]
 		if !ok {
-			return true
+			return
 		}
 		handlers = append(handlers, handler)
-		return true
-	})
+	}
+	for id, _ := range h.core.watch {
+		appendListener(id)
+	}
 	return
 }

@@ -10,6 +10,16 @@ func NewUint64Set() *Uint64Set {
 	}
 }
 
+func (s *Uint64Set) In(values ...uint64) bool {
+	for _, v := range values {
+		_, ok := s.set[v]
+		if !ok {
+			return false
+		}
+	}
+	return true
+}
+
 func (s *Uint64Set) Add(values ...uint64) *Uint64Set {
 	for _, value := range values {
 		s.set[value] = struct{}{}
@@ -22,6 +32,17 @@ func (s *Uint64Set) IntersectOf(values ...uint64) *Uint64Set {
 	for _, value := range values {
 		if _, exist := s.set[value]; exist {
 			new.Add(value)
+		}
+	}
+	return new
+}
+
+func (s *Uint64Set) SubtractOf(values ...uint64) *Uint64Set {
+	factors := NewUint64Set().Add(values...)
+	new := NewUint64Set()
+	for v, _ := range s.set {
+		if !factors.In(v) {
+			new.Add(v)
 		}
 	}
 	return new

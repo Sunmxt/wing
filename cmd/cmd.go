@@ -95,6 +95,10 @@ func (c *Wing) ServerInit() error {
 	}
 
 	c.Runtime.GitlabWebhookEventHub = gitlab.NewEventHub()
+	c.Runtime.GitlabWebhookEventHub.Logger = log.WithFields(log.Fields{
+		"module": "gitlab_webhook_hub",
+	})
+
 	if err = controller.RegisterTasks(&c.Runtime); err != nil {
 		return err
 	}
@@ -214,6 +218,7 @@ func (c *Wing) initMachineID() error {
 
 	return nil
 }
+
 func (c *Wing) Exec() {
 	c.initLogger()
 

@@ -49,7 +49,21 @@ type ErrorLogger interface {
 	Error(...interface{})
 }
 
+type DebugLogger interface {
+	Debug(...interface{})
+}
+
+type WarnLogger interface {
+	Warn(...interface{})
+}
+
 type NormalLogger interface {
 	InfoLogger
 	ErrorLogger
+}
+
+type DetailedLogger interface {
+	NormalLogger
+	DebugLogger
+	WarnLogger
 }

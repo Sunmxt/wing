@@ -80,7 +80,7 @@ func (scm *SCMPlatform) GitlabExtra() (extra *GitlabSCMExtra) {
 	return extra
 }
 
-func (scm *SCMPlatform) GitlabClient(logger log.NormalLogger) (client *gitlab.GitlabClient, err error) {
+func (scm *SCMPlatform) GitlabClient(logger log.DetailedLogger) (client *gitlab.GitlabClient, err error) {
 	extra := scm.GitlabExtra()
 	if extra == nil {
 		return nil, errors.New("Not Gitlab SCM.")

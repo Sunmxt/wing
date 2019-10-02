@@ -1,19 +1,23 @@
 package scm
 
 import (
-	"github.com/gin-gonic/gin"
+	"net/http"
 	"strconv"
 	"strings"
 
+	"github.com/gin-gonic/gin"
+
 	acommon "git.stuhome.com/Sunmxt/wing/api/common"
+	"git.stuhome.com/Sunmxt/wing/cmd/runtime"
 	"git.stuhome.com/Sunmxt/wing/common"
+	ccommon "git.stuhome.com/Sunmxt/wing/controller/common"
 	"git.stuhome.com/Sunmxt/wing/model/scm"
-	"net/http"
+	"git.stuhome.com/Sunmxt/wing/model/scm/gitlab"
 )
 
 func GitlabWebhookCallbackWithToken(ctx *gin.Context) {
 	GitlabWebhookCallback(ctx)
-	ctx.Request.URL.Path = ctx.Request.URL.Path[:strings.LastIndex(ctx.Request.URL.Path, "/")] + "/<masked token>"
+	ctx.Request.URL.Path = ctx.Request.URL.Path[:strings.LastIndex(ctx.Request.URL.Path, "/")] + "/:token" // Mask token.
 }
 
 func GitlabWebhookCallback(ctx *gin.Context) {
@@ -52,4 +56,12 @@ func GitlabWebhookCallback(ctx *gin.Context) {
 		return
 	}
 	rctx.Succeed()
+}
+
+func RegisterGitlabWebhookWatcher(runtime *runtime.WingRuntime) error {
+	return runtime.GitlabWebhookEventHub.Handle(func(req *http.Request, event *gitlab.MergeRequestEvent) error {
+		ctx := ccommon.NewOperationContext(runtime)
+		ctx.Log.Info(event)
+		return nil
+	})
 }

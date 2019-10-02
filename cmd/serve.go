@@ -1,17 +1,19 @@
 package cmd
 
 import (
+	"io/ioutil"
+	"time"
+
 	"git.stuhome.com/Sunmxt/wing/api"
+	"git.stuhome.com/Sunmxt/wing/api/scm"
 	mlog "git.stuhome.com/Sunmxt/wing/log"
+
 	ss "github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
-	"io/ioutil"
-
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-	"time"
 )
 
 func (c *Wing) Serve() {
@@ -68,7 +70,14 @@ func (c *Wing) Serve() {
 	}()
 
 	log.Info("[bootstrap] Register API.")
-	api.RegisterAPI(router)
+	if err := api.RegisterAPI(router); err != nil {
+		log.Error("[bootstrap] Register API Failure: " + err.Error())
+		return
+	}
+	if err := scm.RegisterGitlabWebhookWatcher(&c.Runtime); err != nil {
+		log.Error("[bootstrap] Register Gitlab webhook watcher Failure: " + err.Error())
+		return
+	}
 
 	log.Infof("[bootstrap] Bind %v", c.Runtime.Config.Bind)
 	if err := router.Run(c.Runtime.Config.Bind); err != nil {

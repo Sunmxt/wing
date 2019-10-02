@@ -260,3 +260,7 @@ func GetCICDApprovalDetail(ctx *gin.Context) {
 func GetBuildJobScript(ctx *gin.Context) {
 	return
 }
+
+func GetGitlabCIIncludingJobs(ctx *gin.Context) {
+	return
+}
