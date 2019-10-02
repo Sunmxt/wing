@@ -108,10 +108,12 @@ func (scm *SCMPlatform) PublicURL() string {
 type CIRepository struct {
 	common.Basic
 
-	SCM       *SCMPlatform     `gorm:"foreignkey:SCMPlatformID;not null"`
-	Owner     *account.Account `gorm:"foreignkey:OwnerID;not null"`
-	Reference string           `gorm:"varchar(128);not null"`
-	Active    int              `gorm:"tinyint;not null;"`
+	SCM         *SCMPlatform     `gorm:"foreignkey:SCMPlatformID;not null"`
+	Owner       *account.Account `gorm:"foreignkey:OwnerID;not null"`
+	Reference   string           `gorm:"varchar(128);not null"`
+	Extra       string           `gorm:"longtext; not null"`
+	AccessToken string           `gorm:"varchar(128); not null"`
+	Active      int              `gorm:"tinyint;not null;"`
 
 	SCMPlatformID int
 	OwnerID       int

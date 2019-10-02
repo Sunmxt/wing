@@ -30,6 +30,7 @@ import (
 func RegisterTasks(runtime *runtime.WingRuntime) (err error) {
 	tasks := map[string]interface{}{
 		"SubmitCIApprovalGitlabMergeRequest": SubmitCIApprovalGitlabMergeRequest,
+		"GitlabMergeRequestFinishCIApproval": GitlabMergeRequestFinishCIApproval,
 	}
 
 	for name, task := range tasks {
@@ -119,28 +120,40 @@ func GitlabMergeRequestFinishCIApproval(ctx *runtime.WingRuntime) interface{} {
 		if err != nil {
 			return err
 		}
-		octx.Log.Infof("Start finish approval related to gitlab merge request %v", mergeRequestID)
+		octx.Log.Infof("Start finish approval related to gitlab merge request %v. related project %v", mergeRequestID, projectID)
 		reference := strconv.FormatUint(uint64(projectID), 10)
-		approval := scm.CIRepositoryApproval{}
+		approval := &scm.CIRepositoryApproval{}
 		tx := db.Begin()
 		defer func() {
 			if err != nil {
 				tx.Rollback()
 			}
 		}()
-		if err = approval.ByReference(tx, reference); err != nil {
+		if err = approval.ByReference(tx.Preload("SCM").Where("stage in (?)", []int{scm.ApprovalCreated, scm.ApprovalWaitForAccepted}), reference); err != nil {
 			return err
 		}
 		if approval.Basic.ID < 1 {
 			octx.Log.Errorf("related approval not found for gitlab merge request %v", mergeRequestID)
 			return nil
 		}
-		if approval.Stage != scm.ApprovalCreated || approval.Stage != scm.ApprovalWaitForAccepted {
-			octx.Log.Errorf("unrecognized approval state %v", approval.Stage)
-			return nil
-		}
+		oldApprovalStage := approval.Stage
 		approval.Stage = scm.ApprovalAccepted
 		if err = tx.Save(approval).Error; err != nil {
+			octx.Log.Errorf("save error: " + err.Error())
+			return err
+		}
+		if _, _, err = scm.LogApprovalStageChanged(tx, approval.SCM.Basic.ID, int(projectID), approval.Basic.ID, oldApprovalStage, approval.Stage); err != nil {
+			err = errors.New("save repo ci log error" + err.Error())
+			return err
+		}
+		ciRepo := &scm.CIRepository{
+			SCMPlatformID: approval.SCM.Basic.ID,
+			Reference: approval.Reference,
+			Active: scm.Active,
+			AccessToken: approval.AccessToken,
+			OwnerID: approval.OwnerID,
+		}
+		if err = tx.Save(ciRepo).Error; err != nil {
 			octx.Log.Errorf("save error: " + err.Error())
 			return err
 		}

@@ -65,7 +65,7 @@ type RawMergeRequestEvent struct {
 		MilestoneID     uint   `json:"milestone_id"`
 		State           string `json:"state"`
 		MergeStatus     string `json:"merge_status"`
-		TargetProjectID uint   `json:target_project_id`
+		TargetProjectID uint   `json:"target_project_id"`
 		InternalID      uint   `json:"iid"`
 		Description     string `json:"description"`
 		UpdatedByID     uint   `json:"updated_by_id"`
@@ -345,7 +345,7 @@ func (h *EventHub) processMergeRequest(req *http.Request, buf *bytes.Buffer) (ui
 		event.Event = MergeRequestOpen
 	case "close":
 		event.Event = MergeRequestClose
-	case "merged":
+	case "merge":
 		event.Event = MergeRequestMerged
 	case "reopen":
 		event.Event = MergeRequestReopen

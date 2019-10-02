@@ -157,7 +157,7 @@ func GetCICDApprovalDetail(ctx *gin.Context) {
 		return
 	}
 
-	logs, err := scm.GetApprovalStageChangedLogs(db, approval.SCMPlatformID, repoID, approval.Basic.ID)
+	logs, err := scm.GetApprovalStageChangedLogs(db.Order("modify_time desc"), approval.SCMPlatformID, repoID, approval.Basic.ID)
 	if err != nil {
 		rctx.AbortWithError(err)
 		return

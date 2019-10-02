@@ -213,7 +213,7 @@ func (c *GitlabClient) Do(req *http.Request, results ...interface{}) (resp *http
 		return nil, err
 	}
 	if err = c.parseError(resp); err != nil {
-		return nil, err
+		return resp, err
 	}
 
 	buf := bytes.Buffer{}

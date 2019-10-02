@@ -114,7 +114,7 @@ func (c *VariableContext) Save(variable *Variable) error {
 		return err
 	}
 	var resp *http.Response
-	if resp, err = c.Client.Do(req, variable); err != nil {
+	if resp, err = c.Client.Do(req, variable); err != nil && resp.StatusCode != http.StatusNotFound {
 		c.Error = err
 		return err
 	}

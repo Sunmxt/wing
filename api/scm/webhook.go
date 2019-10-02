@@ -67,8 +67,8 @@ func GitlabMergeRequestStateChanged(runtime *runtime.WingRuntime) interface{} {
 	return func(req *http.Request, event *gitlab.MergeRequestEvent) error {
 		ctx := ccommon.NewOperationContext(runtime)
 		if event.Event == gitlab.MergeRequestMerged {
-			ctx.Log.Error("[async] task to finish gitlab merge request ci approval.")
-			if _, err := cicd.AsyncGitlabMergeRequestFinishCIApproval(ctx, event.Project.ID, event.MergeRequest.ID); err != nil {
+			ctx.Log.Info("[async] task to finish gitlab merge request ci approval.")
+			if _, err := cicd.AsyncGitlabMergeRequestFinishCIApproval(ctx, event.TargetProject.ID, event.MergeRequest.ID); err != nil {
 				ctx.Log.Error("[async] GitlabMergeRequestStateChanged() submit task failure: " + err.Error())
 			}
 		}
