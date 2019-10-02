@@ -2,6 +2,7 @@ package common
 
 import (
 	"fmt"
+	"github.com/satori/go.uuid"
 	"strings"
 )
 
@@ -25,4 +26,8 @@ func GetNormalizedApplicationName(appName string) string {
 
 func ValidApplicationName(appName string) bool {
 	return GetNormalizedApplicationName(appName) != ""
+}
+
+func GenerateRandomToken() string {
+	return strings.Replace(uuid.NewV4().String(), "-", "", -1)
 }

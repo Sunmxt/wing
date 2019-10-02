@@ -1,6 +1,8 @@
 package api
 
 import (
+	acommon "git.stuhome.com/Sunmxt/wing/api/common"
+	"git.stuhome.com/Sunmxt/wing/api/scm"
 	"github.com/gin-gonic/gin"
 )
 
@@ -26,6 +28,22 @@ func RegisterAPI(engine *gin.Engine) error {
 	engine.GET("/api/application/deploy/info", GetDeploymentInfo)
 	engine.POST("/api/application/deploy/stop", StopDeployment)
 
+	// Source Code Management
+	engine.GET("/api/scm/list", scm.ListSCMPlatform)
+	engine.GET("/api/scm/detail", scm.SCMPlatformDetail)
+	engine.GET("/api/scm/repository/list", scm.ListRepository)
+	engine.POST("/api/scm/gitlab/webhook/:platform_id/:token", scm.GitlabWebhookCallbackWithToken)
+	engine.POST("/api/scm/gitlab/webhook/:platform_id", scm.GitlabWebhookCallback)
+	engine.POST("/api/scm/repository/cicd/enable", scm.EnableRepositoryCICD)
+	engine.GET("/api/scm/repository/cicd/disable", scm.DisableRepositoryCICD)
+	engine.GET("/api/scm/repository/cicd/approval", scm.GetCICDApprovalDetail)
+
+	engine.GET("/api/scm/repository/builds/gitlab_ci_including_jobs", scm.GetGitlabCIIncludingJobs)
+	engine.GET("/api/scm/repository/builds/job/script", scm.GetJobScript)
+	//engine.GET("/api/scm/repository/builds/create", SCMCreateBuild)
+	//engine.GET("/api/scm/repository/builds/edit", SCMEditBuild)
+	//engine.GET("/api/scm/repository/builds/delete", SCMDeleteBuild)
+
 	engine.NoRoute(ServeDefault)
 
 	return nil
@@ -42,7 +60,7 @@ type WingSettingResponse struct {
 }
 
 func WingSettings(ctx *gin.Context) {
-	rctx := NewRequestContext(ctx)
+	rctx := acommon.NewRequestContext(ctx)
 	config := rctx.ConfigOrFail()
 	if config == nil {
 		return

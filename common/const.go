@@ -1,5 +1,9 @@
 package common
 
+import (
+	"regexp"
+)
+
 const (
 	PodStateUnknown       = 0
 	PodWaitingForSchedule = 1
@@ -7,3 +11,5 @@ const (
 	PodReady              = 3
 	PodTerminated         = 5
 )
+
+var ReMail *regexp.Regexp

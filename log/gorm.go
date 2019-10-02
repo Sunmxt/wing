@@ -35,7 +35,7 @@ func (m GormLogger) Print(values ...interface{}) {
 
 	var sql string
 	var formattedValues []string
-	messages, level := []interface{}{"GORM: "}, values[0]
+	messages, level := []interface{}{"[GORM] "}, values[0]
 	if level == "sql" {
 		// sql
 		for _, value := range values[4].([]interface{}) {

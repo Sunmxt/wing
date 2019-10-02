@@ -7,6 +7,23 @@ import (
 
 func registerI18NMessage() {
 	// common
+	message.SetString(language.Chinese, "SCM.PlatformNotFound", "代码管理平台不存在")
+	message.SetString(language.English, "SCM.PlatformNotFound", "SCM Platform not found.")
+	message.SetString(language.Chinese, "SCM.PlatformNotSupported", "Wing 暂不支持这个代码管理平台哦")
+	message.SetString(language.English, "SCM.PlatformNotSupported", "This SCM Platform is not supported by Wing.")
+	message.SetString(language.Chinese, "SCM.RepositoryNotFound", "没有找到指定的代码仓库")
+	message.SetString(language.English, "SCM.RepositoryNotFound", "Repository not found.")
+	message.SetString(language.Chinese, "SCM.InvalidRepositoryID", "代码仓库ID无效")
+	message.SetString(language.English, "SCM.InvalidRepositoryID", "Invalid repository ID.")
+	message.SetString(language.Chinese, "SCM.InvalidSCMPlatformID", "代码管理平台ID无效")
+	message.SetString(language.English, "SCM.InvalidSCMPlatformID", "Invalid SCM platform ID.")
+	message.SetString(language.Chinese, "SCM.InvalidApprovalID", "Approval ID 无效")
+	message.SetString(language.English, "SCM.InvalidSCMPlatformID", "Invalid approval ID.")
+	message.SetString(language.Chinese, "SCM.CIApprovalCreationFailure", "创建 CI 审核失败.")
+	message.SetString(language.English, "SCM.CIApprovalCreationFailure", "Create CI approval failure.")
+	message.SetString(language.Chinese, "SCM.RepositoryCIAlreadyEnabled", "代码仓库已开启自动构建")
+	message.SetString(language.English, "SCM.RepositoryCIAlreadyEnabled", "CI has already enabled for this repository.")
+
 	message.SetString(language.Chinese, "Partial.InvalidFields", "无效的字段")
 	message.SetString(language.English, "Partial.InvalidFields", "Invalid fields")
 	message.SetString(language.Chinese, "Login.InvalidAccount", "用户名或密码无效")
@@ -37,7 +54,7 @@ func registerI18NMessage() {
 	message.SetString(language.English, "UI.Tag.Management", "Management")
 	message.SetString(language.English, "UI.Tag.LoadBalance", "LoadBalance")
 
-	// Orchestration
+	// StarStudio Application Engine.
 	message.SetString(language.Chinese, "UI.Operation.ApplicationNotFound", "应用不存在")
 	message.SetString(language.English, "UI.Operation.ApplicationNotFound", "Application doesn't exists.")
 	message.SetString(language.Chinese, "UI.Operation.ApplicationFound", "应用已存在")
@@ -54,6 +71,20 @@ func registerI18NMessage() {
 	message.SetString(language.English, "UI.Operation.Deployment.Start.AlreadyTerminated", "Deployment has already terminated.")
 	message.SetString(language.Chinese, "UI.Operation.Deployment.Start.AlreadyTerminating", "部署正在终止，不能重新开始")
 	message.SetString(language.English, "UI.Operation.Deployment.Start.AlreadyTerminating", "Deployment is terminating.")
+
+	// SCM
+	message.SetString(language.Chinese, "UI.Flow.Stage.SubmitRepositoryBuildEnableApproval", "提交")
+	message.SetString(language.English, "UI.Flow.Stage.SubmitRepositoryBuildEnableApproval", "Submit")
+	message.SetString(language.Chinese, "UI.Flow.Stage.SubmitGitlabMergeRequestApproval", "Gitlab 审核")
+	message.SetString(language.English, "UI.Flow.Stage.SubmitGitlabMergeRequestApproval", "Gitlab Approval")
+	message.SetString(language.English, "UI.Flow.Stage.RepositoryBuildEnabled", "构建开启")
+	message.SetString(language.English, "UI.Flow.Stage.RepositoryBuildEnabled", "Build Enabled")
+	message.SetString(language.Chinese, "UI.Flow.Stage.Prompt.SubmitRepositoryBuildEnableApproval", "为此代码仓库发起 SCM 平台构建审核流程")
+	message.SetString(language.English, "UI.Flow.Stage.Prompt.SubmitRepositoryBuildEnableApproval", "Submit approval workflow for enabling SCM build of the repository.")
+	message.SetString(language.Chinese, "UI.Flow.Stage.Prompt.SubmitGitlabMergeRequestApproval", "发起 Gitlab 合并请求以确认代码仓库权限")
+	message.SetString(language.English, "UI.Flow.Stage.Prompt.SubmitGitlabMergeRequestApproval", "Submit gitlab merge request to verify repository permission.")
+	message.SetString(language.English, "UI.Flow.Stage.Prompt.RepositoryBuildEnabled", "SCM 构建成功开启")
+	message.SetString(language.English, "UI.Flow.Stage.Prompt.RepositoryBuildEnabled", "SCM build is enabled for the repository.")
 }
 
 func TranslateMessage(lang, key string, args ...interface{}) string {

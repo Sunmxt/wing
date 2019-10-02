@@ -1,6 +1,7 @@
 package api
 
 import (
+	acommon "git.stuhome.com/Sunmxt/wing/api/common"
 	"github.com/gin-gonic/gin"
 )
 
@@ -27,7 +28,7 @@ type CurrentLocale struct {
 }
 
 func GetCurrentLocale(ctx *gin.Context) {
-	rctx := NewRequestContext(ctx)
+	rctx := acommon.NewRequestContext(ctx)
 	rctx.Response.Data = CurrentLocale{
 		Language: rctx.Lang,
 	}

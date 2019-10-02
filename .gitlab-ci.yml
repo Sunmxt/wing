@@ -1,7 +1,7 @@
 image: registry.stuhome.com/devops/dockerepo/docker:1.0.2
 
 before_script:
-  - sae/runtime/install.sh /opt/runtime
+  - controller/sae/runtime/install.sh /opt/runtime
   - source runtime_env
 
 services:
@@ -24,7 +24,7 @@ package-sae-runtime-manifests:
     stage: package
     script:
     - rm .gitlab-ci.yml 
-    - ci_build gitlab-package -e sae_runtime_$CI_COMMIT_REF_NAME ./sae/runtime
+    - ci_build gitlab-package -e sae_runtime_$CI_COMMIT_REF_NAME ./controller/sae/runtime
     allow_failure: false
 
 
@@ -64,10 +64,10 @@ test-build-lnmp-image:
     script:
     - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
     - runtime_image_base_image php:7.2-fpm-alpine
-    - runtime_image_post_build_script ./sae/runtime/ci/ci_lnmp_postbuild.sh
+    - runtime_image_post_build_script ./controller/sae/runtime/ci/ci_lnmp_postbuild.sh
     - runtime_image_add_service normal php_fpm /usr/local/sbin/php-fpm
     - runtime_image_add_service normal nginx /usr/sbin/nginx -g 'daemon off;'
-    - build_runtime_image gitlab-docker -h ./sae/runtime/ci/ci_lnmp_postbuild.sh -e sar_runtime_test_$ENV --ignore-runtime
+    - build_runtime_image gitlab-docker -h ./controller/sae/runtime/ci/ci_lnmp_postbuild.sh -e sar_runtime_test_$ENV --ignore-runtime
     variables:
         ENV: ci_lnmp
 
@@ -80,7 +80,7 @@ test-pull-package:
 test-no-push:
     stage: test
     script:
-    - source ./sae/runtime/ci/docker_push_gate.sh
+    - source ./controller/sae/runtime/ci/docker_push_gate.sh
     - runtime_image_base_image registry.stuhome.com/devops/dockerepo/alpine:3.7
     - build_runtime_image gitlab-docker -t gitlab_ci_commit_hash -e sar_runtime_test_no_push_$CI_COMMIT_REF_NAME -s -f
     - ci_build gitlab-package -t gitlab_ci_commit_hash -e sar_runtime_test_no_push_$CI_COMMIT_REF_NAME -s -f ./

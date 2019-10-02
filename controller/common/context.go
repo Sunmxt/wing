@@ -2,21 +2,34 @@ package common
 
 import (
 	"errors"
-	mlog "git.stuhome.com/Sunmxt/wing/log"
-	"git.stuhome.com/Sunmxt/wing/model"
+
 	"github.com/jinzhu/gorm"
 	log "github.com/sirupsen/logrus"
 	ldap "gopkg.in/ldap.v3"
 	"k8s.io/client-go/kubernetes"
+
+	mlog "git.stuhome.com/Sunmxt/wing/log"
+	"git.stuhome.com/Sunmxt/wing/common"
+	"git.stuhome.com/Sunmxt/wing/cmd/runtime"
+	"git.stuhome.com/Sunmxt/wing/model/account"
 )
 
 type OperationContext struct {
-	Runtime     *WingRuntime
+	Runtime     *runtime.WingRuntime
 	Log         *log.Entry
 	DB          *gorm.DB
-	RBACContext *model.RBACContext
-	Account     model.Account
+	RBACContext *account.RBACContext
+	Account     account.Account
 	Client      *kubernetes.Clientset
+}
+
+func NewOperationContext(runtime *runtime.WingRuntime) *OperationContext {
+	octx := &OperationContext{
+		Runtime: runtime,
+		Log: mlog.OperationLogger(),
+	}
+	octx.Log.Data["machine"] = runtime.MachineID
+	return octx
 }
 
 func (ctx *OperationContext) LogContext() {
@@ -39,7 +52,7 @@ func (ctx *OperationContext) Database() (db *gorm.DB, err error) {
 		return ctx.DB, nil
 	}
 	if ctx.Runtime.Config == nil {
-		return nil, ErrConfigMissing
+		return nil, common.ErrConfigMissing
 	}
 	if ctx.DB, err = gorm.Open(ctx.Runtime.Config.DB.SQLEngine, ctx.Runtime.Config.DB.SQLDsn); err != nil {
 		return nil, errors.New("Failed to open database: " + err.Error())
@@ -49,13 +62,13 @@ func (ctx *OperationContext) Database() (db *gorm.DB, err error) {
 	}
 	ctx.DB.SetLogger(mlog.GormLogger{
 		Log: ctx.Log.WithFields(log.Fields{
-			"type": "gorm",
+			"module": "gorm",
 		}),
 	})
 	return ctx.DB, nil
 }
 
-func (ctx *OperationContext) GetAccount() *model.Account {
+func (ctx *OperationContext) GetAccount() *account.Account {
 	if ctx.Account.ID > 0 {
 		return &ctx.Account
 	}
@@ -63,7 +76,7 @@ func (ctx *OperationContext) GetAccount() *model.Account {
 	if err != nil {
 		return nil
 	}
-	if err = db.Where(model.Account{Name: ctx.Account.Name}).First(&ctx.Account).Error; err != nil {
+	if err = db.Where(account.Account{Name: ctx.Account.Name}).First(&ctx.Account).Error; err != nil {
 		if gorm.IsRecordNotFoundError(err) {
 			ctx.Log.Info("[Role] Anonymous.")
 		} else {
@@ -74,7 +87,7 @@ func (ctx *OperationContext) GetAccount() *model.Account {
 	return &ctx.Account
 }
 
-func (ctx *OperationContext) RBAC() *model.RBACContext {
+func (ctx *OperationContext) RBAC() *account.RBACContext {
 	if ctx.RBACContext != nil {
 		return ctx.RBACContext
 	}
@@ -82,7 +95,7 @@ func (ctx *OperationContext) RBAC() *model.RBACContext {
 		ctx.Log.Info("[RBAC] Anonymous.")
 		return nil
 	}
-	ctx.RBACContext = model.NewRBACContext(ctx.Account.Name)
+	ctx.RBACContext = account.NewRBACContext(ctx.Account.Name)
 	db, err := ctx.Database()
 	if err != nil {
 		ctx.Log.Warnf("[RBAC] Cannot load RBAC rule for user \"%v\": %v", ctx.Account.Name, err.Error())
@@ -105,15 +118,15 @@ func (ctx *OperationContext) Permitted(resource string, verbs int64) bool {
 
 func (ctx *OperationContext) LDAPRootConnection() (*ldap.Conn, error) {
 	if ctx.Runtime.Config == nil {
-		return nil, ErrConfigMissing
+		return nil, common.ErrConfigMissing
 	}
 	config := ctx.Runtime.Config
 	conn, err := ldap.Dial("tcp", config.Auth.LDAP.Server)
 	if err != nil {
-		return nil, NewInternalError(err)
+		return nil, common.NewInternalError(err)
 	}
 	if err = conn.Bind(config.Auth.LDAP.BindDN, config.Auth.LDAP.BindPassword); err != nil {
-		return nil, NewInternalError(err)
+		return nil, common.NewInternalError(err)
 	}
 	return conn, nil
 }

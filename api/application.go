@@ -6,7 +6,9 @@ import (
 	"net/http"
 	"strings"
 
+	acommon "git.stuhome.com/Sunmxt/wing/api/common"
 	"git.stuhome.com/Sunmxt/wing/common"
+
 	"git.stuhome.com/Sunmxt/wing/model"
 	"github.com/gin-gonic/gin"
 	"github.com/jinzhu/gorm"
@@ -43,7 +45,7 @@ type ApplicationCreateRequest struct {
 	Command []string `form:"-"`
 }
 
-func (r *ApplicationCreateRequest) Clean(ctx *RequestContext) (err error) {
+func (r *ApplicationCreateRequest) Clean(ctx *acommon.RequestContext) (err error) {
 	invalidFields := []string{}
 	if r.Command == nil {
 		r.Command = make([]string, 0)
@@ -95,7 +97,7 @@ func (r *ApplicationCreateRequest) MarshalArgsJSON() (string, error) {
 }
 
 func CreateApplication(ctx *gin.Context) {
-	rctx, req, err := NewRequestContext(ctx), &ApplicationCreateRequest{}, error(nil)
+	rctx, req, err := acommon.NewRequestContext(ctx), &ApplicationCreateRequest{}, error(nil)
 	defer func() {
 		if err != nil {
 			rctx.AbortWithDebugMessage(http.StatusInternalServerError, err.Error())

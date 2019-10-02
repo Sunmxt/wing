@@ -1,9 +1,12 @@
-package common
+package controller
 
 import (
 	"encoding/json"
 	"fmt"
 	"git.stuhome.com/Sunmxt/wing/model"
+	"git.stuhome.com/Sunmxt/wing/common"
+	mcommon "git.stuhome.com/Sunmxt/wing/model/common"
+	ccommon "git.stuhome.com/Sunmxt/wing/controller/common"
 	"github.com/jinzhu/gorm"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -13,7 +16,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-func (ctx *OperationContext) UpdateDeploymentManifestToTerminating(dp *appsv1.Deployment) (updated bool) {
+func UpdateDeploymentManifestToTerminating(ctx *ccommon.OperationContext, dp *appsv1.Deployment) (updated bool) {
 	if dp == nil {
 		return false
 	}
@@ -35,7 +38,7 @@ func valueToString(v interface{}) (result string) {
 	return
 }
 
-func (ctx *OperationContext) UpdateAppContainerFromSpec(container *corev1.Container, spec *model.AppSpec) (updated bool, err error) {
+func UpdateAppContainerFromSpec(ctx *ccommon.OperationContext, container *corev1.Container, spec *model.AppSpec) (updated bool, err error) {
 	updated = false
 	if container.Image != spec.ImageRef {
 		updated = true
@@ -119,19 +122,19 @@ func (ctx *OperationContext) UpdateAppContainerFromSpec(container *corev1.Contai
 	return updated, nil
 }
 
-func (ctx *OperationContext) CreateDeploymentManifestFromSpec(appName string, deployID int, spec *model.AppSpec) (dp *appsv1.Deployment, err error) {
+func CreateDeploymentManifestFromSpec(ctx *ccommon.OperationContext, appName string, deployID int, spec *model.AppSpec) (dp *appsv1.Deployment, err error) {
 	dp = &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: GetNormalizedDeploymentName(appName, deployID),
+			Name: common.GetNormalizedDeploymentName(appName, deployID),
 		},
 	}
-	if _, err = ctx.UpdateDeploymentManifestFromSpec(appName, deployID, dp, spec); err != nil {
+	if _, err = UpdateDeploymentManifestFromSpec(ctx, appName, deployID, dp, spec); err != nil {
 		ctx.Log.Error("Failed to update deployment manifest: " + err.Error())
 	}
 	return
 }
 
-func (ctx *OperationContext) DetermineDeploymentState(dp *appsv1.Deployment, state int) (currentState int) {
+func DetermineDeploymentState(dp *appsv1.Deployment, state int) (currentState int) {
 	mark, exists := "", false
 	if dp != nil {
 		mark, exists = dp.ObjectMeta.Annotations["state.wing.starstudio.org"]
@@ -159,10 +162,10 @@ func (ctx *OperationContext) DetermineDeploymentState(dp *appsv1.Deployment, sta
 	return
 }
 
-func (ctx *OperationContext) SyncDeploymentState(deploy *model.Deployment, dp *appsv1.Deployment) (currentState int, err error) {
+func SyncDeploymentState(ctx *ccommon.OperationContext, deploy *model.Deployment, dp *appsv1.Deployment) (currentState int, err error) {
 	var db *gorm.DB
 
-	currentState = ctx.DetermineDeploymentState(dp, deploy.State)
+	currentState = DetermineDeploymentState(dp, deploy.State)
 	if deploy.State != currentState {
 		ctx.Log.Infof("[SyncDeploymentState] State of deployment \"%v\" is determined as %v instead of %v.", deploy.App.Name, currentState, deploy.State)
 		if db, err = ctx.Database(); err != nil {
@@ -176,12 +179,12 @@ func (ctx *OperationContext) SyncDeploymentState(deploy *model.Deployment, dp *a
 	return
 }
 
-func (ctx *OperationContext) UpdateDeploymentManifestFromSpec(appName string, deployID int, manifest *appsv1.Deployment, spec *model.AppSpec) (updated bool, err error) {
+func UpdateDeploymentManifestFromSpec(ctx *ccommon.OperationContext, appName string, deployID int, manifest *appsv1.Deployment, spec *model.AppSpec) (updated bool, err error) {
 	if manifest == nil || spec == nil {
 		return false, nil
 	}
 	updated = false
-	deployName := GetNormalizedDeploymentName(appName, deployID)
+	deployName := common.GetNormalizedDeploymentName(appName, deployID)
 	if manifest.ObjectMeta.Name != deployName {
 		updated = true
 		manifest.ObjectMeta.Name = deployName
@@ -239,10 +242,10 @@ func (ctx *OperationContext) UpdateDeploymentManifestFromSpec(appName string, de
 		container = &manifest.Spec.Template.Spec.Containers[0]
 		updated = true
 	}
-	return ctx.UpdateAppContainerFromSpec(container, spec)
+	return UpdateAppContainerFromSpec(ctx, container, spec)
 }
 
-func (ctx *OperationContext) SyncDeployment(ID, targetState int) (deploy *model.Deployment, synced bool, err error) {
+func SyncDeployment(ctx *ccommon.OperationContext, ID, targetState int) (deploy *model.Deployment, synced bool, err error) {
 	var clientset *kubernetes.Clientset
 	var dp *appsv1.Deployment
 	var currentState int
@@ -252,7 +255,7 @@ func (ctx *OperationContext) SyncDeployment(ID, targetState int) (deploy *model.
 		return nil, false, err
 	}
 	deploy = &model.Deployment{
-		Basic: model.Basic{
+		Basic: mcommon.Basic{
 			ID: ID,
 		},
 	}
@@ -268,7 +271,7 @@ func (ctx *OperationContext) SyncDeployment(ID, targetState int) (deploy *model.
 		return nil, false, err
 	}
 
-	kubeDeployName := GetNormalizedDeploymentName(deploy.App.Name, deploy.Basic.ID)
+	kubeDeployName := common.GetNormalizedDeploymentName(deploy.App.Name, deploy.Basic.ID)
 	ctx.Log.Infof("[SyncDeployment] Start deployment to kubernetes. (Application ID = %v, Name = %v, Normalized name = %v, Target state = %v)", ID, deploy.App.Name, kubeDeployName, targetState)
 
 	// stage 1: determine current state
@@ -281,7 +284,7 @@ func (ctx *OperationContext) SyncDeployment(ID, targetState int) (deploy *model.
 			dp = nil
 		}
 	}
-	if currentState, err = ctx.SyncDeploymentState(deploy, dp); err != nil {
+	if currentState, err = SyncDeploymentState(ctx, deploy, dp); err != nil {
 		return nil, false, err
 	}
 
@@ -294,7 +297,7 @@ func (ctx *OperationContext) SyncDeployment(ID, targetState int) (deploy *model.
 			return deploy, true, nil // Not altered.
 
 		case model.Executed:
-			if dp, err = ctx.CreateDeploymentManifestFromSpec(deploy.App.Name, deploy.Basic.ID, deploy.Spec); err != nil {
+			if dp, err = CreateDeploymentManifestFromSpec(ctx, deploy.App.Name, deploy.Basic.ID, deploy.Spec); err != nil {
 				return deploy, false, err
 			}
 			if dp, err = ctl.Create(dp); err != nil {
@@ -318,7 +321,7 @@ func (ctx *OperationContext) SyncDeployment(ID, targetState int) (deploy *model.
 		case model.Executed:
 			if dp != nil {
 				// ensure manifest corrent
-				if synced, err = ctx.UpdateDeploymentManifestFromSpec(deploy.App.Name, deploy.Basic.ID, dp, deploy.Spec); err != nil {
+				if synced, err = UpdateDeploymentManifestFromSpec(ctx, deploy.App.Name, deploy.Basic.ID, dp, deploy.Spec); err != nil {
 					return deploy, false, err
 				}
 				if synced {
@@ -327,7 +330,7 @@ func (ctx *OperationContext) SyncDeployment(ID, targetState int) (deploy *model.
 					}
 				}
 			} else {
-				if dp, err = ctx.CreateDeploymentManifestFromSpec(deploy.App.Name, deploy.Basic.ID, deploy.Spec); err != nil {
+				if dp, err = CreateDeploymentManifestFromSpec(ctx, deploy.App.Name, deploy.Basic.ID, deploy.Spec); err != nil {
 					return deploy, false, err
 				}
 				if dp, err = ctl.Create(dp); err != nil {
@@ -336,7 +339,7 @@ func (ctx *OperationContext) SyncDeployment(ID, targetState int) (deploy *model.
 			}
 
 		case model.Terminating:
-			if ctx.UpdateDeploymentManifestToTerminating(dp) {
+			if UpdateDeploymentManifestToTerminating(ctx, dp) {
 				if dp, err = ctl.Update(dp); err != nil {
 					return deploy, false, err
 				}
@@ -355,7 +358,7 @@ func (ctx *OperationContext) SyncDeployment(ID, targetState int) (deploy *model.
 			if dp == nil {
 				deploy.State, updated = model.Terminated, true
 			} else {
-				if ctx.UpdateDeploymentManifestToTerminating(dp) {
+				if UpdateDeploymentManifestToTerminating(ctx, dp) {
 					if dp, err = ctl.Update(dp); err != nil {
 						return deploy, false, err
 					}
@@ -420,20 +423,20 @@ func (ctx *OperationContext) SyncDeployment(ID, targetState int) (deploy *model.
 //	return deploy, dp, nil
 //}
 
-func (ctx *OperationContext) GetKubeDeploymentManifest(name string, deploymentID int) (dp *appsv1.Deployment, err error) {
+func GetKubeDeploymentManifest(ctx *ccommon.OperationContext, name string, deploymentID int) (dp *appsv1.Deployment, err error) {
 	var clientset *kubernetes.Clientset
 	if clientset, err = kubernetes.NewForConfig(ctx.Runtime.ClusterConfig); err != nil {
 		return nil, err
 	}
 
-	kDeployName := GetNormalizedDeploymentName(name, deploymentID)
+	kDeployName := common.GetNormalizedDeploymentName(name, deploymentID)
 	if dp, err = clientset.AppsV1().Deployments(ctx.Runtime.Config.Kube.Namespace).Get(kDeployName, metav1.GetOptions{}); err != nil {
 		return nil, err
 	}
 	return dp, nil
 }
 
-func (ctx *OperationContext) GetCurrentDeployment(appID int) (deploy *model.Deployment, dp *appsv1.Deployment, err error) {
+func GetCurrentDeployment(ctx *ccommon.OperationContext, appID int) (deploy *model.Deployment, dp *appsv1.Deployment, err error) {
 	var db *gorm.DB
 
 	db, err = ctx.Database()
@@ -455,7 +458,7 @@ func (ctx *OperationContext) GetCurrentDeployment(appID int) (deploy *model.Depl
 		return deploy, nil, nil
 	}
 
-	if dp, err = ctx.GetKubeDeploymentManifest(deploy.App.Name, deploy.Basic.ID); err != nil {
+	if dp, err = GetKubeDeploymentManifest(ctx, deploy.App.Name, deploy.Basic.ID); err != nil {
 		return nil, nil, err
 	}
 	if dp == nil {
@@ -469,7 +472,7 @@ func (ctx *OperationContext) GetCurrentDeployment(appID int) (deploy *model.Depl
 	return deploy, dp, nil
 }
 
-func (ctx *OperationContext) ListApplicationPodInfo(appName string, deploymentID int) (podInfo []ApplicationPodInfo, err error) {
+func ListApplicationPodInfo(ctx *ccommon.OperationContext, appName string, deploymentID int) (podInfo []common.ApplicationPodInfo, err error) {
 	if deploymentID < 1 {
 		return nil, nil
 	}
@@ -485,7 +488,7 @@ func (ctx *OperationContext) ListApplicationPodInfo(appName string, deploymentID
 		return
 	}
 	// Pick information
-	podInfo = make([]ApplicationPodInfo, len(podList.Items))
+	podInfo = make([]common.ApplicationPodInfo, len(podList.Items))
 	for idx, pod := range podList.Items {
 		podInfo[idx].FromManifest(&pod)
 	}
