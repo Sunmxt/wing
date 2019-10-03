@@ -1,4 +1,4 @@
-.PHONY: all format clean clean-all dep-init build-path delve-dbg-gate delev-dbg-svc
+.PHONY: all format clean start-dev-services stop-dev-services run-dev-worker run-dev-server force-run
 
 PROJECT_ROOT:=$(shell pwd)
 export GOPATH:=$(PROJECT_ROOT)/build
@@ -6,80 +6,73 @@ export PATH:=$(PROJECT_ROOT)/bin:$(PATH)
 
 BINARIES:=bin/wing
 
-all: bin/dashboard format bin/wing 
+all: format bin/wing 
 
-format: build-path
+format: statik
 	@for pkg in $$(cat "$(PROJECT_ROOT)/GOPACKAGES"); do \
 		echo format "$$pkg"; 							\
 		go fmt "$$pkg";									\
 	done
 
-bin/wing: dep-init bin/dashboard
-	statik -src=$$(pwd)/bin/dashboard/
+build:
+	mkdir build
+
+build/bin: bin
+	ln -s $$(pwd)/bin build/bin
+
+build/resource:
+	mkdir build/resource
+
+build/resource/sae: build/resource
+	@[ ! -d "build/resource/sae" ] && mkdir -p build/resource/sae || true
+
+bin:
+	mkdir bin
+
+statik:
+	mkdir statik
+
+build/resource/dashboard: build/resource
+	mkdir build/resource/dashboard
+
+dashboard/dist: build/resource/dashboard
+	@[ ! -L "dashboard/dist" ] && ln -s $$(pwd)/build/resource/dashboard dashboard/dist; \
+	if ! [ -z "$(SKIP_FE_BUILD)" ]; then 			\
+		exit 0;										\
+	fi; 											\
+	cd $(PROJECT_ROOT)/dashboard;					\
+	npm install; 									\
+	npx webpack --mode=production; 					\
+	cd ..
+
+build/resource/sae/runtime: build/resource/sae
+	tar -zcvf build/resource/sae/runtime -C controller/sae/runtime .
+
+bin/statik: build/bin
+	@[ ! -e "bin/statik" ] && go get -u github.com/rakyll/statik || true
+
+bin/wing: statik build/resource/sae/runtime dashboard/dist bin/statik build/bin force-run
+	@statik -src=$$(pwd)/build/resource/
 	@if [ "$${TYPE:=release}" = "debug" ]; then 						\
 		go install -v -gcflags='all=-N -l' git.stuhome.com/Sunmxt/wing; \
 	else																\
 	    go install -v -ldflags='all=-s -w' git.stuhome.com/Sunmxt/wing; \
 	fi;
 
-bin/dashboard: build-path
-	@if ! [ -z "$(SKIP_FE_BUILD)" ]; then 			\
-		exit 0;										\
-	fi; 											\
-	cd $(PROJECT_ROOT)/dashboard;					\
-	npm install; 									\
-	npx webpack --mode=production; 					\
-	cd ..;											\
-	if [ ! -L "bin/dashboard" ]; then				\
-		ln -s $$(pwd)/dashboard/dist bin/dashboard;	\
-	fi
-
-
-dep-init: build-path
-	@cd $(PROJECT_ROOT); 																\
-	if ! which statik > /dev/null && [ ! -e bin/statik ]; then 							\
-		go get -u github.com/rakyll/statik;												\
-	fi;																					\
-
-
-delve-dbg-gate:
-	@echo Not implemented.
-
-delve-dbg-svc:
-	@echo Not implemented.
-
-# Common rules
-build-path:
-	@ENSURE_DIRS="bin build statik";				\
-	for dir in $$ENSURE_DIRS; do				\
-		if [ -e "$$dir" ]; then 				\
-			if ! [ -d "$$dir" ]; then			\
-				echo $$dir occupied.; 			\
-				exit 1;							\
-			fi;									\
-		else									\
-			mkdir $$dir;						\
-		fi;										\
-	done
-	@if [ -e "build/bin" ]; then				\
-		if ! [ -h "build/bin" ]; then			\
-			echo build/bin occupied.;			\
-		else									\
-			rm build/bin;						\
-		fi;										\
-	fi
-	@ln -s $$(pwd)/bin build/bin
-
 clean:
-	@if [ -e "build" ] && [ -d "build" ]; then \
-		rm build -rf;							\
-	fi
+	[ -e "build" ] && [ -d "build" ] && rm build -rf
 
-clean-all: clean
-	@for binary in ${BINARIES}; do 	\
-		if [ -e $$binary ]; then 	\
-			rm $$binary;			\
-			echo Remove $$binary; 	\
-		fi;							\
-	 done
+start-dev-services:
+	docker-compose -f docker/compose-dev-service.yml up -d
 
+stop-dev-services:
+	docker-compose -f docker/compose-dev-service.yml down
+
+run-dev-server: bin/wing
+	bin/wing serve -config=./docker/compose-wing-dev-conf.yml -debug
+
+run-dev-worker: bin/wing
+	bin/wing worker -config=./docker/compose-wing-dev-conf.yml -debug
+
+force-run:
+	@true

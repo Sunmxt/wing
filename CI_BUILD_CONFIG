@@ -1,7 +1,0 @@
-# 镜像参数
-name=wing               # 镜像名
-release_version=1.0.1   # release 版本
-
-# 构建选项
-force_build=true        # 镜像存在时是否强制重新构建
-build_entry=./build.sh
