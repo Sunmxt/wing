@@ -1,4 +1,4 @@
-.PHONY: all format clean
+.PHONY: all format clean start-dev-services stop-dev-services run-dev-worker run-dev-server force-run
 
 PROJECT_ROOT:=$(shell pwd)
 export GOPATH:=$(PROJECT_ROOT)/build
@@ -24,7 +24,7 @@ build/resource:
 	mkdir build/resource
 
 build/resource/sae: build/resource
-	mkdir -p build/resource/sae
+	@[ ! -d "build/resource/sae" ] && mkdir -p build/resource/sae || true
 
 bin:
 	mkdir bin
@@ -49,10 +49,10 @@ build/resource/sae/runtime: build/resource/sae
 	tar -zcvf build/resource/sae/runtime -C controller/sae/runtime .
 
 bin/statik: build/bin
-	go get -u github.com/rakyll/statik
+	@[ ! -e "bin/statik" ] && go get -u github.com/rakyll/statik || true
 
-bin/wing: statik build/resource/sae/runtime dashboard/dist bin/statik build/bin 
-	statik -src=$$(pwd)/build/resource/
+bin/wing: statik build/resource/sae/runtime dashboard/dist bin/statik build/bin force-run
+	@statik -src=$$(pwd)/build/resource/
 	@if [ "$${TYPE:=release}" = "debug" ]; then 						\
 		go install -v -gcflags='all=-N -l' git.stuhome.com/Sunmxt/wing; \
 	else																\
@@ -61,3 +61,18 @@ bin/wing: statik build/resource/sae/runtime dashboard/dist bin/statik build/bin
 
 clean:
 	[ -e "build" ] && [ -d "build" ] && rm build -rf
+
+start-dev-services:
+	docker-compose -f docker/compose-dev-service.yml up -d
+
+stop-dev-services:
+	docker-compose -f docker/compose-dev-service.yml down
+
+run-dev-server: bin/wing
+	bin/wing serve -config=./docker/compose-wing-dev-conf.yml -debug
+
+run-dev-worker: bin/wing
+	bin/wing worker -config=./docker/compose-wing-dev-conf.yml -debug
+
+force-run:
+	@true

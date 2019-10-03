@@ -2,6 +2,7 @@ package api
 
 import (
 	acommon "git.stuhome.com/Sunmxt/wing/api/common"
+	"git.stuhome.com/Sunmxt/wing/api/sae"
 	"git.stuhome.com/Sunmxt/wing/api/scm"
 	"github.com/gin-gonic/gin"
 )
@@ -16,6 +17,9 @@ func RegisterAPI(engine *gin.Engine) error {
 	// Locale API
 	engine.GET("/api/locale", GetCurrentLocale)
 	engine.POST("/api/locale", SetLocale)
+
+	// App Engine API
+	engine.GET("/api/sae/static/*resource", sae.GetSAEResource)
 
 	// Application API
 	engine.POST("/api/application/create", CreateApplication)
@@ -38,11 +42,11 @@ func RegisterAPI(engine *gin.Engine) error {
 	engine.GET("/api/scm/repository/cicd/disable", scm.DisableRepositoryCICD)
 	engine.GET("/api/scm/repository/cicd/approval", scm.GetCICDApprovalDetail)
 
-	engine.GET("/api/scm/repository/builds/gitlab_ci_including_jobs", scm.GetGitlabCIIncludingJobs)
-	engine.GET("/api/scm/repository/builds/job/script", scm.GetJobScript)
 	//engine.GET("/api/scm/repository/builds/create", SCMCreateBuild)
 	//engine.GET("/api/scm/repository/builds/edit", SCMEditBuild)
 	//engine.GET("/api/scm/repository/builds/delete", SCMDeleteBuild)
+	engine.GET("/api/scm/repository/builds/gitlab_ci_including_jobs", scm.GetGitlabCIIncludingJobs)
+	engine.GET("/api/scm/repository/builds/job/script", scm.GetJobScript)
 
 	engine.NoRoute(ServeDefault)
 

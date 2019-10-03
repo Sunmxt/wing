@@ -8,3 +8,4 @@ statik/
 dist/
 package-lock\.json
 config
+dev-data
