@@ -2,7 +2,7 @@
 set -xe
 
 # Build Dashboard
-make bin/dashboard
+make dashboard/dist
 
 # Build main executable
 make bin/wing $MAKE_ENV_ARGV SKIP_FE_BUILD=1
