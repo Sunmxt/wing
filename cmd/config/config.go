@@ -1,10 +1,12 @@
 package config
 
 import (
-	"errors"
 	machineryConfig "github.com/RichardKnop/machinery/v1/config"
 	"github.com/jinzhu/configor"
 	log "github.com/sirupsen/logrus"
+
+	"errors"
+	"net/url"
 	"path/filepath"
 	"strconv"
 )
@@ -128,6 +130,7 @@ type LoggingConfiguration struct {
 
 type WingConfiguration struct {
 	Bind                    string                  `default:"0.0.0.0:8098" yaml:"bind"`
+	ExternalURL             string                  `yaml:"externalURL"`
 	DB                      DatabaseConfiguration   `yaml:"database"`
 	Kube                    KubernetesConfiguration `yaml:"kubernetes"`
 	InitialAdminCredentials string                  `yaml:"initialAdminCredentials" default:"admin"`
@@ -153,6 +156,10 @@ func (c *WingConfiguration) Clean() (err error) {
 	if err = c.Session.Job.Clean(); err != nil {
 		return err
 	}
+	if c.ExternalURL == "" {
+		return errors.New("externalURl cannot be empty.")
+	}
+	_, err = url.Parse(c.ExternalURL)
 	return
 }
 

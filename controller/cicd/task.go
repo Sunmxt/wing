@@ -1,14 +1,14 @@
 package cicd
 
 import (
-    "git.stuhome.com/Sunmxt/wing/common"
 	"git.stuhome.com/Sunmxt/wing/cmd/runtime"
-	"git.stuhome.com/Sunmxt/wing/model/scm/gitlab"
-	"git.stuhome.com/Sunmxt/wing/model/scm"
+	"git.stuhome.com/Sunmxt/wing/common"
 	ccommon "git.stuhome.com/Sunmxt/wing/controller/common"
+	"git.stuhome.com/Sunmxt/wing/model/scm"
+	"git.stuhome.com/Sunmxt/wing/model/scm/gitlab"
 
-	"github.com/RichardKnop/machinery/v1/tasks"
 	"github.com/RichardKnop/machinery/v1/backends/result"
+	"github.com/RichardKnop/machinery/v1/tasks"
 	log "github.com/sirupsen/logrus"
 
 	"gopkg.in/src-d/go-git.v4"
@@ -17,15 +17,14 @@ import (
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	githttp "gopkg.in/src-d/go-git.v4/plumbing/transport/http"
 
-	"path/filepath"
-	"net/url"
-	"time"
 	"errors"
-	"os"
 	"fmt"
+	"net/url"
+	"os"
+	"path/filepath"
 	"strconv"
+	"time"
 )
-
 
 func RegisterTasks(runtime *runtime.WingRuntime) (err error) {
 	tasks := map[string]interface{}{
@@ -42,7 +41,6 @@ func RegisterTasks(runtime *runtime.WingRuntime) (err error) {
 	}
 	return nil
 }
-
 
 func PrepareGitlabLocalRepository(octx *ccommon.OperationContext, project *gitlab.Project, accessToken string) (*git.Repository, string, error) {
 	if project.Name == "" || project.Namespace == nil || project.Namespace.Name == "" {
@@ -95,9 +93,42 @@ func PrepareGitlabLocalRepository(octx *ccommon.OperationContext, project *gitla
 	return repo, cloneTo, err
 }
 
+func SyncGitlabCISettingWithBuilds(ctx *ccommon.OperationContext, CIConfigPath string, approval *scm.CIRepositoryApproval, ciRepo *scm.CIRepository) (updated bool, err error) {
+	var (
+		file         *os.File
+		shouldUpdate bool
+	)
 
-func SyncGitlabCISettingWithBuilds(ctx *ccommon.OperationContext, gitlabCIConfigPath string, approval *scm.CIRepositoryApproval, ciRepo *scm.CIRepository) (bool, error) {
-	return false, nil
+	file, err = os.OpenFile(CIConfigPath, os.O_RDWR|os.O_CREATE, 0644)
+	if err != nil {
+		return false, err
+	}
+	defer file.Close()
+	cfg := &gitlab.CIConfiguration{}
+	if err = cfg.Unmarshal(file, false); err != nil {
+		ctx.Log.Info("invalid ci configuration. gitlab-ci.yaml will be updated.")
+		file.Truncate(0)
+		file.Seek(0, 0)
+	}
+	patchers := []GitlabCIConfigurationPatcher{
+		&GitlabRemoteRuntimeLoad{
+			RuntimeURL: common.SAERuntimePath,
+		},
+		&GitlabDynamicJob{
+			JobURL: common.SCMDynamicJobPath,
+		},
+		&GitlabWingStages{},
+		&GitlabWingBuildServices{},
+	}
+	for _, patcher := range patchers {
+		if shouldUpdate, err = patcher.Patch(cfg); err != nil {
+			return false, err
+		}
+		if shouldUpdate {
+			updated = shouldUpdate
+		}
+	}
+	return updated, nil
 }
 
 func AsyncGitlabMergeRequestFinishCIApproval(ctx *ccommon.OperationContext, projectID, mergeRequestID uint) (*result.AsyncResult, error) {
@@ -108,7 +139,7 @@ func AsyncGitlabMergeRequestFinishCIApproval(ctx *ccommon.OperationContext, proj
 }
 
 func GitlabMergeRequestFinishCIApproval(ctx *runtime.WingRuntime) interface{} {
-	return func (projectID, mergeRequestID uint) error {
+	return func(projectID, mergeRequestID uint) error {
 		octx := ccommon.NewOperationContext(ctx)
 		octx.Log.Data["task"] = "GitlabMergeRequestFinishCIApproval"
 		db, err := octx.Database()
@@ -148,10 +179,10 @@ func GitlabMergeRequestFinishCIApproval(ctx *runtime.WingRuntime) interface{} {
 		}
 		ciRepo := &scm.CIRepository{
 			SCMPlatformID: approval.SCM.Basic.ID,
-			Reference: approval.Reference,
-			Active: scm.Active,
-			AccessToken: approval.AccessToken,
-			OwnerID: approval.OwnerID,
+			Reference:     approval.Reference,
+			Active:        scm.Active,
+			AccessToken:   approval.AccessToken,
+			OwnerID:       approval.OwnerID,
 		}
 		if err = tx.Save(ciRepo).Error; err != nil {
 			octx.Log.Errorf("save error: " + err.Error())
@@ -164,17 +195,17 @@ func GitlabMergeRequestFinishCIApproval(ctx *runtime.WingRuntime) interface{} {
 
 func AsyncSubmitCIApprovalGitlabMergeRequest(ctx *ccommon.OperationContext, platformID int, repositoryID uint, approvalID int, retry uint) (*result.AsyncResult, error) {
 	return ctx.SubmitTask("SubmitCIApprovalGitlabMergeRequest", []tasks.Arg{
-		{ Type: "int", Value: platformID },
-		{ Type: "uint", Value: repositoryID },
-		{ Type: "int", Value: approvalID },
+		{Type: "int", Value: platformID},
+		{Type: "uint", Value: repositoryID},
+		{Type: "int", Value: approvalID},
 	}, retry)
 }
 
 func SubmitCIApprovalGitlabMergeRequest(ctx *runtime.WingRuntime) interface{} {
-	return func (platformID int, repositoryID uint, approvalID int) error {
+	return func(platformID int, repositoryID uint, approvalID int) error {
 		octx, platform := ccommon.NewOperationContext(ctx), &scm.SCMPlatform{}
 		db, err := octx.Database()
-		defer func () {
+		defer func() {
 			if err != nil {
 				octx.Log.Error("[SubmitCIApprovalGitlabMergeRequest] " + err.Error())
 			}
@@ -189,7 +220,7 @@ func SubmitCIApprovalGitlabMergeRequest(ctx *runtime.WingRuntime) interface{} {
 			octx.Log.Error("[SubmitCIApprovalGitlabMergeRequest] scm platform not found.")
 			return nil
 		}
-	    if platform.Type != scm.GitlabSCM {
+		if platform.Type != scm.GitlabSCM {
 			octx.Log.Error("[SubmitCIApprovalGitlabMergeRequest] not a gitlab scm. id = " + strconv.FormatInt(int64(platformID), 10))
 			return nil
 		}
@@ -204,7 +235,7 @@ func SubmitCIApprovalGitlabMergeRequest(ctx *runtime.WingRuntime) interface{} {
 		if repo, repoPath, err = PrepareGitlabLocalRepository(octx, project, client.AccessToken); err != nil {
 			return err
 		}
-		defer func () {
+		defer func() {
 			// Cleaning.
 			if err := os.RemoveAll(repoPath); err != nil {
 				octx.Log.Warn("Cannot remove " + repoPath + ": " + err.Error())
@@ -212,7 +243,7 @@ func SubmitCIApprovalGitlabMergeRequest(ctx *runtime.WingRuntime) interface{} {
 		}()
 		// start submit mr.
 		tx, approval := db.Begin(), &scm.CIRepositoryApproval{}
-		defer func () {
+		defer func() {
 			if err != nil {
 				tx.Rollback()
 			} else {
@@ -265,13 +296,13 @@ func SubmitCIApprovalGitlabMergeRequest(ctx *runtime.WingRuntime) interface{} {
 			return err
 		}
 		if synced {
-			if _, err := tree.Add(gitlabCIYAML); err != nil {
+			if _, err = tree.Add(gitlabCIYAML); err != nil {
 				return err
 			}
 		}
 		// Commit
 		userQuery := client.User()
-		user := userQuery.Current()		
+		user := userQuery.Current()
 		if userQuery.Error != nil {
 			err = userQuery.Error
 			return err
@@ -283,8 +314,8 @@ func SubmitCIApprovalGitlabMergeRequest(ctx *runtime.WingRuntime) interface{} {
 		var hash plumbing.Hash
 		if hash, err = tree.Commit("[bot] wing: approval for enabling wing SCM of this project.", &git.CommitOptions{
 			Author: &object.Signature{
-				When: time.Now(),
-				Name: user.Name,
+				When:  time.Now(),
+				Name:  user.Name,
 				Email: user.Email,
 			},
 			Parents: []plumbing.Hash{
@@ -299,14 +330,14 @@ func SubmitCIApprovalGitlabMergeRequest(ctx *runtime.WingRuntime) interface{} {
 		if err = repo.Push(&git.PushOptions{
 			RemoteName: "origin",
 			RefSpecs: []config.RefSpec{
-				config.RefSpec(":refs/heads/"+branchName),
+				config.RefSpec(":refs/heads/" + branchName),
 			},
 			Auth: &githttp.BasicAuth{
-				Username: "oauth2", 
+				Username: "oauth2",
 				Password: client.AccessToken,
 			},
 		}); err != nil {
-			if err != git.NoErrAlreadyUpToDate{
+			if err != git.NoErrAlreadyUpToDate {
 				return err
 			}
 			err = nil
@@ -315,10 +346,10 @@ func SubmitCIApprovalGitlabMergeRequest(ctx *runtime.WingRuntime) interface{} {
 		if err = repo.Push(&git.PushOptions{
 			RemoteName: "origin",
 			RefSpecs: []config.RefSpec{
-				config.RefSpec("refs/heads/"+branchName+":refs/heads/"+branchName),
+				config.RefSpec("refs/heads/" + branchName + ":refs/heads/" + branchName),
 			},
 			Auth: &githttp.BasicAuth{
-				Username: "oauth2", 
+				Username: "oauth2",
 				Password: client.AccessToken,
 			},
 		}); err != nil {
@@ -329,7 +360,7 @@ func SubmitCIApprovalGitlabMergeRequest(ctx *runtime.WingRuntime) interface{} {
 		mr := &gitlab.MergeRequest{
 			SourceBranch: branchName,
 			TargetBranch: "master",
-			Title: "[Wing] Enable SCM Build.",
+			Title:        "[Wing] Enable SCM Build.",
 		}
 		if err = client.MergeRequest().WithProject(project).Create(mr); err != nil || mr.ID < 1 {
 			err = fmt.Errorf("[SubmitCIApprovalGitlabMergeRequest] merge request not created. reason: %v", err)
@@ -338,10 +369,10 @@ func SubmitCIApprovalGitlabMergeRequest(ctx *runtime.WingRuntime) interface{} {
 		// Configure access token for gitlab repo.
 		octx.Log.Info("[SubmitCIApprovalGitlabMergeRequest] sync ci token for gitlab project " + project.NameWithNamespace)
 		if err = client.Variable().WithProject(project).Save(&gitlab.Variable{
-			Key: "WING_CI_TOKEN",
-			Value: approval.AccessToken,
+			Key:       "WING_CI_TOKEN",
+			Value:     approval.AccessToken,
 			Protected: true,
-			Masked: true,
+			Masked:    true,
 		}); err != nil {
 			err = errors.New("[SubmitCIApprovalGitlabMergeRequest] update repo variable failure: " + err.Error())
 			return err
@@ -368,10 +399,9 @@ func SubmitCIApprovalGitlabMergeRequest(ctx *runtime.WingRuntime) interface{} {
 	}
 }
 
-
-// SyncCIApproval submit related tasks to recover from inconsistent states caused by system failures. 
-func SyncCIApproval(ctx *runtime.WingRuntime) (func() error) {
-	return func () error {
+// SyncCIApproval submit related tasks to recover from inconsistent states caused by system failures.
+func SyncCIApproval(ctx *runtime.WingRuntime) func() error {
+	return func() error {
 		return nil
 	}
 }

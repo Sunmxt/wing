@@ -3,10 +3,10 @@ package controller
 import (
 	"encoding/json"
 	"fmt"
-	"git.stuhome.com/Sunmxt/wing/model"
 	"git.stuhome.com/Sunmxt/wing/common"
-	mcommon "git.stuhome.com/Sunmxt/wing/model/common"
 	ccommon "git.stuhome.com/Sunmxt/wing/controller/common"
+	"git.stuhome.com/Sunmxt/wing/model"
+	mcommon "git.stuhome.com/Sunmxt/wing/model/common"
 	"github.com/jinzhu/gorm"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"

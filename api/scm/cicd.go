@@ -257,6 +257,9 @@ func GetCICDApprovalDetail(ctx *gin.Context) {
 	rctx.Succeed()
 }
 
+func CreateBuild(ctx *gin.Context) {
+}
+
 func GetJobScript(ctx *gin.Context) {
 	return
 }

@@ -31,3 +31,21 @@ func ValidApplicationName(appName string) bool {
 func GenerateRandomToken() string {
 	return strings.Replace(uuid.NewV4().String(), "-", "", -1)
 }
+
+func EscapeForRegexp(v string) string {
+	return strings.Replace(v, ".", "\\.", -1)
+}
+
+func Min(a, b int) int {
+	if a > b {
+		return b
+	}
+	return a
+}
+
+func Max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}

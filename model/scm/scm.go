@@ -221,15 +221,20 @@ func (r *CIRepositoryApproval) SetGitlabExtra(extra *GitlabApprovalExtra) error 
 	return nil
 }
 
-//type CIRepositoryBuild struct {
-//	model.Basic
-//
-//	ExecType     int           `gorm:"tinyint;not null;"`
-//	Extra        string        `gorm:"longtext;"`
-//	Active       int           `gorm:"tinyint;not null;"`
-//	BuildCommand string        `gorm:"longtext;not null;"`
-//	ProductPath  string        `gorm:"longtext;not null;"`
-//	Repository   *CIRepository `gorm:"foreignkey:RepositionID;not null;"`
-//
-//	RepositionID int
-//}
+type CIRepositoryBuild struct {
+	common.Basic
+
+	ExecType     int           `gorm:"tinyint;not null;"`
+	Extra        string        `gorm:"longtext;"`
+	Active       int           `gorm:"tinyint;not null;"`
+	BuildCommand string        `gorm:"longtext;not null;"`
+	ProductPath  string        `gorm:"longtext;not null;"`
+	Branch       string        `gorm:"varchar(255);not null;"`
+	Repository   *CIRepository `gorm:"foreignkey:RepositionID;not null;"`
+
+	RepositionID int
+}
+
+const (
+	GitlabCIBuild = 1
+)

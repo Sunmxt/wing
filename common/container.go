@@ -108,3 +108,7 @@ func (s *StringSet) In(values ...string) bool {
 	}
 	return true
 }
+
+func (s *StringSet) Len() int {
+	return len(s.set)
+}

@@ -8,9 +8,9 @@ import (
 	ldap "gopkg.in/ldap.v3"
 	"k8s.io/client-go/kubernetes"
 
-	mlog "git.stuhome.com/Sunmxt/wing/log"
-	"git.stuhome.com/Sunmxt/wing/common"
 	"git.stuhome.com/Sunmxt/wing/cmd/runtime"
+	"git.stuhome.com/Sunmxt/wing/common"
+	mlog "git.stuhome.com/Sunmxt/wing/log"
 	"git.stuhome.com/Sunmxt/wing/model/account"
 )
 
@@ -26,7 +26,7 @@ type OperationContext struct {
 func NewOperationContext(runtime *runtime.WingRuntime) *OperationContext {
 	octx := &OperationContext{
 		Runtime: runtime,
-		Log: mlog.OperationLogger(),
+		Log:     mlog.OperationLogger(),
 	}
 	octx.Log.Data["machine"] = runtime.MachineID
 	return octx

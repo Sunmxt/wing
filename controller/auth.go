@@ -10,7 +10,6 @@ import (
 	ldap "gopkg.in/ldap.v3"
 )
 
-
 func NewLDAPSearchRequest(ctx *ccommon.OperationContext, username string) (*ldap.SearchRequest, error) {
 	if ctx.Runtime.Config == nil {
 		return nil, common.ErrConfigMissing

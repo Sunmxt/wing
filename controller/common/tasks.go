@@ -1,8 +1,8 @@
 package common
 
 import (
-	"github.com/RichardKnop/machinery/v1/tasks"
 	"github.com/RichardKnop/machinery/v1/backends/result"
+	"github.com/RichardKnop/machinery/v1/tasks"
 )
 
 func (ctx *OperationContext) SubmitTask(name string, args []tasks.Arg, retry uint) (*result.AsyncResult, error) {
