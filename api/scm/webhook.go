@@ -66,9 +66,10 @@ func GitlabWebhookCallback(ctx *gin.Context) {
 func GitlabMergeRequestStateChanged(runtime *runtime.WingRuntime) interface{} {
 	return func(req *http.Request, event *gitlab.MergeRequestEvent) error {
 		ctx := ccommon.NewOperationContext(runtime)
-		if event.Event == gitlab.MergeRequestMerged {
+		switch event.Event {
+		case gitlab.MergeRequestMerged, gitlab.MergeRequestClosed:
 			ctx.Log.Info("[async] task to finish gitlab merge request ci approval.")
-			if _, err := cicd.AsyncGitlabMergeRequestFinishCIApproval(ctx, event.TargetProject.ID, event.MergeRequest.ID); err != nil {
+			if _, err := cicd.AsyncGitlabMergeRequestFinishCIApproval(ctx, event.TargetProject.ID, event.MergeRequest.ID, event.Event); err != nil {
 				ctx.Log.Error("[async] GitlabMergeRequestStateChanged() submit task failure: " + err.Error())
 			}
 		}

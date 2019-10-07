@@ -58,7 +58,7 @@ func (p *GitlabRemoteRuntimeLoad) MakeBash() string {
 
 func (p *GitlabRemoteRuntimeLoad) Patch(cfg *gitlab.CIConfiguration) (bool, error) {
 	escaped, updated := common.EscapeForRegexp(p.RuntimeURL), false
-	checker, err := regexp.Compile("rm.*mkdir.*curl.*" + escaped + "source.*sar_activate")
+	checker, err := regexp.Compile("rm.*mkdir.*curl.*" + escaped + ".*source.*sar_activate")
 	if err != nil {
 		return false, err
 	}

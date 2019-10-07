@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	MergeRequestClose  = 1
+	MergeRequestClosed  = 1
 	MergeRequestOpen   = 2
 	MergeRequestMerged = 3
 	MergeRequestReopen = 4
@@ -344,7 +344,7 @@ func (h *EventHub) processMergeRequest(req *http.Request, buf *bytes.Buffer) (ui
 	case "open":
 		event.Event = MergeRequestOpen
 	case "close":
-		event.Event = MergeRequestClose
+		event.Event = MergeRequestClosed
 	case "merge":
 		event.Event = MergeRequestMerged
 	case "reopen":
