@@ -1,0 +1,11 @@
+[Unit]
+Description=Wing API Server
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/wing serve -config=/etc/wing/wing.yaml
+User=root
+group=root
+
+[Install]
+WantedBy=multi-user.target

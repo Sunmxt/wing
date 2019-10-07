@@ -1,4 +1,4 @@
-.PHONY: all format clean start-dev-services stop-dev-services run-dev-worker run-dev-server force-run
+.PHONY: all format clean start-dev-services stop-dev-services run-dev-worker run-dev-server force-run rpm
 
 PROJECT_ROOT:=$(shell pwd)
 export GOPATH:=$(PROJECT_ROOT)/build
@@ -73,6 +73,13 @@ run-dev-server: bin/wing
 
 run-dev-worker: bin/wing
 	bin/wing worker -config=./docker/compose-wing-dev-conf.yml -debug
+
+rpm: bin/wing
+	fpm -s dir -t rpm -n wing --config-files /etc/wing/config.yml --epoch 0 -v `cat VERSION` \
+		bin/wing=/usr/bin/ \
+		config.yml=/etc/wing/config.yml \
+		systemd/server.service=/lib/system/systemd/wing-server.service \
+		systemd/worker.service=/lib/system/systemd/wing-worker.service
 
 force-run:
 	@true

@@ -12,6 +12,12 @@ Application orchestration backed by Kubernetes.
 make
 ```
 
+### Build RPM
+
+```bash
+make rpm
+```
+
 #### Build Docker Image
 
 ```bash
@@ -44,13 +50,33 @@ database:
 
 ## Development
 
-#### Run backend
+### Services for development
+
+#### Start
 
 ```bash
-make && bin/wing -config config.yml -debug
+make start-dev-services
 ```
 
-Run frontend
+#### Stop
+
+```bash
+make stop-dev-services
+```
+
+#### Run server
+
+```bash
+make run-dev-server
+```
+
+### Run worker
+
+```bash
+make run-dev-worker
+```
+
+### Run frontend development server
 
 ```bash
 cd dashboard

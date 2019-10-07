@@ -1,0 +1,11 @@
+[Unit]
+Description=Wing Worker
+After=network
+
+[Service]
+ExecStart=/usr/bin/wing worker -config=/etc/wing/wing.yaml
+User=root
+group=root
+
+[Install]
+WantedBy=multi-user.target
