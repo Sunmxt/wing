@@ -15,6 +15,13 @@ type CICache struct {
 	Paths []string `json:"paths"`
 }
 
+type CIService struct {
+	Name       string `json:"name,omitempty"`
+	Entrypoint string `json:"entrypoint,omitempty"`
+	Command    string `json:"command,omitempty"`
+	Alias      string `json:"alias,omitempty"`
+}
+
 type CIJob struct {
 	Cache        *CICache               `json:"cache,omitempty" yaml:"cache,omitempty"`
 	Image        string                 `json:"image,omitempty" yaml:"image,omitempty"`
@@ -29,8 +36,11 @@ type CIJob struct {
 }
 
 type CIConfiguration struct {
-	Image        string                 `yaml:"image,omitempty"`
-	Services     []string               `yaml:"services,omitempty"`
+	Image    string `yaml:"image,omitempty"`
+	Services struct {
+		Simple   []string
+		Detailed []CIService
+	} `yaml:"-"`
 	Stages       []string               `yaml:"stages,omitempty"`
 	BeforeScript []string               `yaml:"before_script,omitempty"`
 	AfterScript  []string               `yaml:"after_script,omitempty"`
@@ -45,16 +55,25 @@ type CIConfiguration struct {
 		File     []string
 		OneLine  []string
 	} `yaml:"-"`
+
 	RawInclude []interface{} `yaml:"include,omitempty"`
+	RawService []interface{} `yaml:"services,omitempty"`
 }
 
-func (c *CIConfiguration) Marshal(w io.Writer) (err error) {
+func (c *CIConfiguration) encodeServices() {
+	c.RawService = make([]interface{}, 0, len(c.Services.Simple)+len(c.Services.Detailed))
+	for _, svc := range c.Services.Simple {
+		c.RawService = append(c.RawService, svc)
+	}
+	for _, svc := range c.Services.Detailed {
+		c.RawService = append(c.RawService, svc)
+	}
+}
+
+func (c *CIConfiguration) Encode(w io.Writer) (err error) {
 	compact := make(map[string]interface{})
 	if c.Image != "" {
 		compact["image"] = c.Image
-	}
-	if c.Services != nil {
-		compact["services"] = c.Services
 	}
 	if c.Stages != nil {
 		compact["stages"] = c.Stages
@@ -70,6 +89,11 @@ func (c *CIConfiguration) Marshal(w io.Writer) (err error) {
 	}
 	if c.Cache != nil {
 		compact["cache"] = c.Cache
+	}
+	// Services
+	c.encodeServices()
+	if len(c.RawService) > 0 {
+		compact["services"] = c.RawService
 	}
 	// Includes
 	c.RawInclude = nil
@@ -142,15 +166,7 @@ func (c *CIConfiguration) appendRawInclude(inc interface{}) {
 	c.RawInclude = append(c.RawInclude, inc)
 }
 
-func (c *CIConfiguration) Unmarshal(r io.Reader, strict bool) (err error) {
-	var buf bytes.Buffer
-	r = io.TeeReader(r, &buf)
-
-	// decode general structure.
-	if err = yaml.NewDecoder(r).Decode(c); err != nil {
-		return
-	}
-	// decode includes
+func (c *CIConfiguration) decodeInclude(strict bool) (err error) {
 	for _, rawInc := range c.RawInclude {
 		switch v := rawInc.(type) {
 		case string:
@@ -190,6 +206,74 @@ func (c *CIConfiguration) Unmarshal(r io.Reader, strict bool) (err error) {
 				return fmt.Errorf("cannot decode includes. got %v", v)
 			}
 		}
+	}
+	return nil
+}
+
+func (c *CIConfiguration) AppendSimpleService(svc string) {
+	if c.Services.Simple == nil {
+		c.Services.Simple = make([]string, 0, 1)
+	}
+	c.Services.Simple = append(c.Services.Simple, svc)
+}
+
+func (c *CIConfiguration) AppendService(svc *CIService) {
+	if c.Services.Detailed == nil {
+		c.Services.Detailed = make([]CIService, 0, 1)
+	}
+	c.Services.Detailed = append(c.Services.Detailed, *svc)
+}
+
+func (c *CIConfiguration) decodeServices(strict bool) (err error) {
+	for _, rawSvc := range c.RawService {
+		switch v := rawSvc.(type) {
+		case string:
+			c.AppendSimpleService(v)
+
+		case map[interface{}]interface{}:
+			svc := &CIService{}
+			for rawProp, rawValue := range v {
+				prop, ok := rawProp.(string)
+				if !ok && strict {
+					return fmt.Errorf("unrecognized service property key type. got %v", rawProp)
+				} else {
+					continue
+				}
+				var value string
+				if !ok && strict {
+					return fmt.Errorf("unrecognized service value type. got %v", rawValue)
+				} else {
+					continue
+				}
+				switch prop {
+				case "name":
+					svc.Name = value
+				case "entrypoint":
+					svc.Entrypoint = value
+				case "command":
+					svc.Command = value
+				case "alias":
+					svc.Alias = value
+				default:
+					return fmt.Errorf("unrecognized server property: %v", prop)
+				}
+			}
+			c.AppendService(svc)
+		}
+	}
+	return nil
+}
+
+func (c *CIConfiguration) Decode(r io.Reader, strict bool) (err error) {
+	var buf bytes.Buffer
+	r = io.TeeReader(r, &buf)
+
+	// decode general structure.
+	if err = yaml.NewDecoder(r).Decode(c); err != nil {
+		return
+	}
+	if err = c.decodeInclude(strict); err != nil {
+		return
 	}
 	// decode jobs
 	r = bytes.NewReader(buf.Bytes())

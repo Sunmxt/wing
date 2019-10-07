@@ -97,28 +97,46 @@ func SyncGitlabCISettingWithBuilds(ctx *ccommon.OperationContext, CIConfigPath s
 	var (
 		file         *os.File
 		shouldUpdate bool
+		externalURL  *url.URL
 	)
-
+	externalURL, err = url.Parse(ctx.Runtime.Config.ExternalURL)
+	if err != nil {
+		ctx.Log.Error("invalid external url: " + ctx.Runtime.Config.ExternalURL)
+		return false, err
+	}
 	file, err = os.OpenFile(CIConfigPath, os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
 		return false, err
 	}
 	defer file.Close()
 	cfg := &gitlab.CIConfiguration{}
-	if err = cfg.Unmarshal(file, false); err != nil {
+	if err = cfg.Decode(file, false); err != nil {
 		ctx.Log.Info("invalid ci configuration. gitlab-ci.yaml will be updated.")
 		file.Truncate(0)
 		file.Seek(0, 0)
 	}
+	externalURL.Path = common.SAERuntimePath
+	runtimeURL := externalURL.String()
+	externalURL.Path = common.SCMDynamicJobPath
+	jobURL := externalURL.String()
 	patchers := []GitlabCIConfigurationPatcher{
 		&GitlabRemoteRuntimeLoad{
-			RuntimeURL: common.SAERuntimePath,
+			RuntimeURL: runtimeURL,
 		},
 		&GitlabDynamicJob{
-			JobURL: common.SCMDynamicJobPath,
+			JobURL: jobURL,
 		},
 		&GitlabWingStages{},
-		&GitlabWingBuildServices{},
+		&GitlabChainPatcher{
+			A: &GitlabWingBuildServices{},
+			B: &GitlabGlobalVariables{
+				Variables: map[string]interface{}{
+					"DOCKER_HOST":            "tcp://docker:2375",
+					"DOCKER_DRIVER":          "overlay2",
+					"GIT_SUBMODULE_STRATEGY": "recursive",
+				},
+			},
+		},
 	}
 	for _, patcher := range patchers {
 		if shouldUpdate, err = patcher.Patch(cfg); err != nil {
@@ -127,6 +145,10 @@ func SyncGitlabCISettingWithBuilds(ctx *ccommon.OperationContext, CIConfigPath s
 		if shouldUpdate {
 			updated = shouldUpdate
 		}
+	}
+	if err = cfg.Encode(file); err != nil {
+		ctx.Log.Info("update gitlab ci settings failure: " + err.Error())
+		return false, err
 	}
 	return updated, nil
 }
@@ -296,7 +318,7 @@ func SubmitCIApprovalGitlabMergeRequest(ctx *runtime.WingRuntime) interface{} {
 			return err
 		}
 		if synced {
-			if _, err = tree.Add(gitlabCIYAML); err != nil {
+			if _, err = tree.Add(".gitlab-ci.yml"); err != nil {
 				return err
 			}
 		}
