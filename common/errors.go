@@ -43,6 +43,7 @@ var (
 	ErrInvalidRepositoryID        = NewExternalError(errors.New("SCM.InvalidRepositoryID"))
 	ErrRepositoryCIAlreadyEnabled = NewExternalError(errors.New("SCM.RepositoryCIAlreadyEnabled"))
 	ErrInvalidApprovalID          = NewExternalError(errors.New("SCM.InvalidApprovalID"))
+	ErrUnauthenticated            = NewExternalError(errors.New("Auth.Unauthenticated"))
 
 	ErrEndpointMissing = NewExternalError(errors.New("No avaliable endpoint."))
 )

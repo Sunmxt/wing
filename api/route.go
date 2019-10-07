@@ -40,14 +40,14 @@ func RegisterAPI(engine *gin.Engine) error {
 	engine.POST("/api/scm/gitlab/webhook/:platform_id/:token", scm.GitlabWebhookCallbackWithToken)
 	engine.POST("/api/scm/gitlab/webhook/:platform_id", scm.GitlabWebhookCallback)
 	engine.POST("/api/scm/repository/cicd/enable", scm.EnableRepositoryCICD)
-	engine.GET("/api/scm/repository/cicd/disable", scm.DisableRepositoryCICD)
+	engine.POST("/api/scm/repository/cicd/disable", scm.DisableRepositoryCICD)
 	engine.GET("/api/scm/repository/cicd/approval", scm.GetCICDApprovalDetail)
 
-	engine.GET("/api/scm/repository/builds/create", scm.CreateBuild)
+	engine.POST("/api/scm/repository/builds/create", scm.CreateBuild)
 	//engine.GET("/api/scm/repository/builds/edit", SCMEditBuild)
 	//engine.GET("/api/scm/repository/builds/delete", SCMDeleteBuild)
-	engine.GET("/"+common.SCMDynamicJobPath, scm.GetGitlabCIIncludingJobs)
-	engine.GET("/api/scm/builds/job/script", scm.GetJobScript)
+	engine.GET("/api/scm/builds/:id/jobs.yml", scm.GetGitlabCIIncludingJobs)
+	engine.GET("/api/scm/builds/:id/job", scm.GetCIJob)
 
 	engine.NoRoute(ServeDefault)
 

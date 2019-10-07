@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	MergeRequestClosed  = 1
+	MergeRequestClosed = 1
 	MergeRequestOpen   = 2
 	MergeRequestMerged = 3
 	MergeRequestReopen = 4

@@ -43,6 +43,8 @@ func Migrate(db *gorm.DB, cfg *config.WingConfiguration) (err error) {
 		AddIndex("idx_scm_platform", "scm_platform_id")
 	db.AutoMigrate(&CIRepositoryLog{}).
 		AddIndex("idx_reference", "reference")
+	db.AutoMigrate(&CIRepositoryBuild{}).
+		AddIndex("idx_repository_id", "repository_id")
 
 	if db.Error != nil {
 		return db.Error
@@ -224,15 +226,17 @@ func (r *CIRepositoryApproval) SetGitlabExtra(extra *GitlabApprovalExtra) error 
 type CIRepositoryBuild struct {
 	common.Basic
 
+	Name         string        `gorm:"varchar(128);not null;"`
+	Description  string        `gorm:"longtext;not null;"`
 	ExecType     int           `gorm:"tinyint;not null;"`
 	Extra        string        `gorm:"longtext;"`
 	Active       int           `gorm:"tinyint;not null;"`
 	BuildCommand string        `gorm:"longtext;not null;"`
 	ProductPath  string        `gorm:"longtext;not null;"`
 	Branch       string        `gorm:"varchar(255);not null;"`
-	Repository   *CIRepository `gorm:"foreignkey:RepositionID;not null;"`
+	Repository   *CIRepository `gorm:"foreignkey:RepositoryID;not null;"`
 
-	RepositionID int
+	RepositoryID int
 }
 
 const (

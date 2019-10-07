@@ -1,13 +1,19 @@
 package scm
 
 import (
+	"bytes"
+	"errors"
+	"net/http"
+	"strconv"
+
 	acommon "git.stuhome.com/Sunmxt/wing/api/common"
 	"git.stuhome.com/Sunmxt/wing/common"
 	"git.stuhome.com/Sunmxt/wing/controller/cicd"
 	"git.stuhome.com/Sunmxt/wing/model/scm"
+	"git.stuhome.com/Sunmxt/wing/model/scm/gitlab"
 	"github.com/gin-gonic/gin"
 	"github.com/jinzhu/gorm"
-	"net/http"
+	"gopkg.in/yaml.v2"
 )
 
 type EnableRepositoryCICDRequest struct {
@@ -76,8 +82,8 @@ func EnableRepositoryCICD(ctx *gin.Context) {
 }
 
 type DisableRepositoryCICDRequest struct {
-	PlatformID   uint   `form:"platform_id" binding:"required"`
-	RepositoryID string `form:"repository_id" binding:"required"`
+	PlatformID   uint `form:"platform_id" binding:"required"`
+	RepositoryID uint `form:"repository_id" binding:"required"`
 }
 
 func (r *DisableRepositoryCICDRequest) Clean(rctx *acommon.RequestContext) error {
@@ -90,6 +96,26 @@ func DisableRepositoryCICD(ctx *gin.Context) {
 	if db == nil || !rctx.BindOrFail(request) {
 		return
 	}
+	repo := &scm.CIRepository{
+		SCMPlatformID: int(request.PlatformID),
+		Reference:     strconv.FormatUint(uint64(request.RepositoryID), 10),
+		Active:        scm.Active,
+	}
+	err := db.Where(repo).First(&repo).Error
+	if err != nil {
+		if gorm.IsRecordNotFoundError(err) {
+			rctx.AbortCodeWithError(http.StatusNotFound, common.ErrRepositoryNotFound)
+			return
+		}
+		rctx.AbortWithError(err)
+		return
+	}
+	repo.Active = scm.Inactive
+	if err = db.Save(repo).Error; err != nil {
+		rctx.AbortWithError(err)
+		return
+	}
+	rctx.Succeed()
 }
 
 type GetCICDApprovalDetailRequest struct {
@@ -257,13 +283,145 @@ func GetCICDApprovalDetail(ctx *gin.Context) {
 	rctx.Succeed()
 }
 
-func CreateBuild(ctx *gin.Context) {
+type CreateBuildRequest struct {
+	Branch       string `form:"branch" binding:"required"`
+	PlatformID   uint   `form:"platform_id" binding:"required"`
+	RepositoryID uint   `form:"repository_id" binding:"required"`
+	Command      string `form:"command" binding:"required"`
+	ProductPath  string `form:"product_path" binding:"required"`
+	Name         string `form:"name" binding:"required"`
+	Description  string `form:"description"`
 }
 
-func GetJobScript(ctx *gin.Context) {
-	return
+func (r *CreateBuildRequest) Clean(rctx *acommon.RequestContext) error {
+	if r.Name == "" {
+		return errors.New("name should not be empty.")
+	}
+	if r.Command == "" {
+		return errors.New("command should not be empty")
+	}
+	if r.ProductPath == "" {
+		return errors.New("product path should not be empty")
+	}
+	if r.Branch == "" {
+		r.Branch = "master"
+	}
+	return nil
+}
+
+func CreateBuild(ctx *gin.Context) {
+	rctx, request := acommon.NewRequestContext(ctx), &CreateBuildRequest{}
+	db := rctx.DatabaseOrFail()
+	if db == nil || !rctx.BindOrFail(request) {
+		return
+	}
+	tx := db.Begin()
+	repo := &scm.CIRepository{
+		SCMPlatformID: int(request.PlatformID),
+		Reference:     strconv.FormatUint(uint64(request.RepositoryID), 10),
+		Active:        scm.Active,
+	}
+	err := tx.Where(repo).First(repo).Select("id").Error
+	if err != nil {
+		if gorm.IsRecordNotFoundError(err) {
+			rctx.AbortWithError(common.ErrRepositoryNotFound)
+			return
+		}
+		rctx.AbortWithError(err)
+		return
+	}
+	build := &scm.CIRepositoryBuild{
+		Name:         request.Name,
+		Description:  request.Description,
+		ExecType:     scm.GitlabCIBuild, // gitlab ci only now.
+		Active:       scm.Active,
+		BuildCommand: request.Command,
+		ProductPath:  request.ProductPath,
+		Branch:       request.Branch,
+		RepositoryID: repo.Basic.ID,
+	}
+	if err = tx.Save(build).Error; err != nil {
+		rctx.AbortWithError(err)
+		return
+	}
+	if err = tx.Commit().Error; err != nil {
+		rctx.AbortWithError(err)
+		return
+	}
+	rctx.Succeed()
 }
 
 func GetGitlabCIIncludingJobs(ctx *gin.Context) {
-	return
+	rctx := acommon.NewRequestContext(ctx)
+	rawRepositoryID := ctx.Param("id")
+	db := rctx.DatabaseOrFail()
+	if db == nil {
+		return
+	}
+	repositoryID, err := strconv.ParseUint(rawRepositoryID, 10, 64)
+	if err != nil {
+		rctx.AbortCodeWithError(http.StatusBadRequest, err)
+		return
+	}
+	repo := &scm.CIRepository{}
+	if err = db.Where("id = (?) and active = (?)", repositoryID, scm.Active).First(repo).Error; err != nil {
+		if gorm.IsRecordNotFoundError(err) {
+			rctx.AbortCodeWithError(http.StatusNotFound, common.ErrRepositoryNotFound)
+			return
+		}
+		rctx.AbortWithError(err)
+		return
+	}
+	var jobs map[string]*gitlab.CIJob
+	if jobs, err = cicd.GenerateGitlabCIJobsForRepository(&rctx.OpCtx, uint(repositoryID)); err != nil {
+		rctx.AbortWithError(err)
+		return
+	}
+	buf := &bytes.Buffer{}
+	if err = yaml.NewEncoder(buf).Encode(jobs); err != nil {
+		rctx.AbortWithError(err)
+		return
+	}
+	ctx.Writer.Write(buf.Bytes())
+	ctx.Writer.WriteHeader(http.StatusOK)
+}
+
+func GetCIJob(ctx *gin.Context) {
+	rctx := acommon.NewRequestContext(ctx)
+	rawBuildID := ctx.Param("id")
+	db := rctx.DatabaseOrFail()
+	if db == nil {
+		return
+	}
+	buildID, err := strconv.ParseUint(rawBuildID, 10, 64)
+	if err != nil {
+		rctx.AbortCodeWithError(http.StatusBadRequest, err)
+		return
+	}
+	// verify permission.
+	token := ctx.Request.Header.Get("Wing-Auth-Token")
+	if token == "" {
+		rctx.FailCodeWithMessage(http.StatusForbidden, common.ErrUnauthenticated.Error())
+		return
+	}
+	build := &scm.CIRepositoryBuild{}
+	if err = db.Where("id = (?)", buildID).Preload("Repository").First(build).Error; err != nil {
+		if gorm.IsRecordNotFoundError(err) {
+			rctx.FailCodeWithMessage(http.StatusForbidden, common.ErrUnauthenticated.Error())
+			return
+		}
+		rctx.AbortWithError(err)
+		return
+	}
+	if build.Repository.AccessToken != token {
+		rctx.FailCodeWithMessage(http.StatusForbidden, common.ErrUnauthenticated.Error())
+		return
+	}
+	buf := &bytes.Buffer{}
+	if err = cicd.GenerateScriptForBuild(&rctx.OpCtx, buf, build); err != nil {
+		rctx.AbortWithError(err)
+		return
+	}
+	ctx.Writer.Write(buf.Bytes())
+	ctx.Writer.WriteHeader(http.StatusOK)
 }

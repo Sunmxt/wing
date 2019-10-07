@@ -96,7 +96,7 @@ func (p *GitlabDynamicJob) Patch(cfg *gitlab.CIConfiguration) (bool, error) {
 		}
 	}
 	if updated {
-		cfg.AppendRemoteInclude(p.JobURL)
+		cfg.AppendOneLineInclude(p.JobURL)
 	}
 	return updated, nil
 }

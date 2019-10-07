@@ -124,7 +124,7 @@ func (c *CIConfiguration) Encode(w io.Writer) (err error) {
 	return yaml.NewEncoder(w).Encode(compact)
 }
 
-func (c *CIConfiguration) AppendOnLineInclude(line string) {
+func (c *CIConfiguration) AppendOneLineInclude(line string) {
 	if c.Include.OneLine == nil {
 		c.Include.OneLine = make([]string, 0, 1)
 	}
@@ -170,7 +170,7 @@ func (c *CIConfiguration) decodeInclude(strict bool) (err error) {
 	for _, rawInc := range c.RawInclude {
 		switch v := rawInc.(type) {
 		case string:
-			c.AppendOnLineInclude(v)
+			c.AppendOneLineInclude(v)
 		case map[interface{}]interface{}:
 			for rawIncType, rawIncValue := range v {
 				incType, ok := rawIncType.(string)
