@@ -425,3 +425,76 @@ func GetCIJob(ctx *gin.Context) {
 	ctx.Writer.Write(buf.Bytes())
 	ctx.Writer.WriteHeader(http.StatusOK)
 }
+
+type ReportBuildResultRequest struct {
+	Type uint `form:"type" binding:"required"`
+	Reason string `form:"reason"`
+	Succeed bool `form:"succeed"`
+	Namespace string `form:"namespace" binding:"required"`
+	Environment string `form:"environment" binding:"required"`
+	Tag string `form:"tag" binding:"required"`
+	CommitHash string `form:"commit_hash" binding:"required"`
+}
+
+func (r *ReportBuildResultRequest) Clean(rctx *acommon.RequestContext) error {
+	return nil
+}
+
+const (
+	StartPackageReport = 1
+	FinishPackageReport = 2
+)
+
+func ReportBuildResult(ctx *gin.Context) {
+	rctx, request := acommon.NewRequestContext(ctx), &ReportBuildResultRequest{}
+	rawBuildID := ctx.Param("id")
+	db := rctx.DatabaseOrFail()
+	if db == nil || !rctx.BindOrFail(request) {
+		return
+	}
+	token := ctx.Request.Header.Get("Wing-Auth-Token")
+	if token == "" {
+		rctx.FailCodeWithMessage(http.StatusForbidden, common.ErrUnauthenticated.Error())
+		return
+	}
+	buildID, err := strconv.ParseUint(rawBuildID, 10, 64)
+	if err != nil {
+		rctx.AbortCodeWithError(http.StatusBadRequest, err)
+		return
+	}
+	build := &scm.CIRepositoryBuild{}
+	if err = db.Where("id = (?)", buildID).Preload("Repository").First(build).Error; err != nil {
+		if gorm.IsRecordNotFoundError(err) {
+			rctx.FailCodeWithMessage(http.StatusForbidden, common.ErrUnauthenticated.Error())
+			return
+		}
+		rctx.AbortWithError(err)
+		return
+	}
+	if build.Repository.AccessToken != token {
+		rctx.FailCodeWithMessage(http.StatusForbidden, common.ErrUnauthenticated.Error())
+		return
+	}
+	switch request.Type {
+	case StartPackageReport:
+		if _, _, err = scm.LogBuildPackage(db, scm.CILogPackageStart, build.Basic.ID, request.Reason, request.Namespace,
+			 request.Environment, request.Tag, request.CommitHash); err != nil {
+			rctx.AbortWithError(err)
+			return
+		}
+	case FinishPackageReport:
+		logType := scm.CILogPackageSucceed
+		if !request.Succeed {
+			logType = scm.CILogPackageFailure
+		}
+		if _, _, err = scm.LogBuildPackage(db, logType, build.Basic.ID, request.Reason, request.Namespace,
+			 request.Environment, request.Tag, request.CommitHash); err != nil {
+			rctx.AbortWithError(err)
+			return
+		}
+	default:
+		rctx.FailCodeWithMessage(http.StatusBadRequest, "invalid report type.")
+		return
+	}
+	rctx.Succeed()
+}

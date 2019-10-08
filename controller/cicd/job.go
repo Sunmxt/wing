@@ -34,10 +34,13 @@ func GenerateGitlabCIJobsForRepository(ctx *ccommon.OperationContext, repository
 	for _, build := range builds {
 		name := "wing-dynamic-build-" + common.GenerateRandomToken()
 		externalURL.Path = "api/scm/builds/" + strconv.FormatInt(int64(build.Basic.ID), 10) + "/job"
+		jobURL := externalURL.String()
+		externalURL.Path = "api/scm/builds/" + strconv.FormatInt(int64(build.Basic.ID), 10) + "/result/report"
+		reportURL := externalURL.String()
 		job := &gitlab.CIJob{
 			Stage: "build",
 			Script: []string{
-				"ci_build wing '" + externalURL.String() + "'",
+				"ci_build wing-gitlab '" + jobURL + "' '" + reportURL + "' '" + build.ProductPath + "'",
 			},
 		}
 		jobs[name] = job
@@ -52,15 +55,6 @@ func GenerateScriptForBuild(ctx *ccommon.OperationContext, w io.Writer, build *s
 	return nil
 }
 
-//type RuntimeEnvironmentParameter struct {
-//}
-//
-//type ProductIdentifier struct {
-//	Namespace string
-//	Environment string
-//	Tag string
-//}
-//
 //type JobScriptDockerRuntimeImageBuild struct {
 //	ID RuntimeImageIdentifier
 //}

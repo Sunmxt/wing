@@ -48,6 +48,7 @@ func RegisterAPI(engine *gin.Engine) error {
 	//engine.GET("/api/scm/repository/builds/delete", SCMDeleteBuild)
 	engine.GET("/api/scm/builds/:id/jobs.yml", scm.GetGitlabCIIncludingJobs)
 	engine.GET("/api/scm/builds/:id/job", scm.GetCIJob)
+	engine.POST("/api/scm/builds/:id/result/report", scm.ReportBuildResult)
 
 	engine.NoRoute(ServeDefault)
 

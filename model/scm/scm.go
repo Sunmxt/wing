@@ -151,9 +151,20 @@ type CIRepositoryLogApprovalStageChangedExtra struct {
 	ApprovalID int `json:"approval_id"`
 }
 
+type CIRepositoryLogBuildPackageExtra struct {
+	Namespace string `json:"namespace"`
+	Environment string `json:"environment"`
+	Tag string `json:"tag"`
+	Reason string `json:"reason"`
+	BuildID int `json:"build_id"`
+	CommitHash string `json:"commit_hash"`
+}
+
 const (
 	CILogApprovalStageChanged               = 1
-	CILogRuntimeProductPackageImageUploaded = 2
+	CILogPackageStart = 2
+	CILogPackageFailure = 3
+	CILogPackageSucceed = 4
 )
 
 func (l *CIRepositoryLog) EncodeExtra(extra interface{}) error {
@@ -237,6 +248,12 @@ type CIRepositoryBuild struct {
 	Repository   *CIRepository `gorm:"foreignkey:RepositoryID;not null;"`
 
 	RepositoryID int
+}
+
+type ProductIdentifier struct {
+	Namespace string
+	Environment string
+	Tag string
 }
 
 const (

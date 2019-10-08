@@ -1,6 +1,7 @@
 sar_import lib.sh
 sar_import builder/common.sh
 sar_import settings/image.sh
+sar_import settings/wing.sh
 sar_import docker_utils.sh
 
 enable_dockercli_experimentals
@@ -272,6 +273,66 @@ RUN set -xe;\
     
 }
 
+_ci_wing_report() {
+    local report_url="$1"
+    local token="$2"
+    local params="$3"
+    local saved=wing-report-`hash_for_key "$report_url $token $params"`
+    if ! curl -X POST -L -H "Wing-Auth-Token: $token" "$report_url" -d "$params" > "$saved"; then
+        return 1
+    fi
+    test `jq '.success' "$saved"` = "true"
+}
+
+_ci_wing_gitlab_package_build() {
+    local remote_build_script="$1"
+    local report_url="$2"
+    local product_path="$3"
+    if [ -z "$WING_CI_TOKEN" ]; then
+        logerror wing auth token is empty.
+        return 1
+    fi
+
+    # build
+    local build_script=wing-build-`hash_for_key "$remote_build_script"`.sh
+    loginfo fetching build script from wing platform...
+    if ! curl -L -H "Wing-Auth-Token: $WING_CI_TOKEN" "$remote_build_script" > "$build_script"; then
+        logerror fetch build script failure.
+        return 1
+    fi
+    chmod a+x "$build_script"
+    loginfo "save to: $build_script"
+
+    # Sync state to wing server
+    if ! _ci_wing_report "$report_url" "$WING_CI_TOKEN" "type=$WING_REPORT_TYPE_START_BUILD_PACKAGE&succeed=true&namespace=$CI_REGISTRY_IMAGE&environment=$CI_COMMIT_REF_NAME&commit_hash=$CI_COMMIT_SHA&tag=$CI_COMMIT_SHORT_SHA"; then
+        logerror cannot talk to wing server.
+        return 1
+    fi
+
+    # start build
+    if ! "./$build_script"; then
+        logerror build failure.
+        if ! _ci_wing_report "$report_url" "$WING_CI_TOKEN" "reason=SCM.BuildProductFailure&type=$WING_REPORT_TYPE_FINISH_BUILD_PACKAGE&namespace=$CI_REGISTRY_IMAGE&environment=$CI_COMMIT_REF_NAME&commit_hash=$CI_COMMIT_SHA&tag=$CI_COMMIT_SHORT_SHA"; then
+            logerror cannot talk to wing server.
+        fi
+        return 1
+    fi
+    # upload product.
+    if ! ci_build gitlab-package -e $CI_COMMIT_REF_NAME "$product_path"; then
+        logerror upload product failure.
+        if ! _ci_wing_report "$report_url" "$WING_CI_TOKEN" "reason=SCM.UploadProductFailure&type=$WING_REPORT_TYPE_FINISH_BUILD_PACKAGE&namespace=$CI_REGISTRY_IMAGE&environment=$CI_COMMIT_REF_NAME&commit_hash=$CI_COMMIT_SHA&tag=$CI_COMMIT_SHORT_SHA"; then
+            logerror cannot talk to wing server.
+        fi
+        return 1
+    fi
+
+    # sync success.
+    if ! _ci_wing_report "$report_url" "$WING_CI_TOKEN" "type=$WING_REPORT_TYPE_FINISH_BUILD_PACKAGE&succeed=true&namespace=$CI_REGISTRY_IMAGE&environment=$CI_COMMIT_REF_NAME&commit_hash=$CI_COMMIT_SHA&tag=$CI_COMMIT_SHORT_SHA"; then
+        logerror cannot talk to wing server.
+        return 1
+    fi
+}
+
 _ci_build_package() {
     OPTIND=0
     while getopts 't:e:r:sf' opt; do
@@ -421,6 +482,10 @@ ci_build() {
             ;;
         gitlab-package)
             _ci_gitlab_package_build $*
+            return $?
+            ;;
+        wing-gitlab)
+            _ci_wing_gitlab_package_build $*
             return $?
             ;;
         *)

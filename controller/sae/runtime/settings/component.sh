@@ -1,6 +1,6 @@
 COMPONENTS=(
     "lib.sh" "runtime.sh" "docker_utils.sh" "log.sh" "utils.sh"
-    'settings/component.sh' 'settings/image.sh' 'settings/install.sh'
+    'settings/component.sh' 'settings/image.sh' 'settings/install.sh' 'settings/wing.sh'
     'builder/ci.sh' 'builder/common.sh' 'builder/runtime_image.sh' 'builder/validate.sh'
     'pycmd'
     'libexec/yq_darwin_amd64' 'libexec/yq_linux_amd64'
