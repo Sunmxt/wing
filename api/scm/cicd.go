@@ -283,6 +283,98 @@ func GetCICDApprovalDetail(ctx *gin.Context) {
 	rctx.Succeed()
 }
 
+type ListBuildRequest struct {
+	PlatformID   int `form:"platform_id"`
+	RepositoryID int `form:"repository_id"`
+	Page         int `form:"page"`
+	Limit        int `form:"limit"`
+}
+
+func (r *ListBuildRequest) Clean(rctx *acommon.RequestContext) error {
+	if r.Page < 1 {
+		r.Page = 1
+	}
+	if r.Limit < 1 {
+		r.Limit = 10
+	}
+	return nil
+}
+
+type ListBuildResponseEntry struct {
+	Name         string `json:"name"`
+	Description  string `json:"description"`
+	Command      string `json:"command"`
+	Branch       string `json:"branch"`
+	BuildID      int    `json:"build_id"`
+	PlatformID   int    `json:"platform_id"`
+	RepositoryID int    `json:"repository_id"`
+}
+
+type ListBuildResponse struct {
+	Page      int                      `json:"page"`
+	Limit     int                      `json:"limit"`
+	TotalPage int                      `json:"total_page"`
+	Builds    []ListBuildResponseEntry `json:"builds"`
+}
+
+func ListBuilds(ctx *gin.Context) {
+	rctx, request, response := acommon.NewRequestContext(ctx), &ListBuildRequest{}, &ListBuildResponse{}
+	db := rctx.DatabaseOrFail()
+	if db == nil || !rctx.BindOrFail(request) || !rctx.LoginEnsured(true) {
+		return
+	}
+	builds := []*scm.CIRepositoryBuild{}
+	q := db.Where("ci_repository_builds.active in (?)", []int{scm.Active, scm.Disabled}).Order("modify_time desc").Preload("Repository")
+	if request.PlatformID < 1 {
+		if request.RepositoryID > 0 {
+			q = q.Where("repository_id in (?)", request.RepositoryID)
+		}
+	} else {
+		repoIDs := []int(nil)
+		q = q.Table("ci_repository_builds")
+		qSCM := db.Table("ci_repository").Where("scm_platform_id = (?)", request.PlatformID)
+		if request.RepositoryID > 0 {
+			qSCM = qSCM.Where("reference = (?)", strconv.FormatInt(int64(request.RepositoryID), 10))
+		}
+		if err := qSCM.Pluck("distinct id", &repoIDs).Error; err != nil && gorm.IsRecordNotFoundError(err) {
+			rctx.AbortWithError(err)
+			return
+		}
+		if len(repoIDs) < 0 { // No matched.
+			response.Builds = make([]ListBuildResponseEntry, 0)
+			rctx.Succeed()
+			return
+		}
+		q = q.Where("repository_id in (?)", repoIDs)
+	}
+	totalCount := 0
+	if err := q.Count(&totalCount).Error; err != nil {
+		rctx.AbortWithError(err)
+		return
+	}
+	q = q.Offset((request.Page - 1) * request.Limit).Limit(request.Limit)
+	if err := q.Find(&builds).Error; err != nil && !gorm.IsRecordNotFoundError(err) {
+		rctx.AbortWithError(err)
+		return
+	}
+	response.Builds = make([]ListBuildResponseEntry, len(builds))
+	for idx, build := range builds {
+		ref := &response.Builds[idx]
+		ref.Name = build.Name
+		ref.Description = build.Description
+		ref.Command = build.BuildCommand
+		ref.Branch = build.Branch
+		ref.BuildID = build.Basic.ID
+		ref.PlatformID = build.Repository.SCMPlatformID
+		ref.RepositoryID = build.Repository.Basic.ID
+	}
+	response.Page = request.Page
+	response.Limit = request.Limit
+	response.TotalPage = (totalCount / request.Limit) + 1
+	rctx.Response.Data = response
+	rctx.Succeed()
+}
+
 type CreateBuildRequest struct {
 	Branch       string `form:"branch" binding:"required"`
 	PlatformID   uint   `form:"platform_id" binding:"required"`
@@ -352,12 +444,12 @@ func CreateBuild(ctx *gin.Context) {
 }
 
 type EditBuildRequest struct {
-	BuildID int `form:"build_id" binding:"required"`
-	Command      string `form:"command"`
-	ProductPath  string `form:"product_path"`
-	Name         string `form:"name"`
-	Description  string `form:"description"`
-	Branch       string `form:"branch"`
+	BuildID     int    `form:"build_id" binding:"required"`
+	Command     string `form:"command"`
+	ProductPath string `form:"product_path"`
+	Name        string `form:"name"`
+	Description string `form:"description"`
+	Branch      string `form:"branch"`
 }
 
 func (r *EditBuildRequest) Clean(rctx *acommon.RequestContext) error {
@@ -443,7 +535,6 @@ func DisableBuild(ctx *gin.Context) {
 	}
 	rctx.Succeed()
 }
-
 
 type EnableBuildRequest struct {
 	BuildID int `form:"build_id" binding:"required"`
@@ -591,13 +682,13 @@ func GetCIJob(ctx *gin.Context) {
 }
 
 type ReportBuildResultRequest struct {
-	Type uint `form:"type" binding:"required"`
-	Reason string `form:"reason"`
-	Succeed bool `form:"succeed"`
-	Namespace string `form:"namespace" binding:"required"`
+	Type        uint   `form:"type" binding:"required"`
+	Reason      string `form:"reason"`
+	Succeed     bool   `form:"succeed"`
+	Namespace   string `form:"namespace" binding:"required"`
 	Environment string `form:"environment" binding:"required"`
-	Tag string `form:"tag" binding:"required"`
-	CommitHash string `form:"commit_hash" binding:"required"`
+	Tag         string `form:"tag" binding:"required"`
+	CommitHash  string `form:"commit_hash" binding:"required"`
 }
 
 func (r *ReportBuildResultRequest) Clean(rctx *acommon.RequestContext) error {
@@ -605,7 +696,7 @@ func (r *ReportBuildResultRequest) Clean(rctx *acommon.RequestContext) error {
 }
 
 const (
-	StartPackageReport = 1
+	StartPackageReport  = 1
 	FinishPackageReport = 2
 )
 
@@ -642,7 +733,7 @@ func ReportBuildResult(ctx *gin.Context) {
 	switch request.Type {
 	case StartPackageReport:
 		if _, _, err = scm.LogBuildPackage(db, scm.CILogPackageStart, build.Basic.ID, request.Reason, request.Namespace,
-			 request.Environment, request.Tag, request.CommitHash); err != nil {
+			request.Environment, request.Tag, request.CommitHash); err != nil {
 			rctx.AbortWithError(err)
 			return
 		}
@@ -652,7 +743,7 @@ func ReportBuildResult(ctx *gin.Context) {
 			logType = scm.CILogPackageFailure
 		}
 		if _, _, err = scm.LogBuildPackage(db, logType, build.Basic.ID, request.Reason, request.Namespace,
-			 request.Environment, request.Tag, request.CommitHash); err != nil {
+			request.Environment, request.Tag, request.CommitHash); err != nil {
 			rctx.AbortWithError(err)
 			return
 		}
@@ -662,3 +753,5 @@ func ReportBuildResult(ctx *gin.Context) {
 	}
 	rctx.Succeed()
 }
+
+func ListProduct(ctx *gin.Context) {}

@@ -34,7 +34,9 @@ func Migrate(db *gorm.DB, cfg *config.WingConfiguration) (err error) {
 	if db.Error != nil {
 		return db.Error
 	}
-	db.AutoMigrate(&CIRepository{}).AddIndex("idx_reference", "reference")
+	db.AutoMigrate(&CIRepository{}).
+		AddIndex("idx_reference", "reference").
+		AddIndex("idx_scm_platform", "scm_platform_id")
 	if db.Error != nil {
 		return db.Error
 	}
@@ -153,19 +155,19 @@ type CIRepositoryLogApprovalStageChangedExtra struct {
 }
 
 type CIRepositoryLogBuildPackageExtra struct {
-	Namespace string `json:"namespace"`
+	Namespace   string `json:"namespace"`
 	Environment string `json:"environment"`
-	Tag string `json:"tag"`
-	Reason string `json:"reason"`
-	BuildID int `json:"build_id"`
-	CommitHash string `json:"commit_hash"`
+	Tag         string `json:"tag"`
+	Reason      string `json:"reason"`
+	BuildID     int    `json:"build_id"`
+	CommitHash  string `json:"commit_hash"`
 }
 
 const (
-	CILogApprovalStageChanged               = 1
-	CILogPackageStart = 2
-	CILogPackageFailure = 3
-	CILogPackageSucceed = 4
+	CILogApprovalStageChanged = 1
+	CILogPackageStart         = 2
+	CILogPackageFailure       = 3
+	CILogPackageSucceed       = 4
 )
 
 func (l *CIRepositoryLog) EncodeExtra(extra interface{}) error {
@@ -252,9 +254,9 @@ type CIRepositoryBuild struct {
 }
 
 type ProductIdentifier struct {
-	Namespace string
+	Namespace   string
 	Environment string
-	Tag string
+	Tag         string
 }
 
 const (

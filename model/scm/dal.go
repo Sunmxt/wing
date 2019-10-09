@@ -58,16 +58,16 @@ func ReferenceLogBuildPackage(stateType, buildID int, commitHash string) string 
 
 func LogBuildPackage(db *gorm.DB, stateType int, buildID int, reason, namespace, environment, tag, commitHash string) (*CIRepositoryLog, *CIRepositoryLogBuildPackageExtra, error) {
 	log := &CIRepositoryLog{
-		Type: stateType,
+		Type:      stateType,
 		Reference: ReferenceLogBuildPackage(stateType, buildID, commitHash),
 	}
 	extra := &CIRepositoryLogBuildPackageExtra{
-		Namespace: namespace,
+		Namespace:   namespace,
 		Environment: environment,
-		Tag: tag,
-		Reason: reason,
-		BuildID: buildID,
-		CommitHash: commitHash,
+		Tag:         tag,
+		Reason:      reason,
+		BuildID:     buildID,
+		CommitHash:  commitHash,
 	}
 	if err := log.EncodeExtra(extra); err != nil {
 		return nil, nil, err
