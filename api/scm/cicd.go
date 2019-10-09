@@ -351,6 +351,170 @@ func CreateBuild(ctx *gin.Context) {
 	rctx.Succeed()
 }
 
+type EditBuildRequest struct {
+	BuildID int `form:"build_id" binding:"required"`
+	Command      string `form:"command"`
+	ProductPath  string `form:"product_path"`
+	Name         string `form:"name"`
+	Description  string `form:"description"`
+	Branch       string `form:"branch"`
+}
+
+func (r *EditBuildRequest) Clean(rctx *acommon.RequestContext) error {
+	return nil
+}
+
+func authAndFetchBuild(db *gorm.DB, buildID, userID int) (*scm.CIRepositoryBuild, error) {
+	build := &scm.CIRepositoryBuild{}
+	if err := build.ByID(db.Preload("Repository").Where("active in (?)", []int{scm.Active, scm.Disabled}), buildID); err != nil {
+		return nil, err
+	}
+	if build.Basic.ID < 1 {
+		return nil, common.ErrBuildNotFound
+	}
+	if userID != build.Repository.OwnerID {
+		return nil, common.ErrUnauthenticated
+	}
+	return build, nil
+}
+
+func EditBuild(ctx *gin.Context) {
+	rctx, request := acommon.NewRequestContext(ctx), &EditBuildRequest{}
+	db := rctx.DatabaseOrFail()
+	if db == nil || !rctx.BindOrFail(request) || !rctx.LoginEnsured(true) {
+		return
+	}
+	tx, user := db.Begin(), rctx.GetAccount()
+	build, err := authAndFetchBuild(tx, request.BuildID, user.Basic.ID)
+	if err != nil {
+		tx.Rollback()
+		rctx.AbortWithError(err)
+		return
+	}
+	build.BuildCommand = request.Command
+	build.ProductPath = request.ProductPath
+	build.Branch = request.Branch
+	build.Name = request.Name
+	build.Description = request.Description
+	if err = tx.Save(build).Error; err != nil {
+		tx.Rollback()
+		rctx.AbortWithError(err)
+		return
+	}
+	if err = tx.Commit().Error; err != nil {
+		tx.Rollback()
+		rctx.AbortWithError(err)
+		return
+	}
+	rctx.Succeed()
+}
+
+type DisableBuildRequest struct {
+	BuildID int `form:"build_id" binding:"required"`
+}
+
+func (r *DisableBuildRequest) Clean(rctx *acommon.RequestContext) error {
+	return nil
+}
+
+func DisableBuild(ctx *gin.Context) {
+	rctx, request := acommon.NewRequestContext(ctx), &DisableBuildRequest{}
+	db := rctx.DatabaseOrFail()
+	if db == nil || !rctx.BindOrFail(request) {
+		return
+	}
+	tx, user := db.Begin(), rctx.GetAccount()
+	build, err := authAndFetchBuild(tx, request.BuildID, user.Basic.ID)
+	if err != nil {
+		tx.Rollback()
+		rctx.AbortWithError(err)
+		return
+	}
+	build.Active = scm.Disabled
+	if err = tx.Save(build).Error; err != nil {
+		tx.Rollback()
+		rctx.AbortWithError(err)
+		return
+	}
+	if err = tx.Commit().Error; err != nil {
+		tx.Rollback()
+		rctx.AbortWithError(err)
+		return
+	}
+	rctx.Succeed()
+}
+
+
+type EnableBuildRequest struct {
+	BuildID int `form:"build_id" binding:"required"`
+}
+
+func (r *EnableBuildRequest) Clean(rctx *acommon.RequestContext) error {
+	return nil
+}
+
+func EnableBuild(ctx *gin.Context) {
+	rctx, request := acommon.NewRequestContext(ctx), &DisableBuildRequest{}
+	db := rctx.DatabaseOrFail()
+	if db == nil || !rctx.BindOrFail(request) {
+		return
+	}
+	tx, user := db.Begin(), rctx.GetAccount()
+	build, err := authAndFetchBuild(tx, request.BuildID, user.Basic.ID)
+	if err != nil {
+		tx.Rollback()
+		rctx.AbortWithError(err)
+		return
+	}
+	build.Active = scm.Active
+	if err = tx.Save(build).Error; err != nil {
+		tx.Rollback()
+		rctx.AbortWithError(err)
+		return
+	}
+	if err = tx.Commit().Error; err != nil {
+		tx.Rollback()
+		rctx.AbortWithError(err)
+		return
+	}
+	rctx.Succeed()
+}
+
+type DeleteBuildRequest struct {
+	BuildID int `form:"build_id" binding:"required"`
+}
+
+func (r *DeleteBuildRequest) Clean(rctx *acommon.RequestContext) error {
+	return nil
+}
+
+func DeleteBuild(ctx *gin.Context) {
+	rctx, request := acommon.NewRequestContext(ctx), &DisableBuildRequest{}
+	db := rctx.DatabaseOrFail()
+	if db == nil || !rctx.BindOrFail(request) {
+		return
+	}
+	tx, user := db.Begin(), rctx.GetAccount()
+	build, err := authAndFetchBuild(tx, request.BuildID, user.Basic.ID)
+	if err != nil {
+		tx.Rollback()
+		rctx.AbortWithError(err)
+		return
+	}
+	build.Active = scm.Inactive
+	if err = tx.Save(build).Error; err != nil {
+		tx.Rollback()
+		rctx.AbortWithError(err)
+		return
+	}
+	if err = tx.Commit().Error; err != nil {
+		tx.Rollback()
+		rctx.AbortWithError(err)
+		return
+	}
+	rctx.Succeed()
+}
+
 func GetGitlabCIIncludingJobs(ctx *gin.Context) {
 	rctx := acommon.NewRequestContext(ctx)
 	rawRepositoryID := ctx.Param("id")

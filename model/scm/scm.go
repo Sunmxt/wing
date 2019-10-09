@@ -18,6 +18,7 @@ const (
 
 	Active   = 1
 	Inactive = 0
+	Disabled = 2
 
 	Shell       = 1
 	ShellDocker = 2

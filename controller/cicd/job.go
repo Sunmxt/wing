@@ -11,6 +11,7 @@ import (
 	"io"
 	"net/url"
 	"strconv"
+	"strings"
 )
 
 func GenerateGitlabCIJobsForRepository(ctx *ccommon.OperationContext, repositoryID uint) (map[string]*gitlab.CIJob, error) {
@@ -42,6 +43,7 @@ func GenerateGitlabCIJobsForRepository(ctx *ccommon.OperationContext, repository
 			Script: []string{
 				"ci_build wing-gitlab '" + jobURL + "' '" + reportURL + "' '" + build.ProductPath + "'",
 			},
+			Only: []string{strings.Replace(build.Branch, " ", "", -1)},
 		}
 		jobs[name] = job
 	}

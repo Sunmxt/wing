@@ -21,6 +21,10 @@ func (a *CIRepositoryApproval) ByID(db *gorm.DB, approvalID int) error {
 	return pickByColumn(db, "id", a, approvalID)
 }
 
+func (b *CIRepositoryBuild) ByID(db *gorm.DB, buildID int) error {
+	return pickByColumn(db, "id", b, buildID)
+}
+
 func (a *CIRepositoryApproval) ByReference(db *gorm.DB, reference string) error {
 	return pickByColumn(db, "reference", a, reference)
 }
