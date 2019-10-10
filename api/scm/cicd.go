@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"time"
 
 	acommon "git.stuhome.com/Sunmxt/wing/api/common"
 	"git.stuhome.com/Sunmxt/wing/common"
@@ -311,10 +312,11 @@ type ListBuildResponseEntry struct {
 }
 
 type ListBuildResponse struct {
-	Page      int                      `json:"page"`
-	Limit     int                      `json:"limit"`
-	TotalPage int                      `json:"total_page"`
-	Builds    []ListBuildResponseEntry `json:"builds"`
+	Page       int                      `json:"page"`
+	Limit      int                      `json:"limit"`
+	TotalPage  int                      `json:"total_pages"`
+	TotalCount int                      `json:"total_count"`
+	Builds     []ListBuildResponseEntry `json:"builds"`
 }
 
 func ListBuilds(ctx *gin.Context) {
@@ -323,6 +325,8 @@ func ListBuilds(ctx *gin.Context) {
 	if db == nil || !rctx.BindOrFail(request) || !rctx.LoginEnsured(true) {
 		return
 	}
+	response.Page = request.Page
+	response.Limit = request.Limit
 	builds := []*scm.CIRepositoryBuild{}
 	q := db.Where("ci_repository_builds.active in (?)", []int{scm.Active, scm.Disabled}).Order("modify_time desc").Preload("Repository")
 	if request.PlatformID < 1 {
@@ -342,6 +346,8 @@ func ListBuilds(ctx *gin.Context) {
 		}
 		if len(repoIDs) < 0 { // No matched.
 			response.Builds = make([]ListBuildResponseEntry, 0)
+			response.TotalPage = 0
+			response.TotalCount = 0
 			rctx.Succeed()
 			return
 		}
@@ -352,6 +358,7 @@ func ListBuilds(ctx *gin.Context) {
 		rctx.AbortWithError(err)
 		return
 	}
+	response.TotalCount = totalCount
 	q = q.Offset((request.Page - 1) * request.Limit).Limit(request.Limit)
 	if err := q.Find(&builds).Error; err != nil && !gorm.IsRecordNotFoundError(err) {
 		rctx.AbortWithError(err)
@@ -368,9 +375,7 @@ func ListBuilds(ctx *gin.Context) {
 		ref.PlatformID = build.Repository.SCMPlatformID
 		ref.RepositoryID = build.Repository.Basic.ID
 	}
-	response.Page = request.Page
-	response.Limit = request.Limit
-	response.TotalPage = (totalCount / request.Limit) + 1
+	response.TotalPage = (totalCount / (request.Limit + 1)) + 1
 	rctx.Response.Data = response
 	rctx.Succeed()
 }
@@ -682,13 +687,14 @@ func GetCIJob(ctx *gin.Context) {
 }
 
 type ReportBuildResultRequest struct {
-	Type        uint   `form:"type" binding:"required"`
-	Reason      string `form:"reason"`
-	Succeed     bool   `form:"succeed"`
-	Namespace   string `form:"namespace" binding:"required"`
-	Environment string `form:"environment" binding:"required"`
-	Tag         string `form:"tag" binding:"required"`
-	CommitHash  string `form:"commit_hash" binding:"required"`
+	Type         uint   `form:"type" binding:"required"`
+	Reason       string `form:"reason"`
+	Succeed      bool   `form:"succeed"`
+	Namespace    string `form:"namespace" binding:"required"`
+	Environment  string `form:"environment" binding:"required"`
+	Tag          string `form:"tag" binding:"required"`
+	CommitHash   string `form:"commit_hash" binding:"required"`
+	ProductToken string `form:"product_token" binding:"required"`
 }
 
 func (r *ReportBuildResultRequest) Clean(rctx *acommon.RequestContext) error {
@@ -730,28 +736,166 @@ func ReportBuildResult(ctx *gin.Context) {
 		rctx.FailCodeWithMessage(http.StatusForbidden, common.ErrUnauthenticated.Error())
 		return
 	}
+	var packageLog *scm.CIRepositoryLog
+	product := &scm.CIRepositoryBuildProduct{
+		CommitHash: request.CommitHash,
+		Active:     scm.Active,
+		BuildID:    build.Basic.ID,
+	}
+	tx := db.Begin()
+	defer func() {
+		if rec := recover(); rec != nil || err != nil {
+			tx.Rollback()
+		}
+	}()
+	if err = tx.Where("product_token = (?) and active in (?)", request.ProductToken, []int{scm.Active, scm.Disabled}).
+		Order("create_time desc").Find(product).Error; err != nil && !gorm.IsRecordNotFoundError(err) {
+		rctx.AbortWithError(err)
+		return
+	}
+	if product.Basic.ID < 1 {
+		product.ProductToken = request.ProductToken
+	}
 	switch request.Type {
 	case StartPackageReport:
-		if _, _, err = scm.LogBuildPackage(db, scm.CILogPackageStart, build.Basic.ID, request.Reason, request.Namespace,
+		if packageLog, _, err = scm.LogBuildPackage(tx, scm.CILogPackageStart, build.Basic.ID, request.Reason, request.Namespace,
 			request.Environment, request.Tag, request.CommitHash); err != nil {
 			rctx.AbortWithError(err)
 			return
 		}
+		product.Stage = scm.ProductBuilding
+
 	case FinishPackageReport:
 		logType := scm.CILogPackageSucceed
+		product.Stage = scm.ProductBuildSucceed
 		if !request.Succeed {
 			logType = scm.CILogPackageFailure
+			product.Stage = scm.ProductBuildFailure
 		}
-		if _, _, err = scm.LogBuildPackage(db, logType, build.Basic.ID, request.Reason, request.Namespace,
+		if packageLog, _, err = scm.LogBuildPackage(tx, logType, build.Basic.ID, request.Reason, request.Namespace,
 			request.Environment, request.Tag, request.CommitHash); err != nil {
 			rctx.AbortWithError(err)
 			return
 		}
+
 	default:
 		rctx.FailCodeWithMessage(http.StatusBadRequest, "invalid report type.")
+		tx.Rollback()
+		return
+	}
+	productExtra := scm.BuildProductExtra{
+		Namespace:   request.Namespace,
+		Environment: request.Environment,
+		Tag:         request.Tag,
+		LogID:       packageLog.Basic.ID,
+	}
+	if err = product.EncodeExtra(productExtra); err != nil {
+		rctx.AbortWithError(err)
+		return
+	}
+	if err = tx.Save(product).Error; err != nil {
+		rctx.AbortWithError(err)
+		return
+	}
+	if err = tx.Commit().Error; err != nil {
+		rctx.AbortWithError(err)
 		return
 	}
 	rctx.Succeed()
 }
 
-func ListProduct(ctx *gin.Context) {}
+type ListProductRequest struct {
+	BuildID int  `form:"build_id"`
+	Page    uint `form:"page"`
+	Limit   uint `form:limit`
+}
+
+func (r *ListProductRequest) Clean(rctx *acommon.RequestContext) error {
+	if r.Limit < 1 {
+		r.Limit = 1
+	}
+	if r.Page < 1 {
+		r.Page = 1
+	}
+	return nil
+}
+
+type ListProductResponse struct {
+	Page       uint           `json:"page"`
+	Limit      uint           `json:"limit"`
+	TotalPage  uint           `json:"total_pages"`
+	TotalCount uint           `json:"total_count"`
+	Products   []ProductEntry `json:"products"`
+}
+
+type ProductEntry struct {
+	Namespace   string `json:"namespace"`
+	Environment string `json:"environment"`
+	Tag         string `json:"tag"`
+	UpdateTime  string `json:"update_time"`
+	CommitHash  string `json:"commit_hash"`
+	State       int    `json:"state"`
+	BuildID     int    `json:"build_id"`
+}
+
+const (
+	ProductInProgress = 1
+	ProductInFailure  = 2
+	ProductInSuccess  = 3
+)
+
+func ListProduct(ctx *gin.Context) {
+	rctx, request, response := acommon.NewRequestContext(ctx), &ListProductRequest{}, &ListProductResponse{}
+	db := rctx.DatabaseOrFail()
+	if db == nil || !rctx.BindOrFail(request) || !rctx.LoginEnsured(true) {
+		return
+	}
+	var products []scm.CIRepositoryBuildProduct
+	q := db.Where("active in (?)", []int{scm.Disabled, scm.Active}).Order("create_time desc").
+		Table("ci_repository_build_products")
+	if request.BuildID > 0 {
+		q = q.Where("build_id = (?)", request.BuildID)
+	}
+	totalCount := uint(0)
+	if err := q.Count(&totalCount).Error; err != nil {
+		rctx.AbortWithError(err)
+		return
+	}
+	q = q.Offset((request.Page - 1) * request.Limit).Limit(request.Limit)
+	if err := q.Find(&products).Error; err != nil && gorm.IsRecordNotFoundError(err) {
+		rctx.AbortWithError(err)
+		return
+	}
+	entries := make([]ProductEntry, len(products))
+	for idx, product := range products {
+		entry := &entries[idx]
+		extra := &scm.BuildProductExtra{}
+		if err := product.DecodeExtra(extra); err != nil {
+			rctx.AbortWithError(err)
+			return
+		}
+		entry.Namespace = extra.Namespace
+		entry.Environment = extra.Environment
+		entry.Tag = extra.Tag
+		entry.CommitHash = product.CommitHash
+		entry.BuildID = product.BuildID
+		entry.UpdateTime = product.Basic.ModifyTime.Format(time.RFC3339)
+		switch product.Stage {
+		case scm.ProductBuilding:
+			entry.State = ProductInProgress
+		case scm.ProductBuildSucceed:
+			entry.State = ProductInSuccess
+		case scm.ProductBuildFailure:
+			entry.State = ProductInFailure
+		default:
+			rctx.OpCtx.Log.Warnf("invalid product state: %v for build %v commit %v", product.Stage, product.BuildID, product.CommitHash)
+		}
+	}
+	response.Page = request.Page
+	response.Limit = request.Limit
+	response.TotalCount = totalCount
+	response.TotalPage = (totalCount / (request.Limit + 1)) + 1
+	response.Products = entries
+	rctx.Response.Data = response
+	rctx.Succeed()
+}

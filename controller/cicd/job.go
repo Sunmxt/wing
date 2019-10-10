@@ -33,7 +33,8 @@ func GenerateGitlabCIJobsForRepository(ctx *ccommon.OperationContext, repository
 	}
 	jobs := map[string]*gitlab.CIJob{}
 	for _, build := range builds {
-		name := "wing-dynamic-build-" + common.GenerateRandomToken()
+		token := common.GenerateRandomToken()
+		name := "wing-dynamic-build-" + token
 		externalURL.Path = "api/scm/builds/" + strconv.FormatInt(int64(build.Basic.ID), 10) + "/job"
 		jobURL := externalURL.String()
 		externalURL.Path = "api/scm/builds/" + strconv.FormatInt(int64(build.Basic.ID), 10) + "/result/report"
@@ -41,9 +42,14 @@ func GenerateGitlabCIJobsForRepository(ctx *ccommon.OperationContext, repository
 		job := &gitlab.CIJob{
 			Stage: "build",
 			Script: []string{
-				"ci_build wing-gitlab '" + jobURL + "' '" + reportURL + "' '" + build.ProductPath + "'",
+				"ci_build wing-gitlab '" + build.ProductPath + "'",
 			},
 			Only: []string{strings.Replace(build.Branch, " ", "", -1)},
+			Variables: map[string]interface{}{
+				"WING_PRODUCT_TOKEN": token,
+				"WING_REPORT_URL":    reportURL,
+				"WING_JOB_URL":       jobURL,
+			},
 		}
 		jobs[name] = job
 	}

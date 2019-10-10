@@ -48,6 +48,7 @@ func Migrate(db *gorm.DB, cfg *config.WingConfiguration) (err error) {
 		AddIndex("idx_reference", "reference")
 	db.AutoMigrate(&CIRepositoryBuild{}).
 		AddIndex("idx_repository_id", "repository_id")
+	db.AutoMigrate(&CIRepositoryBuildProduct{}).AddUniqueIndex("idx_build_id_commit", "build_id", "commit_hash")
 
 	if db.Error != nil {
 		return db.Error
@@ -59,12 +60,12 @@ func Migrate(db *gorm.DB, cfg *config.WingConfiguration) (err error) {
 type SCMPlatform struct {
 	common.Basic
 
-	Active      int    `gorm:"tinyint;not null;"`
-	Type        int    `gorm:"tinyint;not null;"`
-	Token       string `gorm:"varchar(128);not null;"`
-	Name        string `gorm:"varchar(128);not null;"`
-	Description string `gorm:"longtext"`
-	Extra       string `gorm:"longtext"`
+	Active      int    `gorm:"type:tinyint;not null;"`
+	Type        int    `gorm:"type:tinyint;not null;"`
+	Token       string `gorm:"type:varchar(128);not null;"`
+	Name        string `gorm:"type:varchar(128);not null;"`
+	Description string `gorm:"type:longtext"`
+	Extra       string `gorm:"type:longtext"`
 }
 
 type GitlabSCMExtra struct {
@@ -115,10 +116,10 @@ type CIRepository struct {
 
 	SCM         *SCMPlatform     `gorm:"foreignkey:SCMPlatformID;not null"`
 	Owner       *account.Account `gorm:"foreignkey:OwnerID;not null"`
-	Reference   string           `gorm:"varchar(128);not null"`
-	Extra       string           `gorm:"longtext; not null"`
-	AccessToken string           `gorm:"varchar(128); not null"`
-	Active      int              `gorm:"tinyint;not null;"`
+	Reference   string           `gorm:"type:varchar(128);not null"`
+	Extra       string           `gorm:"type:longtext;not null"`
+	AccessToken string           `gorm:"type:varchar(128);not null"`
+	Active      int              `gorm:"type:tinyint;not null;"`
 
 	SCMPlatformID int
 	OwnerID       int
@@ -144,8 +145,8 @@ type CIRepositoryLog struct {
 	common.Basic
 
 	Type      int
-	Reference string `gorm:"varchar(255)"`
-	Extra     string `gorm:"longtext"`
+	Reference string `gorm:"type:varchar(255)"`
+	Extra     string `gorm:"type:longtext"`
 }
 
 type CIRepositoryLogApprovalStageChangedExtra struct {
@@ -189,13 +190,13 @@ func (l *CIRepositoryLog) DecodeExtra(extra interface{}) error {
 type CIRepositoryApproval struct {
 	common.Basic
 
-	Type        int              `gorm:"tinyint;not null"`
+	Type        int              `gorm:"type:tinyint;not null"`
 	SCM         *SCMPlatform     `gorm:"foreignkey:SCMPlatformID;not null"`
-	Reference   string           `gorm:"varchar(128);not null"`
+	Reference   string           `gorm:"type:varchar(128);not null"`
 	Owner       *account.Account `gorm:"foreignkey:OwnerID;not null"`
-	Extra       string           `gorm:"longtext"`
-	Stage       int              `gorm:"tinyint;not null"`
-	AccessToken string           `gorm:"varchar(128);"`
+	Extra       string           `gorm:"type:longtext"`
+	Stage       int              `gorm:"type:tinyint;not null"`
+	AccessToken string           `gorm:"type:varchar(128);"`
 
 	SCMPlatformID int
 	OwnerID       int
@@ -240,25 +241,61 @@ func (r *CIRepositoryApproval) SetGitlabExtra(extra *GitlabApprovalExtra) error 
 type CIRepositoryBuild struct {
 	common.Basic
 
-	Name         string        `gorm:"varchar(128);not null;"`
-	Description  string        `gorm:"longtext;not null;"`
-	ExecType     int           `gorm:"tinyint;not null;"`
-	Extra        string        `gorm:"longtext;"`
-	Active       int           `gorm:"tinyint;not null;"`
-	BuildCommand string        `gorm:"longtext;not null;"`
-	ProductPath  string        `gorm:"longtext;not null;"`
-	Branch       string        `gorm:"varchar(255);not null;"`
+	Name         string        `gorm:"type:varchar(128);not null;"`
+	Description  string        `gorm:"type:longtext;not null;"`
+	ExecType     int           `gorm:"type:tinyint;not null;"`
+	Extra        string        `gorm:"type:longtext;"`
+	Active       int           `gorm:"type:tinyint;not null;"`
+	BuildCommand string        `gorm:"type:longtext;not null;"`
+	ProductPath  string        `gorm:"type:longtext;not null;"`
+	Branch       string        `gorm:"type:varchar(255);not null;"`
 	Repository   *CIRepository `gorm:"foreignkey:RepositoryID;not null;"`
 
 	RepositoryID int
 }
 
-type ProductIdentifier struct {
-	Namespace   string
-	Environment string
-	Tag         string
-}
-
 const (
 	GitlabCIBuild = 1
 )
+
+type CIRepositoryBuildProduct struct {
+	common.Basic
+
+	CommitHash   string             `gorm:"type:varchar(128);not null;"`
+	ProductToken string             `gorm:"type:varchar(128);not null;`
+	Extra        string             `gorm:"type:longtext"`
+	Active       int                `gorm:"type:tinyint;not null"`
+	Stage        int                `gorm:"type:tinyint;not null"`
+	Build        *CIRepositoryBuild `gorm:"foreignkey:BuildID;not null"`
+
+	BuildID int
+}
+
+const (
+	ProductBuilding     = 1
+	ProductBuildSucceed = 2
+	ProductBuildFailure = 3
+)
+
+type BuildProductExtra struct {
+	Namespace   string `json:"namespace"`
+	Environment string `json:"environment"`
+	Tag         string `json:"tag"`
+	LogID       int    `json:"log_id"`
+}
+
+func (l *CIRepositoryBuildProduct) EncodeExtra(extra interface{}) error {
+	bin, err := json.Marshal(extra)
+	if err != nil {
+		return err
+	}
+	l.Extra = string(bin)
+	return nil
+}
+
+func (l *CIRepositoryBuildProduct) DecodeExtra(extra interface{}) error {
+	if err := json.Unmarshal([]byte(l.Extra), extra); err != nil {
+		return err
+	}
+	return nil
+}

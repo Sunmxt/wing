@@ -274,29 +274,44 @@ RUN set -xe;\
 }
 
 _ci_wing_report() {
-    local report_url="$1"
-    local token="$2"
-    local params="$3"
-    local saved=wing-report-`hash_for_key "$report_url $token $params"`
-    if ! curl -X POST -L -H "Wing-Auth-Token: $token" "$report_url" -d "$params" > "$saved"; then
+    local params="$1"
+    local saved=wing-report-`hash_for_key "$WING_REPORT_URL $WING_CI_TOKEN $params"`
+    if ! curl -X POST -L -H "Wing-Auth-Token: $WING_CI_TOKEN" "$WING_REPORT_URL" -d "$params" > "$saved"; then
         return 1
     fi
     test `jq '.success' "$saved"` = "true"
 }
 
 _ci_wing_gitlab_package_build() {
-    local remote_build_script="$1"
-    local report_url="$2"
-    local product_path="$3"
+    local product_path="$1"
+
+    echo " _       __ _                  ______               _            ";
+    echo "| |     / /(_)____   ____ _   / ____/____   ____ _ (_)____   ___ ";
+    echo "| | /| / // // __ \ / __ \`/  / __/  / __ \ / __ \`// // __ \ / _ \ ";
+    echo "| |/ |/ // // / / // /_/ /  / /___ / / / // /_/ // // / / //  __/";
+    echo "|__/|__//_//_/ /_/ \__, /  /_____//_/ /_/ \__, //_//_/ /_/ \___/ ";
+    echo "                  /____/                 /____/                  ";
+    echo; echo;
+
     if [ -z "$WING_CI_TOKEN" ]; then
         logerror wing auth token is empty.
         return 1
     fi
 
+    if [ -z "$WING_JOB_URL" ]; then
+        logerror missing remote job.
+        return 2
+    fi
+
+    if [ -z "$WING_REPORT_URL" ]; then
+        logerror missing report endpoint.
+        return 3
+    fi
+
     # build
-    local build_script=wing-build-`hash_for_key "$remote_build_script"`.sh
+    local build_script=wing-build-`hash_for_key "$WING_JOB_URL"`.sh
     loginfo fetching build script from wing platform...
-    if ! curl -L -H "Wing-Auth-Token: $WING_CI_TOKEN" "$remote_build_script" > "$build_script"; then
+    if ! curl -L -H "Wing-Auth-Token: $WING_CI_TOKEN" "$WING_JOB_URL" > "$build_script"; then
         logerror fetch build script failure.
         return 1
     fi
@@ -304,7 +319,7 @@ _ci_wing_gitlab_package_build() {
     loginfo "save to: $build_script"
 
     # Sync state to wing server
-    if ! _ci_wing_report "$report_url" "$WING_CI_TOKEN" "type=$WING_REPORT_TYPE_START_BUILD_PACKAGE&succeed=true&namespace=$CI_REGISTRY_IMAGE&environment=$CI_COMMIT_REF_NAME&commit_hash=$CI_COMMIT_SHA&tag=$CI_COMMIT_SHORT_SHA"; then
+    if ! _ci_wing_report "product_token=$WING_PRODUCT_TOKEN&type=$WING_REPORT_TYPE_START_BUILD_PACKAGE&succeed=true&namespace=$CI_REGISTRY_IMAGE&environment=$CI_COMMIT_REF_NAME&commit_hash=$CI_COMMIT_SHA&tag=$CI_COMMIT_SHORT_SHA"; then
         logerror cannot talk to wing server.
         return 1
     fi
@@ -312,7 +327,7 @@ _ci_wing_gitlab_package_build() {
     # start build
     if ! "./$build_script"; then
         logerror build failure.
-        if ! _ci_wing_report "$report_url" "$WING_CI_TOKEN" "reason=SCM.BuildProductFailure&type=$WING_REPORT_TYPE_FINISH_BUILD_PACKAGE&namespace=$CI_REGISTRY_IMAGE&environment=$CI_COMMIT_REF_NAME&commit_hash=$CI_COMMIT_SHA&tag=$CI_COMMIT_SHORT_SHA"; then
+        if ! _ci_wing_report "product_token=$WING_PRODUCT_TOKEN&reason=SCM.BuildProductFailure&type=$WING_REPORT_TYPE_FINISH_BUILD_PACKAGE&namespace=$CI_REGISTRY_IMAGE&environment=$CI_COMMIT_REF_NAME&commit_hash=$CI_COMMIT_SHA&tag=$CI_COMMIT_SHORT_SHA"; then
             logerror cannot talk to wing server.
         fi
         return 1
@@ -320,14 +335,14 @@ _ci_wing_gitlab_package_build() {
     # upload product.
     if ! ci_build gitlab-package -e $CI_COMMIT_REF_NAME "$product_path"; then
         logerror upload product failure.
-        if ! _ci_wing_report "$report_url" "$WING_CI_TOKEN" "reason=SCM.UploadProductFailure&type=$WING_REPORT_TYPE_FINISH_BUILD_PACKAGE&namespace=$CI_REGISTRY_IMAGE&environment=$CI_COMMIT_REF_NAME&commit_hash=$CI_COMMIT_SHA&tag=$CI_COMMIT_SHORT_SHA"; then
+        if ! _ci_wing_report "product_token=$WING_PRODUCT_TOKEN&reason=SCM.UploadProductFailure&type=$WING_REPORT_TYPE_FINISH_BUILD_PACKAGE&namespace=$CI_REGISTRY_IMAGE&environment=$CI_COMMIT_REF_NAME&commit_hash=$CI_COMMIT_SHA&tag=$CI_COMMIT_SHORT_SHA"; then
             logerror cannot talk to wing server.
         fi
         return 1
     fi
 
     # sync success.
-    if ! _ci_wing_report "$report_url" "$WING_CI_TOKEN" "type=$WING_REPORT_TYPE_FINISH_BUILD_PACKAGE&succeed=true&namespace=$CI_REGISTRY_IMAGE&environment=$CI_COMMIT_REF_NAME&commit_hash=$CI_COMMIT_SHA&tag=$CI_COMMIT_SHORT_SHA"; then
+    if ! _ci_wing_report "product_token=$WING_PRODUCT_TOKEN&type=$WING_REPORT_TYPE_FINISH_BUILD_PACKAGE&succeed=true&namespace=$CI_REGISTRY_IMAGE&environment=$CI_COMMIT_REF_NAME&commit_hash=$CI_COMMIT_SHA&tag=$CI_COMMIT_SHORT_SHA"; then
         logerror cannot talk to wing server.
         return 1
     fi
