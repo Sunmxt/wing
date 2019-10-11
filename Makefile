@@ -1,4 +1,4 @@
-.PHONY: all format clean start-dev-services stop-dev-services run-dev-worker run-dev-server force-run rpm
+.PHONY: all format clean start-dev-services stop-dev-services run-dev-worker run-dev-server force-run rpm docker wing-docker
 
 PROJECT_ROOT:=$(shell pwd)
 export GOPATH:=$(PROJECT_ROOT)/build
@@ -18,10 +18,10 @@ build:
 	mkdir build
 
 build/bin: bin
-	ln -s $$(pwd)/bin build/bin
+	test -d build/bin || ln -s $$(pwd)/bin build/bin
 
 build/resource:
-	mkdir build/resource
+	mkdir build/resource -p 
 
 build/resource/sae: build/resource
 	@[ ! -d "build/resource/sae" ] && mkdir -p build/resource/sae || true
@@ -33,7 +33,7 @@ statik:
 	mkdir statik
 
 build/resource/dashboard: build/resource
-	mkdir build/resource/dashboard
+	test -d build/resource/dashboard || mkdir build/resource/dashboard
 
 dashboard/dist: build/resource/dashboard
 	@[ ! -L "dashboard/dist" ] && ln -s $$(pwd)/build/resource/dashboard dashboard/dist; \
@@ -80,6 +80,9 @@ rpm: bin/wing
 		config.yml=/etc/wing/config.yml \
 		systemd/server.service=/lib/system/systemd/wing-server.service \
 		systemd/worker.service=/lib/system/systemd/wing-worker.service
+
+docker-minimum-image:
+	docker/docker-build-wing-runtime-image.sh
 
 force-run:
 	@true

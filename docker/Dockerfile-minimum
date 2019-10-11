@@ -14,13 +14,11 @@ RUN set -xe;\
     npm set strict-ssl false;\
     npm config set registry $NPM_REGISTRY;\
     cd /app/;\
-    make bin/dashboard;\
+    make dashboard/dist;\
     make bin/wing $MAKE_ENV_ARGV SKIP_FE_BUILD=1;\
     apk del build-deps;\
     cp bin/wing /bin/wing;\
-    rm -rf /apk-cache /app;\
-    mkdir /etc/starconf;\
-    touch /etc/starconf/confmap;
+    rm -rf /apk-cache /app;
 
 
 ENTRYPOINT ["/bin/wing"]
