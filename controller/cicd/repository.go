@@ -54,7 +54,7 @@ func SubmitGitlabRepositoryCIApproval(ctx *ccommon.OperationContext, platform *s
 		}
 	}()
 	// Only one approval can be in progress.
-	if err = tx.Where(approval).Where("stage >= (?)", scm.ApprovalCreated).First(&approval).Error; err != nil && !gorm.IsRecordNotFoundError(err) {
+	if err = tx.Where(approval).Where("stage in (?)", []int{scm.ApprovalCreated, scm.ApprovalWaitForAccepted}).First(&approval).Error; err != nil && !gorm.IsRecordNotFoundError(err) {
 		return nil, err
 	}
 	if approval.Basic.ID > 0 {

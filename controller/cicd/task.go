@@ -284,7 +284,7 @@ func SubmitCIApprovalGitlabMergeRequest(ctx *runtime.WingRuntime) interface{} {
 				tx.Commit()
 			}
 		}()
-		if err = approval.ByID(tx, approvalID); err != nil {
+		if err = approval.ByID(tx.Preload("Owner"), approvalID); err != nil {
 			return err
 		}
 		if approval.Basic.ID < 1 {
@@ -346,7 +346,7 @@ func SubmitCIApprovalGitlabMergeRequest(ctx *runtime.WingRuntime) interface{} {
 			return err
 		}
 		var hash plumbing.Hash
-		if hash, err = tree.Commit("[bot] wing: approval for enabling wing SCM of this project.", &git.CommitOptions{
+		if hash, err = tree.Commit("wing[bot]: reconfigure Gitlab CI (triggered by Wing platform).", &git.CommitOptions{
 			Author: &object.Signature{
 				When:  time.Now(),
 				Name:  user.Name,
@@ -391,10 +391,14 @@ func SubmitCIApprovalGitlabMergeRequest(ctx *runtime.WingRuntime) interface{} {
 		}
 		// submit gitlab mr for approval.
 		octx.Log.Info("submit merge request.")
+		description := "This request is automatically submitted by Wing SCM Platform.\n\n"
+		description = description + "- Approval Owner: " + approval.Owner.Name + " ( id: " + strconv.FormatInt(int64(approval.Basic.ID), 10) + " )\n\n"
+		description = description + "Approve Wing SCM by **merge** this merge request or **close** this merge request to reject."
 		mr := &gitlab.MergeRequest{
 			SourceBranch: branchName,
 			TargetBranch: "master",
-			Title:        "[Wing] Enable SCM Build.",
+			Title:        "[Wing] Reconfigure Gitlab CI.",
+			Description:  description,
 		}
 		if err = client.MergeRequest().WithProject(project).Create(mr); err != nil || mr.ID < 1 {
 			err = fmt.Errorf("merge request not created. reason: %v", err)
