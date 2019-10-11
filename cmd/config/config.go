@@ -1,14 +1,15 @@
 package config
 
 import (
-	machineryConfig "github.com/RichardKnop/machinery/v1/config"
-	"github.com/jinzhu/configor"
-	log "github.com/sirupsen/logrus"
-
 	"errors"
 	"net/url"
 	"path/filepath"
 	"strconv"
+	"strings"
+
+	machineryConfig "github.com/RichardKnop/machinery/v1/config"
+	"github.com/jinzhu/configor"
+	log "github.com/sirupsen/logrus"
 )
 
 type AuthConfiguration struct {
@@ -36,8 +37,52 @@ type KubernetesConfiguration struct {
 }
 
 type DatabaseConfiguration struct {
-	SQLDsn    string `required:"true" yaml:"dsn"`
-	SQLEngine string `required:"true" yaml:"engine"`
+	SQLDsn    string            `yaml:"dsn" default:""`
+	SQLEngine string            `required:"true" yaml:"engine"`
+	Database  string            `yaml:"database"`
+	User      string            `yaml:"user"`
+	Password  string            `yaml:"password"`
+	Address   string            `yaml:"address"`
+	Port      uint16            `yaml:"port"`
+	Options   map[string]string `yaml:"options"`
+}
+
+func (c *DatabaseConfiguration) fillMySQLDsn() error {
+	c.SQLDsn = ""
+	if c.User != "" || c.Password != "" {
+		c.SQLDsn = c.SQLDsn + c.User + ":" + c.Password + "@"
+	}
+	if c.Address == "" {
+		return errors.New("Database address should not be empty.")
+	}
+	if c.Port == 0 {
+		return errors.New("Database port should be greater than 0.")
+	}
+	c.SQLDsn = c.SQLDsn + "tcp(" + c.Address + ":" + strconv.FormatUint(uint64(c.Port), 10) + ")"
+	if c.Database == "" {
+		return errors.New("Database not specified.")
+	}
+	c.SQLDsn = c.SQLDsn + "/" + c.Database
+	if c.Options == nil {
+		c.Options = map[string]string{}
+	}
+	c.Options["parseTime"] = "true"
+	optParts := make([]string, 0, len(c.Options))
+	for k, v := range c.Options {
+		optParts = append(optParts, k+"="+v)
+	}
+	c.SQLDsn = c.SQLDsn + "?" + strings.Join(optParts, "&")
+	return nil
+}
+
+func (c *DatabaseConfiguration) Clean() (err error) {
+	if c.SQLDsn == "" {
+		switch c.SQLEngine {
+		case "mysql":
+			err = c.fillMySQLDsn()
+		}
+	}
+	return err
 }
 
 type JobConfiguration struct {
@@ -156,11 +201,24 @@ func (c *WingConfiguration) Clean() (err error) {
 	if err = c.Session.Job.Clean(); err != nil {
 		return err
 	}
+	if err = c.DB.Clean(); err != nil {
+		return err
+	}
 	if c.ExternalURL == "" {
 		return errors.New("externalURl cannot be empty.")
 	}
 	_, err = url.Parse(c.ExternalURL)
 	return
+}
+
+func maskString(target string, strs ...string) string {
+	for _, str := range strs {
+		if str == "" {
+			continue
+		}
+		target = strings.Replace(target, str, "xxxxxxxx", -1)
+	}
+	return target
 }
 
 func sensitiveMask(value interface{}) string {
@@ -183,7 +241,12 @@ func (c *WingConfiguration) LogConfig() {
 	log.Infof("[config]     bind: %v", c.Bind)
 	log.Infof("[config]     kubernetes.namespace: %v", c.Kube.Namespace)
 	log.Infof("[config]     database.engine: %v", c.DB.SQLEngine)
-	log.Infof("[config]     database.dsn: %v", c.DB.SQLDsn)
+	log.Infof("[config]     database.user: %v", c.DB.User)
+	log.Infof("[config]     database.password: %v", sensitiveMask(c.DB.Password))
+	log.Infof("[config]     database.database: %v", c.DB.Database)
+	log.Infof("[config]     database.address: %v", c.DB.Address)
+	log.Infof("[config]     database.port: %v", c.DB.Port)
+	log.Infof("[config]     database.dsn: %v", maskString(c.DB.SQLDsn, c.DB.Password))
 	log.Infof("[config]     session.token: %v", sensitiveMask(c.Session.Token))
 	log.Infof("[config]     session.job.concurrency: %v", c.Session.Job.Concurrency)
 	log.Infof("[config]     session.job.brokerType: %v", c.Session.Job.BrokerType)
@@ -192,7 +255,7 @@ func (c *WingConfiguration) LogConfig() {
 	log.Infof("[config]     session.job.password: %v", sensitiveMask(c.Session.Job.Password))
 	log.Infof("[config]     session.job.username: %v", c.Session.Job.Username)
 	log.Infof("[config]     session.job.redisDatabase: %v", c.Session.Job.RedisDatabase)
-	log.Infof("[config]     session.job.machineryDSN: %v", c.Session.Job.MachineryDSN)
+	log.Infof("[config]     session.job.machineryDSN: %v", maskString(c.Session.Job.MachineryDSN, c.Session.Job.Password))
 	log.Infof("[config]     session.job.gitWorkingDir: %v", c.Session.Job.GitWorkingDir)
 	log.Infof("[config]     logging.driver: %v", c.Log.Driver)
 	if c.Log.Gelf != nil {

@@ -1,4 +1,4 @@
-.PHONY: all format clean start-dev-services stop-dev-services run-dev-worker run-dev-server force-run rpm docker wing-docker
+.PHONY: all format clean start-dev-services stop-dev-services run-dev-worker run-dev-server force-run rpm docker wing-docker exec
 
 PROJECT_ROOT:=$(shell pwd)
 export GOPATH:=$(PROJECT_ROOT)/build
@@ -83,6 +83,9 @@ rpm: bin/wing
 
 docker-minimum-image:
 	docker/docker-build-wing-runtime-image.sh
+
+exec:
+	$(CMD)
 
 force-run:
 	@true
