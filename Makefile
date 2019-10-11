@@ -52,7 +52,7 @@ bin/statik: build/bin
 	@[ ! -e "bin/statik" ] && go get -u github.com/rakyll/statik || true
 
 bin/wing: statik build/resource/sae/runtime dashboard/dist bin/statik build/bin force-run
-	@statik -src=$$(pwd)/build/resource/
+	@statik -src=$$(pwd)/build/resource/ -f
 	@if [ "$${TYPE:=release}" = "debug" ]; then 						\
 		go install -v -gcflags='all=-N -l' git.stuhome.com/Sunmxt/wing; \
 	else																\
@@ -78,8 +78,8 @@ rpm: bin/wing
 	fpm -s dir -t rpm -n wing --config-files /etc/wing/config.yml --epoch 0 -v `cat VERSION` \
 		bin/wing=/usr/bin/ \
 		config.yml=/etc/wing/config.yml \
-		systemd/server.service=/lib/system/systemd/wing-server.service \
-		systemd/worker.service=/lib/system/systemd/wing-worker.service
+		systemd/server.service=/lib/systemd/system/wing-server.service \
+		systemd/worker.service=/lib/systemd/system/wing-worker.service
 
 docker-minimum-image:
 	docker/docker-build-wing-runtime-image.sh

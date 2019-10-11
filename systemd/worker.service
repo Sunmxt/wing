@@ -1,11 +1,11 @@
 [Unit]
 Description=Wing Worker
-After=network
+After=network.target
 
 [Service]
-ExecStart=/usr/bin/wing worker -config=/etc/wing/wing.yaml
+ExecStart=/usr/bin/wing worker -config=/etc/wing/config.yml
 User=root
-group=root
+Group=root
 
 [Install]
 WantedBy=multi-user.target

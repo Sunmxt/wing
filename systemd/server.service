@@ -3,9 +3,9 @@ Description=Wing API Server
 After=network.target
 
 [Service]
-ExecStart=/usr/bin/wing serve -config=/etc/wing/wing.yaml
+ExecStart=/usr/bin/wing serve -config=/etc/wing/config.yml
 User=root
-group=root
+Group=root
 
 [Install]
 WantedBy=multi-user.target
