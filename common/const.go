@@ -15,7 +15,6 @@ const (
 var ReMail *regexp.Regexp
 
 const (
-	SAEStaticPath     = "api/sae/static"
-	SAERuntimePath    = SAEStaticPath + "/runtime"
-	SCMDynamicJobPath = "api/scm/builds/jobs.yml"
+	SAEStaticPath  = "api/sae/static"
+	SAERuntimePath = SAEStaticPath + "/runtime"
 )

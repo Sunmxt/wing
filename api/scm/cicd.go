@@ -406,8 +406,12 @@ func (r *CreateBuildRequest) Clean(rctx *acommon.RequestContext) error {
 	return nil
 }
 
+type CreateBuildResponse struct {
+	BuildID int `json:"build_id"`
+}
+
 func CreateBuild(ctx *gin.Context) {
-	rctx, request := acommon.NewRequestContext(ctx), &CreateBuildRequest{}
+	rctx, request, response := acommon.NewRequestContext(ctx), &CreateBuildRequest{}, CreateBuildResponse{}
 	db := rctx.DatabaseOrFail()
 	if db == nil || !rctx.BindOrFail(request) {
 		return
@@ -445,6 +449,8 @@ func CreateBuild(ctx *gin.Context) {
 		rctx.AbortWithError(err)
 		return
 	}
+	response.BuildID = build.Basic.ID
+	rctx.Response.Data = response
 	rctx.Succeed()
 }
 

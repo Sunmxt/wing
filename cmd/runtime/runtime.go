@@ -3,6 +3,7 @@ package runtime
 import (
 	"errors"
 	"reflect"
+	"sync"
 
 	"github.com/RichardKnop/machinery/v1"
 	"k8s.io/client-go/rest"
@@ -18,6 +19,7 @@ type WingRuntime struct {
 	MachineID             string
 	JobServer             *machinery.Server
 	GitlabWebhookEventHub *gitlab.EventHub
+	ClusterOperator       sync.Map
 }
 
 func (w *WingRuntime) RegisterTask(name string, taskProc interface{}) error {

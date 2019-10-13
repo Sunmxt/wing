@@ -29,6 +29,7 @@ require (
 	github.com/sirupsen/logrus v1.4.1
 	github.com/spf13/pflag v1.0.3 // indirect
 	golang.org/x/text v0.3.2
+	golang.org/x/tools/gopls v0.1.7 // indirect
 	gopkg.in/asn1-ber.v1 v1.0.0-20181015200546-f715ec2f112d // indirect
 	gopkg.in/bluesuncorp/validator.v5 v5.10.3
 	gopkg.in/bluesuncorp/validator.v8 v8.18.2

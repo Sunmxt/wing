@@ -3,13 +3,14 @@ package scm
 import (
 	"encoding/json"
 	"errors"
+	"strconv"
+
 	"git.stuhome.com/Sunmxt/wing/cmd/config"
 	"git.stuhome.com/Sunmxt/wing/log"
 	"git.stuhome.com/Sunmxt/wing/model/account"
 	"git.stuhome.com/Sunmxt/wing/model/common"
 	"git.stuhome.com/Sunmxt/wing/model/scm/gitlab"
 	"github.com/jinzhu/gorm"
-	"strconv"
 )
 
 const (
@@ -30,9 +31,8 @@ var SCMPlatformTypeString map[uint]string = map[uint]string{
 }
 
 func Migrate(db *gorm.DB, cfg *config.WingConfiguration) (err error) {
-	db.AutoMigrate(&SCMPlatform{})
-	if db.Error != nil {
-		return db.Error
+	if err = db.AutoMigrate(&SCMPlatform{}).Error; err != nil {
+		return err
 	}
 	db.AutoMigrate(&CIRepository{}).
 		AddIndex("idx_reference", "reference").
@@ -203,9 +203,10 @@ type CIRepositoryApproval struct {
 }
 
 type GitlabApprovalExtra struct {
-	RepositoryID   uint   `json:"repo_id"`
-	WebURL         string `json:"web_url"`
-	MergeRequestID uint   `json:"mr_id"`
+	RepositoryID         uint   `json:"repo_id"`
+	WebURL               string `json:"web_url"`
+	MergeRequestID       uint   `json:"mr_id"`
+	InternalRepositoryID int    `json:"internal_repository_id"`
 }
 
 const (
@@ -294,8 +295,5 @@ func (l *CIRepositoryBuildProduct) EncodeExtra(extra interface{}) error {
 }
 
 func (l *CIRepositoryBuildProduct) DecodeExtra(extra interface{}) error {
-	if err := json.Unmarshal([]byte(l.Extra), extra); err != nil {
-		return err
-	}
-	return nil
+	return json.Unmarshal([]byte(l.Extra), extra)
 }

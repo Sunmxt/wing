@@ -1,32 +1,30 @@
 package scm
 
 import (
-	"github.com/jinzhu/gorm"
 	"strconv"
+
+	"git.stuhome.com/Sunmxt/wing/model/common"
+	"github.com/jinzhu/gorm"
 )
 
-func pickByColumn(db *gorm.DB, columnName string, elem interface{}, val interface{}) (err error) {
-	err = db.Model(elem).Where(columnName+"= ?", val).First(elem).Error
-	if gorm.IsRecordNotFoundError(err) {
-		err = nil
-	}
-	return
-}
-
 func (p *SCMPlatform) ByID(db *gorm.DB, platformID int) error {
-	return pickByColumn(db, "id", p, platformID)
+	return common.PickByColumn(db, "id", p, platformID)
 }
 
 func (a *CIRepositoryApproval) ByID(db *gorm.DB, approvalID int) error {
-	return pickByColumn(db, "id", a, approvalID)
+	return common.PickByColumn(db, "id", a, approvalID)
 }
 
 func (b *CIRepositoryBuild) ByID(db *gorm.DB, buildID int) error {
-	return pickByColumn(db, "id", b, buildID)
+	return common.PickByColumn(db, "id", b, buildID)
 }
 
 func (a *CIRepositoryApproval) ByReference(db *gorm.DB, reference string) error {
-	return pickByColumn(db, "reference", a, reference)
+	return common.PickByColumn(db, "reference", a, reference)
+}
+
+func (a *CIRepository) ByID(db *gorm.DB, id int) error {
+	return common.PickByColumn(db, "id", a, id)
 }
 
 func ReferenceLogApprovalStageChanged(platformID, repositoryID int) string {

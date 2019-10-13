@@ -117,7 +117,7 @@ func SyncGitlabCISettingWithBuilds(ctx *ccommon.OperationContext, CIConfigPath s
 	}
 	externalURL.Path = common.SAERuntimePath
 	runtimeURL := externalURL.String()
-	externalURL.Path = common.SCMDynamicJobPath
+	externalURL.Path = "/api/scm/builds/" + strconv.FormatInt(int64(ciRepo.Basic.ID), 10) + "/gitlab-jobs.yml"
 	jobURL := externalURL.String()
 	patchers := []GitlabCIConfigurationPatcher{
 		&GitlabRemoteRuntimeLoad{
@@ -187,7 +187,7 @@ func GitlabMergeRequestFinishCIApproval(ctx *runtime.WingRuntime) interface{} {
 				tx.Rollback()
 			}
 		}()
-		if err = approval.ByReference(tx.Preload("SCM").Where("stage in (?)", []int{scm.ApprovalCreated, scm.ApprovalWaitForAccepted}), reference); err != nil {
+		if err = approval.ByReference(tx.Where("stage in (?)", []int{scm.ApprovalCreated, scm.ApprovalWaitForAccepted}), reference); err != nil {
 			return err
 		}
 		if approval.Basic.ID < 1 {
@@ -201,13 +201,14 @@ func GitlabMergeRequestFinishCIApproval(ctx *runtime.WingRuntime) interface{} {
 
 		case gitlab.MergeRequestMerged:
 			approval.Stage = scm.ApprovalAccepted
-			ciRepo := &scm.CIRepository{
-				SCMPlatformID: approval.SCM.Basic.ID,
-				Reference:     approval.Reference,
-				Active:        scm.Active,
-				AccessToken:   approval.AccessToken,
-				OwnerID:       approval.OwnerID,
+			extra := approval.GitlabExtra()
+
+			ciRepo := &scm.CIRepository{}
+			if err = ciRepo.ByID(tx, extra.InternalRepositoryID); err != nil {
+				octx.Log.Errorf("query ci repo error: " + err.Error())
+				return err
 			}
+			ciRepo.Active = scm.Active
 			if err = tx.Save(ciRepo).Error; err != nil {
 				octx.Log.Errorf("save error: " + err.Error())
 				return err
@@ -284,7 +285,7 @@ func SubmitCIApprovalGitlabMergeRequest(ctx *runtime.WingRuntime) interface{} {
 				tx.Commit()
 			}
 		}()
-		if err = approval.ByID(tx.Preload("Owner"), approvalID); err != nil {
+		if err = approval.ByID(tx.Preload("SCM"), approvalID); err != nil {
 			return err
 		}
 		if approval.Basic.ID < 1 {
@@ -324,9 +325,20 @@ func SubmitCIApprovalGitlabMergeRequest(ctx *runtime.WingRuntime) interface{} {
 		}); err != nil {
 			return err
 		}
+		ciRepo := &scm.CIRepository{
+			SCMPlatformID: approval.SCM.Basic.ID,
+			Reference:     approval.Reference,
+			Active:        scm.Inactive,
+			AccessToken:   approval.AccessToken,
+			OwnerID:       approval.OwnerID,
+		}
+		if err = tx.Save(ciRepo).Error; err != nil {
+			octx.Log.Errorf("save error: " + err.Error())
+			return err
+		}
 		// update gitlab-ci.yml
 		gitlabCIYAML, synced := filepath.Join(repoPath, ".gitlab-ci.yml"), false
-		if synced, err = SyncGitlabCISettingWithBuilds(octx, gitlabCIYAML, approval, nil); err != nil {
+		if synced, err = SyncGitlabCISettingWithBuilds(octx, gitlabCIYAML, approval, ciRepo); err != nil {
 			return err
 		}
 		if synced {
@@ -425,6 +437,7 @@ func SubmitCIApprovalGitlabMergeRequest(ctx *runtime.WingRuntime) interface{} {
 		}
 		approvalExtra.MergeRequestID = mr.ID
 		approvalExtra.WebURL = mr.WebURL
+		approvalExtra.InternalRepositoryID = ciRepo.Basic.ID
 		approval.SetGitlabExtra(approvalExtra)
 		oldApprovalStage := approval.Stage
 		approval.Stage = scm.ApprovalWaitForAccepted

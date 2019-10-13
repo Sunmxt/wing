@@ -30,11 +30,12 @@ type Application struct {
 
 	Name      string           `gorm:"type:varchar(128);not null;unique"`
 	Owner     *account.Account `gorm:"foreignkey:OwnerID;not null"`
-	OwnerID   int
-	Extra     string   `gorm:"type:longtext"`
-	KubeLabel string   `gorm:"type:longtext;not null"`
-	Spec      *AppSpec `gorm:"foreignkey:SpecID;not null"`
-	SpecID    int
+	Extra     string           `gorm:"type:longtext"`
+	KubeLabel string           `gorm:"type:longtext;not null"`
+	Spec      *AppSpec         `gorm:"foreignkey:SpecID;not null"`
+
+	OwnerID int
+	SpecID  int
 }
 
 func (m Application) TableName() string {

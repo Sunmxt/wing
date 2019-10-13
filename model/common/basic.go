@@ -19,3 +19,9 @@ func (b *Basic) BeforeSave() error {
 	b.ModifyTime = time.Now()
 	return nil
 }
+
+const (
+	Inactive = 0
+	Active   = 1
+	Disabled = 2
+)
