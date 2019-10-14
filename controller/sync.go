@@ -11,7 +11,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8serr "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
@@ -28,15 +27,15 @@ func UpdateDeploymentManifestToTerminating(ctx *ccommon.OperationContext, dp *ap
 	return false
 }
 
-func valueToString(v interface{}) (result string) {
-	switch t := v.(type) {
-	case int, float32, float64, bool:
-		result = fmt.Sprintf("%v", t)
-	case string:
-		result = t
-	}
-	return
-}
+//func valueToString(v interface{}) (result string) {
+//	switch t := v.(type) {
+//	case int, float32, float64, bool:
+//		result = fmt.Sprintf("%v", t)
+//	case string:
+//		result = t
+//	}
+//	return
+//}
 
 func UpdateAppContainerFromSpec(ctx *ccommon.OperationContext, container *corev1.Container, spec *model.AppSpec) (updated bool, err error) {
 	updated = false
@@ -44,49 +43,49 @@ func UpdateAppContainerFromSpec(ctx *ccommon.OperationContext, container *corev1
 		updated = true
 		container.Image = spec.ImageRef
 	}
-	cpucore := fmt.Sprintf("%v", spec.CPUCore)
-	if cpu, _ := container.Resources.Limits[corev1.ResourceCPU]; string(cpu.Format) != cpucore {
-		updated = true
-		cpu.Format = resource.Format(cpucore)
-	}
-	memoryQ := fmt.Sprintf("%vMi", spec.Memory)
-	if memory, _ := container.Resources.Limits[corev1.ResourceMemory]; string(memory.Format) != memoryQ {
-		updated = true
-		memory.Format = resource.Format(memoryQ)
-	}
-	var mapping map[string]interface{}
-	// EnvVar
-	if err = json.Unmarshal([]byte(spec.EnvVar), &mapping); err != nil {
-		return
-	}
-	if len(mapping) != len(container.Env) {
-		container.Env = make([]corev1.EnvVar, 0, len(mapping))
-		updated = true
-	}
-	envByName := map[string]int{}
-	for idx, env := range container.Env {
-		envByName[env.Name] = idx
-	}
-	for k, raw := range mapping {
-		idx, exists := envByName[k]
-		if !exists {
-			updated = true
-			container.Env = append(container.Env, corev1.EnvVar{
-				Name:  k,
-				Value: valueToString(raw),
-			})
-			continue
-		}
-		env := container.Env[idx]
-		if env.Name != k {
-			env.Name = k
-			updated = true
-		}
-		if env.Value != valueToString(raw) {
-			env.Value = valueToString(raw)
-			updated = true
-		}
-	}
+	//cpucore := fmt.Sprintf("%v", spec.CPUCore)
+	//if cpu, _ := container.Resources.Limits[corev1.ResourceCPU]; string(cpu.Format) != cpucore {
+	//	updated = true
+	//	cpu.Format = resource.Format(cpucore)
+	//}
+	//memoryQ := fmt.Sprintf("%vMi", spec.Memory)
+	//if memory, _ := container.Resources.Limits[corev1.ResourceMemory]; string(memory.Format) != memoryQ {
+	//	updated = true
+	//	memory.Format = resource.Format(memoryQ)
+	//}
+	//var mapping map[string]interface{}
+	//// EnvVar
+	//if err = json.Unmarshal([]byte(spec.EnvVar), &mapping); err != nil {
+	//	return
+	//}
+	//if len(mapping) != len(container.Env) {
+	//	container.Env = make([]corev1.EnvVar, 0, len(mapping))
+	//	updated = true
+	//}
+	//envByName := map[string]int{}
+	//for idx, env := range container.Env {
+	//	envByName[env.Name] = idx
+	//}
+	//for k, raw := range mapping {
+	//	idx, exists := envByName[k]
+	//	if !exists {
+	//		updated = true
+	//		container.Env = append(container.Env, corev1.EnvVar{
+	//			Name:  k,
+	//			Value: valueToString(raw),
+	//		})
+	//		continue
+	//	}
+	//	env := container.Env[idx]
+	//	if env.Name != k {
+	//		env.Name = k
+	//		updated = true
+	//	}
+	//	if env.Value != valueToString(raw) {
+	//		env.Value = valueToString(raw)
+	//		updated = true
+	//	}
+	//}
 	var listString []string
 	if err = json.Unmarshal([]byte(spec.Command), &listString); err != nil {
 		return false, err
@@ -185,14 +184,14 @@ func UpdateDeploymentManifestFromSpec(ctx *ccommon.OperationContext, appName str
 	}
 	updated = false
 	deployName := common.GetNormalizedDeploymentName(appName, deployID)
-	if manifest.ObjectMeta.Name != deployName {
-		updated = true
-		manifest.ObjectMeta.Name = deployName
-	}
-	if manifest.ObjectMeta.Namespace != ctx.Runtime.Config.Kube.Namespace {
-		updated = true
-		manifest.ObjectMeta.Namespace = ctx.Runtime.Config.Kube.Namespace
-	}
+	//if manifest.ObjectMeta.Name != deployName {
+	//	updated = true
+	//	manifest.ObjectMeta.Name = deployName
+	//}
+	//if manifest.ObjectMeta.Namespace != ctx.Runtime.Config.Kube.Namespace {
+	//	updated = true
+	//	manifest.ObjectMeta.Namespace = ctx.Runtime.Config.Kube.Namespace
+	//}
 	if manifest.Spec.Replicas == nil {
 		manifest.Spec.Replicas = new(int32)
 	}
@@ -200,24 +199,24 @@ func UpdateDeploymentManifestFromSpec(ctx *ccommon.OperationContext, appName str
 		updated = true
 		*manifest.Spec.Replicas = int32(spec.Replica)
 	}
-	if manifest.Spec.Template.Spec.Containers == nil {
-		updated = true
-		manifest.Spec.Template.Spec.Containers = make([]corev1.Container, 0)
-	}
-	if manifest.Spec.Selector == nil {
-		manifest.Spec.Selector = &metav1.LabelSelector{
-			MatchLabels: map[string]string{
-				"role.wing.starstudio.org": "app-container",
-			},
-		}
-		updated = true
-	}
-	if manifest.Spec.Template.ObjectMeta.Labels == nil {
-		manifest.Spec.Template.ObjectMeta.Labels = map[string]string{
-			"role.wing.starstudio.org": "app-container",
-		}
-		updated = true
-	}
+	//if manifest.Spec.Template.Spec.Containers == nil {
+	//	updated = true
+	//	manifest.Spec.Template.Spec.Containers = make([]corev1.Container, 0)
+	//}
+	//if manifest.Spec.Selector == nil {
+	//	manifest.Spec.Selector = &metav1.LabelSelector{
+	//		MatchLabels: map[string]string{
+	//			"role.wing.starstudio.org": "app-container",
+	//		},
+	//	}
+	//	updated = true
+	//}
+	//if manifest.Spec.Template.ObjectMeta.Labels == nil {
+	//	manifest.Spec.Template.ObjectMeta.Labels = map[string]string{
+	//		"role.wing.starstudio.org": "app-container",
+	//	}
+	//	updated = true
+	//}
 	deployIDString := fmt.Sprintf("%v", deployID)
 	if curDeployID, ok := manifest.Spec.Template.ObjectMeta.Labels["deploy.wing.starstudio.org"]; !ok || curDeployID != deployIDString {
 		manifest.Spec.Template.ObjectMeta.Labels["deploy.wing.starstudio.org"] = deployIDString

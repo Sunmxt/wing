@@ -1,6 +1,9 @@
 package sae
 
 import (
+	"errors"
+	"strconv"
+
 	"git.stuhome.com/Sunmxt/wing/controller/common"
 	"git.stuhome.com/Sunmxt/wing/controller/sae/operator"
 	"git.stuhome.com/Sunmxt/wing/controller/sae/operator/kubernetes"
@@ -9,6 +12,7 @@ import (
 	"github.com/jinzhu/gorm"
 )
 
+// LoadOrchestratorOperator loads cluster operator by orchestrator ID.
 func LoadOrchestratorOperator(ctx *common.OperationContext, orchestratorID int) (operator.Operator, error) {
 	db, err := ctx.Database()
 	if err != nil {
@@ -27,10 +31,20 @@ func LoadOrchestratorOperator(ctx *common.OperationContext, orchestratorID int) 
 
 	var oper operator.Operator
 	switch orchor.Type {
-	case sae.Kubernetes:
-		oper, err = kubernetes.NewKubernetesOperator(orchor.KubeconfigGetter())
-	case sae.KubernetesIncluster:
-		oper, err = kubernetes.NewKubernetesOperator(kubernetes.Incluster)
+	case sae.Kubernetes, sae.KubernetesIncluster:
+		var kubeOper *kubernetes.Operator
+		config := &sae.KubernetesOrchestrator{}
+		if err = orchor.DecodeExtra(config); err != nil {
+			return nil, err
+		}
+		if orchor.Type == sae.KubernetesIncluster {
+			kubeOper, err = kubernetes.NewKubernetesOperator(kubernetes.Incluster)
+		} else {
+			kubeOper, err = kubernetes.NewKubernetesOperator(orchor.KubeconfigGetter())
+		}
+		oper = kubeOper.Namespace(config.Namespace)
+	default:
+		err = errors.New("Unknown orchestrator type: " + strconv.FormatInt(int64(orchor.Type), 10))
 	}
 	if err != nil {
 		ctx.Log.Error(err.Error())
@@ -39,6 +53,7 @@ func LoadOrchestratorOperator(ctx *common.OperationContext, orchestratorID int) 
 	return oper, nil
 }
 
+// GetClusterOperatorByOrchestratorID gets loaded cluster operator or loads cluster operator by orchestrator ID.
 func GetClusterOperatorByOrchestratorID(ctx *common.OperationContext, orchestratorID int) (oper operator.Operator, err error) {
 	raw, exists := ctx.Runtime.ClusterOperator.Load(orchestratorID)
 	if exists {

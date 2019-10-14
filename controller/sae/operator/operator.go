@@ -10,6 +10,7 @@ type ApplicationInstance interface {
 	Name() string
 	PortMap() map[uint16]uint16
 	State() uint
+	Tags() []string
 }
 
 const (
@@ -18,6 +19,8 @@ const (
 	InstanceRunning         = 3
 	InstanceShuttingDown    = 4
 	InstanceDowned          = 5
+
+	TagTestingInstance = "testing"
 )
 
 // Operator deploy application in cluster.

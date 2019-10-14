@@ -43,16 +43,11 @@ type Orchestrator struct {
 }
 
 func (o *Orchestrator) DecodeExtra(v interface{}) error {
-	return json.Unmarshal([]byte(o.Extra), v)
+	return common.DecodeExtra(o.Extra, v)
 }
 
 func (o *Orchestrator) EncodeExtra(v interface{}) error {
-	bin, err := json.Marshal(v)
-	if err != nil {
-		return err
-	}
-	o.Extra = string(bin)
-	return nil
+	return common.EncodeExtra(&o.Extra, v)
 }
 
 type KubernetesOrchestrator struct {
@@ -128,11 +123,16 @@ func (m ApplicationCluster) TableName() string {
 type ClusterSpecification struct {
 	common.Basic
 
-	Cluster *ApplicationCluster `gorm:"foreignkey:ClusterID"`
-	Command string              `gorm:"command"`
-	Extra   string              `gorm:"longtext"`
+	Command string `gorm:"command"`
+	Extra   string `gorm:"longtext"`
+}
 
-	ClusterID int
+func (s *ClusterSpecification) GetSpecification(spec *ClusterSpecificationDetail) error {
+	return common.DecodeExtra(s.Extra, spec)
+}
+
+func (s *ClusterSpecification) UpdateSpecification(spec *ClusterSpecificationDetail) error {
+	return common.EncodeExtra(&s.Extra, spec)
 }
 
 type ClusterSpecificationDetail struct {
@@ -159,23 +159,27 @@ func (m ClusterSpecification) TableName() string {
 type ApplicationDeployment struct {
 	common.Basic
 
-	Cluster          *ApplicationCluster   `gorm:"foreignkey:ApplicationID"`
+	Cluster          *ApplicationCluster   `gorm:"foreignkey:ClusterID"`
 	OldSpecification *ClusterSpecification `gorm:"foreignkey:OldSpecificationID"`
 	NewSpecification *ClusterSpecification `gorm:"foreignkey:NewSpecificationID"`
 	State            int                   `gorm:"type:tinyint"`
 
-	ApplicationID      int
 	OldSpecificationID int
 	NewSpecificationID int
+	ClusterID          int
 }
 
 const (
-	DeploymentFinished               = 0
-	DeploymentRollbacked             = 1
-	DeploymentCreated                = 2
-	DeploymentInProgress             = 3
-	DeploymentRollbackInProgress     = 4
-	DeploymentTestingReplicaFinished = 5
+	DeploymentFinished                 = 0
+	DeploymentCanceled                 = 1
+	DeploymentRollbacked               = 2
+	DeploymentCreated                  = 3
+	DeploymentImageBuildInProgress     = 4
+	DeploymentImageBuildFinished       = 5
+	DeploymentTestingReplicaInProgress = 6
+	DeploymentTestingReplicaFinished   = 7
+	DeploymentInProgress               = 8
+	DeploymentRollbackInProgress       = 9
 )
 
 func (m ApplicationDeployment) TableName() string {
