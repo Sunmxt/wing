@@ -449,10 +449,3 @@ func SubmitCIApprovalGitlabMergeRequest(ctx *runtime.WingRuntime) interface{} {
 		return nil
 	}
 }
-
-// SyncCIApproval submit related tasks to recover from inconsistent states caused by system failures.
-func SyncCIApproval(ctx *runtime.WingRuntime) func() error {
-	return func() error {
-		return nil
-	}
-}

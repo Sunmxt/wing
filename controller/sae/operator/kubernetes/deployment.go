@@ -1,12 +1,13 @@
 package kubernetes
 
 import (
+	"strconv"
+
 	"git.stuhome.com/Sunmxt/wing/model/sae"
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
-	"strconv"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type DeploymentPatcher interface {
@@ -53,7 +54,7 @@ func (p *DeploymentBasicInformationPatcher) Patch(dp *v1.Deployment) (updated bo
 		updated = true
 	}
 	var container *corev1.Container
-	for _, c := dp.Spec.Template.Spec.Containers {
+	for _, c := range dp.Spec.Template.Spec.Containers {
 		if c.Name == p.ServiceName {
 			container = &c
 			break
@@ -75,7 +76,7 @@ func (p *DeploymentBasicInformationPatcher) Patch(dp *v1.Deployment) (updated bo
 }
 
 func (p *DeploymentBasicInformationPatcher) patchContainer(c *corev1.Container) (updated bool, err error) {
-	core := strconv.FormatFloat(float64(p.Detail.Resource.Core), "f", 3, 32)
+	core := strconv.FormatFloat(float64(p.Detail.Resource.Core), 'f', 3, 32)
 	if c.Resources.Limits == nil {
 		c.Resources.Limits = make(corev1.ResourceList)
 	}
@@ -89,7 +90,7 @@ func (p *DeploymentBasicInformationPatcher) patchContainer(c *corev1.Container) 
 	memory, _ := c.Resources.Limits[corev1.ResourceMemory]
 	if string(memory.Format) != space {
 		updated = true
-		memory.Format = resource.Format(memory)
+		memory.Format = resource.Format(space)
 		c.Resources.Limits[corev1.ResourceMemory] = memory
 	}
 	if len(c.Env) != len(p.Detail.EnvironmentVariables) {
@@ -105,7 +106,7 @@ func (p *DeploymentBasicInformationPatcher) patchContainer(c *corev1.Container) 
 		if !exists {
 			updated = true
 			c.Env = append(c.Env, corev1.EnvVar{
-				Name: key,
+				Name:  key,
 				Value: value,
 			})
 			continue
@@ -127,20 +128,5 @@ type DeploymentPodTagPatcher struct {
 }
 
 func (p *DeploymentPodTagPatcher) Patch(dp *v1.Deployment) (updated bool, err error) {
-	updated = false
-	if len(p.Tags) < 1 {
-		return false, err
-	}
-	if dp.Spec.Template.ObjectMeta.Labels == nil {
-		dp.Spec.Template.ObjectMeta.Labels = map[string]string{}
-		updated = true
-	}
-	for key, value := range p.Tags {
-		origin, ok := dp.Spec.Template.ObjectMeta.Labels[key]
-		if origin != value || !ok {
-			dp.Spec.Template.ObjectMeta.Labels[key] = value
-			updated = true
-		}
-	}
-	return updated, err
+	return updateStringToStringMap(&dp.Spec.Template.ObjectMeta.Labels, p.Tags), nil
 }

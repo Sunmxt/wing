@@ -7,6 +7,7 @@ import (
 	"git.stuhome.com/Sunmxt/wing/common"
 	ccommon "git.stuhome.com/Sunmxt/wing/controller/common"
 	"git.stuhome.com/Sunmxt/wing/model"
+	mcommon "git.stuhome.com/Sunmxt/wing/model/common"
 	"github.com/jinzhu/gorm"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -183,7 +184,7 @@ func UpdateDeploymentManifestFromSpec(ctx *ccommon.OperationContext, appName str
 		return false, nil
 	}
 	updated = false
-	deployName := common.GetNormalizedDeploymentName(appName, deployID)
+	//deployName := common.GetNormalizedDeploymentName(appName, deployID)
 	//if manifest.ObjectMeta.Name != deployName {
 	//	updated = true
 	//	manifest.ObjectMeta.Name = deployName

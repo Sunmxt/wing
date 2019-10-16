@@ -68,3 +68,15 @@ func GetClusterOperatorByOrchestratorID(ctx *common.OperationContext, orchestrat
 	}
 	return oper, nil
 }
+
+func GetActiveDeployment(ctx *common.OperationContext, cluster *sae.ApplicationCluster) (*sae.ApplicationDeployment, error) {
+	db, err := ctx.Database()
+	if err != nil {
+		return nil, err
+	}
+	var deployment *sae.ApplicationDeployment
+	if err = db.Where("cluster_id = (?) and state in (?)", cluster.Basic.ID, sae.ActiveDeploymentStates).Order("create_time desc").First(&deployment).Error; err != nil && !gorm.IsRecordNotFoundError(err) {
+		return nil, err
+	}
+	return deployment, nil
+}

@@ -255,6 +255,14 @@ type CIRepositoryBuild struct {
 	RepositoryID int
 }
 
+func (m *CIRepositoryBuild) DecodeExtra(extra interface{}) error {
+	return common.DecodeExtra(m.Extra, extra)
+}
+
+func (m *CIRepositoryBuild) EncodeExtra(extra interface{}) error {
+	return common.EncodeExtra(&m.Extra, extra)
+}
+
 const (
 	GitlabCIBuild = 1
 )
@@ -263,10 +271,11 @@ type CIRepositoryBuildProduct struct {
 	common.Basic
 
 	CommitHash   string             `gorm:"type:varchar(128);not null;"`
-	ProductToken string             `gorm:"type:varchar(128);not null;`
+	ProductToken string             `gorm:"type:varchar(128);not null;"`
 	Extra        string             `gorm:"type:longtext"`
 	Active       int                `gorm:"type:tinyint;not null"`
 	Stage        int                `gorm:"type:tinyint;not null"`
+	Type         int                `gorm:"type:tinyint"`
 	Build        *CIRepositoryBuild `gorm:"foreignkey:BuildID;not null"`
 
 	BuildID int
@@ -276,6 +285,9 @@ const (
 	ProductBuilding     = 1
 	ProductBuildSucceed = 2
 	ProductBuildFailure = 3
+
+	ProductPackage      = 1
+	ProductRuntimeImage = 2
 )
 
 type BuildProductExtra struct {
@@ -286,14 +298,9 @@ type BuildProductExtra struct {
 }
 
 func (l *CIRepositoryBuildProduct) EncodeExtra(extra interface{}) error {
-	bin, err := json.Marshal(extra)
-	if err != nil {
-		return err
-	}
-	l.Extra = string(bin)
-	return nil
+	return common.EncodeExtra(&l.Extra, extra)
 }
 
 func (l *CIRepositoryBuildProduct) DecodeExtra(extra interface{}) error {
-	return json.Unmarshal([]byte(l.Extra), extra)
+	return common.DecodeExtra(l.Extra, extra)
 }

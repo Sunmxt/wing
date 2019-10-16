@@ -20,12 +20,21 @@ func RegisterAPI(engine *gin.Engine) error {
 	engine.POST("/api/locale", SetLocale)
 
 	// App Engine API
+	engine.POST("/api/orchestrator/create", sae.CreateOrchestrator)
+	engine.GET("/api/orchestrator/list", sae.ListOrchestrator)
+	//engine.POST("/api/orchestrator/edit", sae.EditOrchestrator)
+	engine.POST("/api/orchestrator/disable", sae.DisableOrchestrator)
+	engine.POST("/api/orchestrator/enable", sae.EnableOrchestrator)
+	engine.POST("/api/orchestrator/delete", sae.DeleteOrchestrator)
 	engine.GET(common.SAEStaticPath+"/*resource", sae.GetSAEResource)
 
+	engine.POST("/api/sae/application/create", sae.CreateApplication)
+	//engine.POST("/api/sae/application/edit", sae.EditApplication)
+	engine.POST("/api/sae/application/cluster/create", sae.CreateApplicationCluster)
+
 	// Application API
-	engine.POST("/api/application/create", CreateApplication)
 	engine.GET("/api/application/list", ListApplication)
-	engine.GET("/api/application/info", GetApplicationInfo)
+	//engine.GET("/api/application/info", GetApplicationInfo)
 	engine.POST("/api/application/deploy", CreateDeployment)
 	engine.POST("/api/application/deploy/start", StartDeployment)
 	engine.GET("/api/application/deploy/list", ListDeployment)
@@ -50,7 +59,9 @@ func RegisterAPI(engine *gin.Engine) error {
 	engine.GET("/api/scm/repository/builds/product", scm.ListProduct)
 	engine.GET("/api/scm/builds/:id/gitlab-jobs.yml", scm.GetGitlabCIIncludingJobs)
 	engine.GET("/api/scm/builds/:id/job", scm.GetCIJob)
+	engine.GET("/api/scm/builds/:id/runtime/job", scm.GetCIRuntimeBuildJob)
 	engine.POST("/api/scm/builds/:id/result/report", scm.ReportBuildResult)
+	engine.POST("/api/scm/builds/:id/runtime/result/report", scm.ReportRuntimeBuildResult)
 
 	engine.NoRoute(ServeDefault)
 

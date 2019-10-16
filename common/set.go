@@ -1,5 +1,40 @@
 package common
 
+type IntSet struct {
+	set map[int]struct{}
+}
+
+func NewIntSet(values ...int) (s *IntSet) {
+	s = &IntSet{
+		set: map[int]struct{}{},
+	}
+	return s.Add(values...)
+}
+
+func (s *IntSet) Add(values ...int) *IntSet {
+	for _, v := range values {
+		s.set[v] = struct{}{}
+	}
+	return s
+}
+
+func (s *IntSet) List() (li []int) {
+	li = make([]int, 0, len(s.set))
+	for x := range s.set {
+		li = append(li, x)
+	}
+	return
+}
+
+func (s *IntSet) Visit(visit func(int) bool) *IntSet {
+	for x := range s.set {
+		if !visit(x) {
+			break
+		}
+	}
+	return s
+}
+
 type Uint64Set struct {
 	set map[uint64]struct{}
 }
@@ -55,7 +90,7 @@ func (s *Uint64Set) Intersect(values ...uint64) *Uint64Set {
 }
 
 func (s *Uint64Set) Visit(visit func(uint64) bool) *Uint64Set {
-	for v, _ := range s.set {
+	for v := range s.set {
 		if !visit(v) {
 			break
 		}
@@ -92,7 +127,7 @@ func (s *StringSet) Delete(values ...string) *StringSet {
 }
 
 func (s *StringSet) Visit(visit func(string) bool) *StringSet {
-	for value, _ := range s.set {
+	for value := range s.set {
 		if !visit(value) {
 			break
 		}

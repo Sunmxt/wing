@@ -238,7 +238,8 @@ func (ctx *RequestContext) LoginEnsured(fail bool) bool {
 func (ctx *RequestContext) RBACOrDeny() *account.RBACContext {
 	rbac := ctx.RBAC()
 	if rbac != nil {
-		ctx.FailWithMessage("Auth.LackOfPermissing")
+		ctx.AbortCodeWithError(http.StatusForbidden, errors.New("Auth.LackOfPermission"))
+		ctx.OpCtx.Log.Error("RBAC object is nil.")
 		return nil
 	}
 	return rbac

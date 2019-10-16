@@ -2,8 +2,9 @@ package common
 
 import (
 	"fmt"
-	"github.com/satori/go.uuid"
 	"strings"
+
+	uuid "github.com/satori/go.uuid"
 )
 
 func GetNormalizedDeploymentName(appName string, deploymentID int) string {
@@ -28,6 +29,19 @@ func ValidApplicationName(appName string) bool {
 	return GetNormalizedApplicationName(appName) != ""
 }
 
+func ValidServiceName(serviceName string) bool {
+	for _, c := range serviceName {
+		if ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') || ('0' <= c && c <= '9') {
+			continue
+		}
+		if c == '_' || c == '.' {
+			continue
+		}
+		return false
+	}
+	return true
+}
+
 func GenerateRandomToken() string {
 	return strings.Replace(uuid.NewV4().String(), "-", "", -1)
 }
@@ -48,4 +62,10 @@ func Max(a, b int) int {
 		return a
 	}
 	return b
+}
+
+type PatchValue struct {
+	Op    string      `json:"op"`
+	Path  string      `json:"path"`
+	Value interface{} `json:"value"`
 }

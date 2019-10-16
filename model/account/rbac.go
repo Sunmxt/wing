@@ -2,13 +2,14 @@ package account
 
 import (
 	"fmt"
+	"regexp"
+
 	"git.stuhome.com/Sunmxt/wing/model/common"
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/mysql"
 	_ "github.com/jinzhu/gorm/dialects/postgres"
 	_ "github.com/jinzhu/gorm/dialects/sqlite"
 	log "github.com/sirupsen/logrus"
-	"regexp"
 )
 
 const (
@@ -237,9 +238,6 @@ func (r *ContextRole) Load(db *gorm.DB) (err error) {
 }
 
 func (r *ContextRole) VerbSub(resource string, verbs int64) int64 {
-	if r.Rules == nil {
-		return verbs
-	}
 	for _, rule := range r.Rules {
 		if verbs == 0 {
 			break
@@ -364,7 +362,7 @@ func (c *RBACContext) Update(db *gorm.DB) (err error) {
 }
 
 func (c *RBACContext) Permitted(resource string, verbs int64) bool {
-	if c.Roles != nil {
+	if c.Roles == nil {
 		return false
 	}
 	for _, role := range c.Roles {

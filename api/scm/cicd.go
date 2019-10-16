@@ -10,6 +10,8 @@ import (
 	acommon "git.stuhome.com/Sunmxt/wing/api/common"
 	"git.stuhome.com/Sunmxt/wing/common"
 	"git.stuhome.com/Sunmxt/wing/controller/cicd"
+	csae "git.stuhome.com/Sunmxt/wing/controller/sae"
+	"git.stuhome.com/Sunmxt/wing/model/sae"
 	"git.stuhome.com/Sunmxt/wing/model/scm"
 	"git.stuhome.com/Sunmxt/wing/model/scm/gitlab"
 	"github.com/gin-gonic/gin"
@@ -715,13 +717,13 @@ const (
 func ReportBuildResult(ctx *gin.Context) {
 	rctx, request := acommon.NewRequestContext(ctx), &ReportBuildResultRequest{}
 	rawBuildID := ctx.Param("id")
-	db := rctx.DatabaseOrFail()
-	if db == nil || !rctx.BindOrFail(request) {
-		return
-	}
 	token := ctx.Request.Header.Get("Wing-Auth-Token")
 	if token == "" {
 		rctx.FailCodeWithMessage(http.StatusForbidden, common.ErrUnauthenticated.Error())
+		return
+	}
+	db := rctx.DatabaseOrFail()
+	if db == nil || !rctx.BindOrFail(request) {
 		return
 	}
 	buildID, err := strconv.ParseUint(rawBuildID, 10, 64)
@@ -904,4 +906,105 @@ func ListProduct(ctx *gin.Context) {
 	response.Products = entries
 	rctx.Response.Data = response
 	rctx.Succeed()
+}
+
+func GetCIRuntimeBuildJob(ctx *gin.Context) {
+	rctx, rawClusterID := acommon.NewRequestContext(ctx), ctx.Param("id")
+	token := ctx.Request.Header.Get("Wing-Auth-Token")
+	if token == "" {
+		rctx.FailCodeWithMessage(http.StatusForbidden, common.ErrUnauthenticated.Error())
+		return
+	}
+	db := rctx.DatabaseOrFail()
+	if db == nil {
+		return
+	}
+	clusterID, err := strconv.ParseInt(rawClusterID, 10, 64)
+	if err != nil {
+		rctx.AbortCodeWithError(http.StatusBadRequest, err)
+		return
+	}
+	cluster := &sae.ApplicationCluster{}
+	if err = cluster.ByID(db, int(clusterID)); err != nil {
+		if gorm.IsRecordNotFoundError(err) {
+			rctx.FailCodeWithMessage(http.StatusForbidden, common.ErrUnauthenticated.Error())
+			return
+		}
+		rctx.AbortWithError(err)
+		return
+	}
+	// Auth
+	var IDs []int
+	if err = db.Model(sae.BuildDependency{}).
+		Where("application_id = (?)", cluster.ApplicationID).
+		Pluck("build_id", &IDs).Error; err != nil {
+		if gorm.IsRecordNotFoundError(err) {
+			rctx.FailCodeWithMessage(http.StatusForbidden, common.ErrUnauthenticated.Error())
+			return
+		}
+		rctx.AbortCodeWithError(http.StatusForbidden, err)
+		return
+	}
+	q := db.Model(scm.CIRepositoryBuild{}).Where("id in (?) and active in (?)", IDs, []int{scm.Active, scm.Disabled})
+	IDs = IDs[0:0]
+	if err = q.Pluck("repository_id", &IDs).Error; err != nil {
+		if gorm.IsRecordNotFoundError(err) {
+			rctx.FailCodeWithMessage(http.StatusForbidden, common.ErrUnauthenticated.Error())
+			return
+		}
+		rctx.AbortCodeWithError(http.StatusForbidden, err)
+		return
+	}
+	var validTokens []string
+	if err = db.Model(scm.CIRepository{}).Where("id in (?)").Pluck("token", validTokens).Error; err != nil {
+		if gorm.IsRecordNotFoundError(err) {
+			rctx.FailCodeWithMessage(http.StatusForbidden, common.ErrUnauthenticated.Error())
+			return
+		}
+		rctx.AbortCodeWithError(http.StatusForbidden, err)
+		return
+	}
+	valid := true
+	for _, validToken := range validTokens {
+		if token == validToken {
+			valid = true
+			break
+		}
+	}
+	if !valid {
+		rctx.FailCodeWithMessage(http.StatusForbidden, common.ErrUnauthenticated.Error())
+		return
+	}
+	// generate script according to active deployment.
+	var deployment *sae.ApplicationDeployment
+	if deployment, err = csae.GetActiveDeployment(&rctx.OpCtx, cluster); err != nil {
+		rctx.AbortWithError(err)
+		return
+	}
+	if deployment == nil || (deployment.State != sae.DeploymentImageBuildInProgress &&
+		deployment.State != sae.DeploymentImageBuildFinished &&
+		deployment.State != sae.DeploymentCreated) { // no active deployment.
+		ctx.Writer.WriteHeader(http.StatusOK)
+		return
+	}
+	buf := &bytes.Buffer{}
+	if err = cicd.GenerateScriptForGitlabCIRuntimeBuild(&rctx.OpCtx, buf, nil); err != nil {
+		rctx.AbortWithError(err)
+		return
+	}
+	ctx.Writer.Write(buf.Bytes())
+	ctx.Writer.WriteHeader(http.StatusOK)
+}
+
+func ReportRuntimeBuildResult(ctx *gin.Context) {
+	//rctx, rawClusterID := acommon.NewRequestContext(ctx), ctx.Param("id")
+	//token := ctx.Request.Header.Get("Wing-Auth-Token")
+	//if token == "" {
+	//	rctx.FailCodeWithMessage(http.StatusForbidden, common.ErrUnauthenticated.Error())
+	//	return
+	//}
+	//db := rctx.DatabaseOrFail()
+	//if db == nil || !rctx.BindOrFail(request) {
+	//	return
+	//}
 }

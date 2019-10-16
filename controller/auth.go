@@ -2,6 +2,7 @@ package controller
 
 import (
 	"fmt"
+
 	"git.stuhome.com/Sunmxt/wing/common"
 	ccommon "git.stuhome.com/Sunmxt/wing/controller/common"
 	"git.stuhome.com/Sunmxt/wing/model/account"
@@ -120,7 +121,7 @@ func AuthAsLDAPUser(ctx *ccommon.OperationContext, username, password string) (*
 }
 
 func LegacyAccountByName(ctx *ccommon.OperationContext, username string, create bool, passwordHash string) (*account.Account, error) {
-	if !common.ReMail.Match([]byte(username)) {
+	if !common.ReMail.Match([]byte(username)) && username != "admin" {
 		return nil, common.ErrUsernameNotMail
 	}
 

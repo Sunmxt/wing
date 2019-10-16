@@ -34,8 +34,9 @@ func Migrate(db *gorm.DB, cfg *config.WingConfiguration) (err error) {
 type Orchestrator struct {
 	common.Basic `json:"-"`
 
+	Name   string           `gorm:"type:varchar(128);" json:"name"`
 	Active int              `gorm:"type:tinyint;not null;" json:"active"`
-	Type   int              `gorm:"type:tinyint:not null;" json:"type"`
+	Type   int              `gorm:"type:tinyint;not null;" json:"type"`
 	Extra  string           `gorm:"type:longtext" json:"extra"`
 	Owner  *account.Account `gorm:"foreignkey:OwnerID;not null" json:"-"`
 
@@ -48,6 +49,10 @@ func (o *Orchestrator) DecodeExtra(v interface{}) error {
 
 func (o *Orchestrator) EncodeExtra(v interface{}) error {
 	return common.EncodeExtra(&o.Extra, v)
+}
+
+func (o Orchestrator) TableName() string {
+	return "orchestrator"
 }
 
 type KubernetesOrchestrator struct {
@@ -78,12 +83,18 @@ type Application struct {
 	common.Basic `json:"-"`
 
 	Name        string           `gorm:"type:varchar(128);not null" json:"name"`
-	ServiceName string           `gorm:"type:varchar(128);not null;unique" json:"service_name"`
+	ServiceName string           `gorm:"type:varchar(128);not null;unique;" json:"service_name"`
 	Owner       *account.Account `gorm:"foreignkey:OwnerID;not null" json:"-"`
+	Description string           `gorm:"type:longtext;"`
 	Extra       string           `gorm:"type:longtext" json:"extra"`
+	Type        int              `gorm:"type:tinyint" json:"type"`
 
 	OwnerID int `json:"owner_id"`
 }
+
+const (
+	SAEApplication = 1
+)
 
 func (m Application) TableName() string {
 	return "application"
@@ -94,11 +105,17 @@ type BuildDependency struct {
 
 	Build       *scm.CIRepositoryBuild `gorm:"foreignkey:BuildID" json:"-"`
 	Application *Application           `gorm:"foreignkey:ApplicationID" json:"-"`
-	Extra       string                 `gorm:"type:longtext"`
+	Extra       string                 `gorm:"type:longtext" json:"extra"`
+	Type        int                    `gorm:"type:tinyint" json:"type"`
 
 	ApplicationID int `json:"application_id"`
 	BuildID       int `json:"build_id"`
 }
+
+const (
+	BuildProductDependency    = 0
+	BuildDockerfileDependency = 1
+)
 
 func (m BuildDependency) TableName() string {
 	return "build_dependency"
@@ -110,6 +127,7 @@ type ApplicationCluster struct {
 	Application   *Application          `gorm:"foreignkey:ApplicationID"`
 	Orchestrator  *Orchestrator         `gorm:"foreignkey:OrchestratorID"`
 	Specification *ClusterSpecification `gorm:"foreignkey:SpecID"`
+	Active        int                   `gorm:"type:tinyint"`
 
 	OrchestratorID int
 	SpecicationID  int
@@ -123,8 +141,7 @@ func (m ApplicationCluster) TableName() string {
 type ClusterSpecification struct {
 	common.Basic
 
-	Command string `gorm:"command"`
-	Extra   string `gorm:"longtext"`
+	Extra string `gorm:"longtext"`
 }
 
 func (s *ClusterSpecification) GetSpecification(spec *ClusterSpecificationDetail) error {
@@ -136,11 +153,13 @@ func (s *ClusterSpecification) UpdateSpecification(spec *ClusterSpecificationDet
 }
 
 type ClusterSpecificationDetail struct {
+	Command              string               `gorm:"command"`
 	ReplicaCount         int                  `json:"replica"`
 	TestingReplicaCount  int                  `json:"testing_replica"`
 	EnvironmentVariables map[string]string    `json:"environment_variables"`
 	Resource             *ResourceRequirement `json:"resource"`
-	Product              *ProductRequirement  `json:"product"`
+	Product              []ProductRequirement `json:"product"`
+	BaseImage            string               `json:"base_image"`
 }
 
 type ResourceRequirement struct {
@@ -149,7 +168,9 @@ type ResourceRequirement struct {
 }
 
 type ProductRequirement struct {
-	ProductID int `json:"product_id"`
+	Namespace   string
+	Environment string
+	Tag         string
 }
 
 func (m ClusterSpecification) TableName() string {
@@ -181,6 +202,16 @@ const (
 	DeploymentInProgress               = 8
 	DeploymentRollbackInProgress       = 9
 )
+
+var ActiveDeploymentStates []int = []int{
+	DeploymentCreated,
+	DeploymentImageBuildFinished,
+	DeploymentImageBuildInProgress,
+	DeploymentTestingReplicaFinished,
+	DeploymentTestingReplicaInProgress,
+	DeploymentInProgress,
+	DeploymentRollbackInProgress,
+}
 
 func (m ApplicationDeployment) TableName() string {
 	return "application_deployment"
