@@ -28,6 +28,9 @@ func Migrate(db *gorm.DB, cfg *config.WingConfiguration) (err error) {
 	if err = db.AutoMigrate(&ClusterSpecification{}).Error; err != nil {
 		return err
 	}
+	if err = db.AutoMigrate(&ApplicationDeployment{}).Error; err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -87,14 +90,9 @@ type Application struct {
 	Owner       *account.Account `gorm:"foreignkey:OwnerID;not null" json:"-"`
 	Description string           `gorm:"type:longtext;"`
 	Extra       string           `gorm:"type:longtext" json:"extra"`
-	Type        int              `gorm:"type:tinyint" json:"type"`
 
 	OwnerID int `json:"owner_id"`
 }
-
-const (
-	SAEApplication = 1
-)
 
 func (m Application) TableName() string {
 	return "application"
@@ -106,16 +104,10 @@ type BuildDependency struct {
 	Build       *scm.CIRepositoryBuild `gorm:"foreignkey:BuildID" json:"-"`
 	Application *Application           `gorm:"foreignkey:ApplicationID" json:"-"`
 	Extra       string                 `gorm:"type:longtext" json:"extra"`
-	Type        int                    `gorm:"type:tinyint" json:"type"`
 
 	ApplicationID int `json:"application_id"`
 	BuildID       int `json:"build_id"`
 }
-
-const (
-	BuildProductDependency    = 0
-	BuildDockerfileDependency = 1
-)
 
 func (m BuildDependency) TableName() string {
 	return "build_dependency"
@@ -129,9 +121,9 @@ type ApplicationCluster struct {
 	Specification *ClusterSpecification `gorm:"foreignkey:SpecID"`
 	Active        int                   `gorm:"type:tinyint"`
 
-	OrchestratorID int
-	SpecicationID  int
-	ApplicationID  int
+	OrchestratorID  int
+	SpecificationID int
+	ApplicationID   int
 }
 
 func (m ApplicationCluster) TableName() string {
@@ -153,7 +145,7 @@ func (s *ClusterSpecification) UpdateSpecification(spec *ClusterSpecificationDet
 }
 
 type ClusterSpecificationDetail struct {
-	Command              string               `gorm:"command"`
+	Command              string               `json:"command"`
 	ReplicaCount         int                  `json:"replica"`
 	TestingReplicaCount  int                  `json:"testing_replica"`
 	EnvironmentVariables map[string]string    `json:"environment_variables"`
@@ -168,9 +160,9 @@ type ResourceRequirement struct {
 }
 
 type ProductRequirement struct {
-	Namespace   string
-	Environment string
-	Tag         string
+	Namespace   string `json:"namespace"`
+	Environment string `json:"environment"`
+	Tag         string `json:"tag"`
 }
 
 func (m ClusterSpecification) TableName() string {

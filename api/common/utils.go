@@ -13,6 +13,7 @@ import (
 	ccommon "git.stuhome.com/Sunmxt/wing/controller/common"
 	mlog "git.stuhome.com/Sunmxt/wing/log"
 	"git.stuhome.com/Sunmxt/wing/model/account"
+	"git.stuhome.com/Sunmxt/wing/model/sae"
 
 	ss "github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
@@ -251,6 +252,17 @@ func (ctx *RequestContext) PermitOrReject(resource string, verbs int64) bool {
 		return false
 	}
 	return true
+}
+
+func (ctx *RequestContext) PermitApplicationOrReject(verbs int64, app *sae.Application) bool {
+	account := ctx.GetAccount()
+	if account == nil {
+		return false
+	}
+	if account.Basic.ID == app.OwnerID {
+		return true
+	}
+	return ctx.PermitOrReject("application/by_id/"+strconv.FormatInt(int64(app.Basic.ID), 10), verbs)
 }
 
 func (ctx *RequestContext) BindOrFail(req APIRequest) bool {

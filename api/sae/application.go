@@ -6,6 +6,7 @@ import (
 	acommon "git.stuhome.com/Sunmxt/wing/api/common"
 	"git.stuhome.com/Sunmxt/wing/common"
 	"git.stuhome.com/Sunmxt/wing/model/sae"
+	"git.stuhome.com/Sunmxt/wing/model/scm"
 	"github.com/gin-gonic/gin"
 	"github.com/jinzhu/gorm"
 )
@@ -14,7 +15,7 @@ type ApplicationCreateRequest struct {
 	Name        string `form:"name" binding:"required"`
 	ServiceName string `form:"service_name" binding:"required"`
 	Description string `form:"description"`
-	Type        string `form:"type"`
+	BuildIDs    []int  `form:"build_ids"`
 }
 
 func (r *ApplicationCreateRequest) Clean(ctx *acommon.RequestContext) (err error) {
@@ -37,23 +38,59 @@ func CreateApplication(ctx *gin.Context) {
 	if db == nil {
 		return
 	}
+	tx := db.Begin()
 	user := rctx.GetAccount()
 	app := &sae.Application{}
-	if err := db.Where("service_name = (?)", request.ServiceName).
+	if err := tx.Where("service_name = (?)", request.ServiceName).
 		Select("id").Find(app).Error; err != nil && !gorm.IsRecordNotFoundError(err) {
+		tx.Rollback()
 		rctx.AbortWithError(err)
 		return
 	}
 	if app.Basic.ID > 0 {
+		tx.Rollback()
 		rctx.FailWithMessage("SAE.ServiceNameAlreadyExists")
 		return
+	}
+	depCount := 0
+	if len(request.BuildIDs) > 0 {
+		if err := tx.Where("id in (?)", request.BuildIDs).Model(&scm.CIRepositoryBuild{}).Count(&depCount).Error; err != nil {
+			tx.Rollback()
+			rctx.AbortWithError(err)
+			return
+		}
+		if depCount != len(request.BuildIDs) {
+			tx.Rollback()
+			rctx.OpCtx.Log.Infof("dependency count not matched: %v != %v", depCount, len(request.BuildIDs))
+			rctx.FailWithMessage("SCM.BuildNotFound")
+			return
+		}
 	}
 	app.Name = request.Name
 	app.ServiceName = request.ServiceName
 	app.Description = request.Description
 	app.OwnerID = user.Basic.ID
-	if err := db.Save(app).Error; err != nil {
+	if err := tx.Save(app).Error; err != nil {
+		tx.Rollback()
 		rctx.AbortWithError(err)
+		return
+	}
+	if depCount > 0 {
+		for _, depID := range request.BuildIDs {
+			ref := &sae.BuildDependency{
+				BuildID:       depID,
+				ApplicationID: app.ID,
+			}
+			if err := tx.Save(ref).Error; err != nil {
+				rctx.AbortWithError(err)
+				tx.Rollback()
+				return
+			}
+		}
+	}
+	if err := tx.Commit().Error; err != nil {
+		rctx.AbortWithError(err)
+		tx.Rollback()
 		return
 	}
 	response.ApplicationID = app.Basic.ID

@@ -23,7 +23,7 @@ func (s *IntSet) List() (li []int) {
 	for x := range s.set {
 		li = append(li, x)
 	}
-	return
+	return li
 }
 
 func (s *IntSet) Visit(visit func(int) bool) *IntSet {

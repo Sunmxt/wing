@@ -16,3 +16,7 @@ func (m *Orchestrator) ByID(db *gorm.DB, id int) error {
 func (m *ApplicationCluster) ByID(db *gorm.DB, id int) error {
 	return common.PickByColumn(db, "id", m, id)
 }
+
+func (m *Application) ByID(db *gorm.DB, id int) error {
+	return common.PickByColumn(db, "id", m, id)
+}

@@ -22,6 +22,7 @@ type CreateOrchestratorRequest struct {
 func (r *CreateOrchestratorRequest) Clean(ctx *acommon.RequestContext) error {
 	switch r.Type {
 	case sae.Kubernetes:
+
 	case sae.KubernetesIncluster:
 	default:
 		return errors.New("SAE.InvalidOrchestratorType")

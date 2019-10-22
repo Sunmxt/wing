@@ -26,8 +26,10 @@ func registerI18NMessage() {
 	message.SetString(language.Chinese, "SCM.BuildNotFound", "构建不存在")
 	message.SetString(language.English, "SCM.BuildNotFound", "build not found.")
 
-	message.SetString(language.Chinese, "SAE.SerciceNameAlreadyExists", "服务名已存在")
-	message.SetString(language.English, "SAE.SerciceNameAlreadyExists", "Service name already exists.")
+	message.SetString(language.Chinese, "SAE.ApplicationNotFound", "应用不存在.")
+	message.SetString(language.English, "SAE.ApplicationNotFound", "Application not found.")
+	message.SetString(language.Chinese, "SAE.ServiceNameAlreadyExists", "服务名已存在")
+	message.SetString(language.English, "SAE.ServiceNameAlreadyExists", "Service name already exists.")
 	message.SetString(language.Chinese, "SAE.InvalidOrchestratorType", "无效的编排器类型")
 	message.SetString(language.English, "SAE.InvalidOrchestratorType", "Invalid orchestrator type.")
 	message.SetString(language.Chinese, "SAE.OrchestratorNotFound", "没有找到相应的编排器.")
