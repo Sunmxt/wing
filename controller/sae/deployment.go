@@ -8,7 +8,67 @@ import (
 	"github.com/jinzhu/gorm"
 )
 
-func CreateNewDeploymentForCluster(ctx *ccommon.OperationContext, tx *gorm.DB, cluster *sae.ApplicationCluster, spec *sae.ClusterSpecificationDetail, requireOverrided []sae.ProductRequirement) (deployment *sae.ApplicationDeployment, err error) {
+func DeploymentTriggerImageBuild(ctx *ccommon.OperationContext, tx *gorm.DB, deployment *sae.ApplicationDeployment) error {
+
+}
+
+func AbortDeployment(ctx *ccommon.OperationContext, tx *gorm.DB, deployment *sae.ApplicationDeployment) error {
+
+}
+
+func DeploymentTriggerNext(ctx *ccommon.OperationContext, tx *gorm.DB, deployment *sae.ApplicationDeployment) error {
+	orcher, err := LoadOrchestratorOperator(ctx, deployment.Cluster.OrchestratorID)
+	if err != nil {
+		return err
+	}
+	shouldCommit := false
+	defer func() {
+		if shouldCommit {
+			if err == nil {
+				err = tx.Commit().Error
+			}
+			if err != nil {
+				tx.Rollback()
+			}
+		}
+	}()
+	if tx == nil {
+		if tx, err = ctx.Database(); err != nil {
+			return err
+		}
+		tx = tx.Begin()
+		shouldCommit = true
+	}
+	var synced bool
+	var nextState int
+
+	switch deployment.State {
+	case sae.DeploymentCreated:
+		if err = tx.Model(deployment).Update("state", sae.DeploymentImageBuildInProgress).Error; err != nil {
+			return err
+		}
+		if err = DeploymentTriggerImageBuild(ctx, tx, deployment); err != nil {
+			return err
+		}
+		return nil
+
+	case sae.DeploymentImageBuildInProgress:
+		return nil
+	case sae.DeploymentImageBuildFinished:
+		nextState = sae.DeploymentTestingReplicaInProgress
+	case sae.DeploymentTestingReplicaInProgress:
+		nextState = sae.DeploymentTestingReplicaFinished
+	case sae.DeploymentTestingReplicaFinished:
+		nextState = sae.DeploymentInProgress
+	case sae.DeploymentInProgress:
+		nextState = sae.DeploymentFinished
+	}
+	if synced, err = orcher.Synchronize(deployment, sae.DeploymentImageBuildInProgress); err != nil {
+		return err
+	}
+}
+
+func CreateNewDeploymentForCluster(ctx *ccommon.OperationContext, tx *gorm.DB, cluster *sae.ApplicationCluster, spec *sae.ClusterSpecificationDetail, requireOverrided []sae.ProductRequirement, OwnerID int) (deployment *sae.ApplicationDeployment, err error) {
 	shouldCommit := false
 	defer func() {
 		if shouldCommit {
@@ -59,6 +119,7 @@ func CreateNewDeploymentForCluster(ctx *ccommon.OperationContext, tx *gorm.DB, c
 		NewSpecificationID: rawSpec.Basic.ID,
 		ClusterID:          cluster.ID,
 		State:              sae.DeploymentCreated,
+		OwnerID:            OwnerID,
 	}
 	if err = tx.Save(deployment).Error; err != nil {
 		return nil, err

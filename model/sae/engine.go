@@ -119,11 +119,13 @@ type ApplicationCluster struct {
 	Application   *Application          `gorm:"foreignkey:ApplicationID"`
 	Orchestrator  *Orchestrator         `gorm:"foreignkey:OrchestratorID"`
 	Specification *ClusterSpecification `gorm:"foreignkey:SpecID"`
+	Owner         *account.Account      `gorm:"foreignkey:OwnerID;not null" json:"-"`
 	Active        int                   `gorm:"type:tinyint"`
 
 	OrchestratorID  int
 	SpecificationID int
 	ApplicationID   int
+	OwnerID         int
 }
 
 func (m ApplicationCluster) TableName() string {
@@ -147,7 +149,6 @@ func (s *ClusterSpecification) UpdateSpecification(spec *ClusterSpecificationDet
 type ClusterSpecificationDetail struct {
 	Command              string               `json:"command"`
 	ReplicaCount         int                  `json:"replica"`
-	TestingReplicaCount  int                  `json:"testing_replica"`
 	EnvironmentVariables map[string]string    `json:"environment_variables"`
 	Resource             *ResourceRequirement `json:"resource"`
 	Product              []ProductRequirement `json:"product"`
@@ -176,31 +177,55 @@ type ApplicationDeployment struct {
 	OldSpecification *ClusterSpecification `gorm:"foreignkey:OldSpecificationID"`
 	NewSpecification *ClusterSpecification `gorm:"foreignkey:NewSpecificationID"`
 	State            int                   `gorm:"type:tinyint"`
+	Owner            *account.Account      `gorm:"foreignkey:OwnerID;not null" json:"-"`
 
 	OldSpecificationID int
 	NewSpecificationID int
 	ClusterID          int
+	OwnerID            int
 }
 
 const (
-	DeploymentFinished                 = 0
-	DeploymentCanceled                 = 1
-	DeploymentRollbacked               = 2
-	DeploymentCreated                  = 3
-	DeploymentImageBuildInProgress     = 4
-	DeploymentImageBuildFinished       = 5
-	DeploymentTestingReplicaInProgress = 6
-	DeploymentTestingReplicaFinished   = 7
-	DeploymentInProgress               = 8
-	DeploymentRollbackInProgress       = 9
+	// DeploymentFinished indicates new version of application cluster is successfully deployed.
+	// No rollbacking or canceling operation is triggered.
+	DeploymentFinished = 0
+
+	// DeploymentCanceled indicates deployment is canceled.
+	// This may happen any processes before rolling updating triggered.
+	DeploymentCanceled = 1
+
+	// DeploymentRollbacked indicates deployment is rollbacked.
+	// This may happen
+	DeploymentRollbacked = 2
+
+	// DeploymentCreated indicates deployment is newly created and no other process triggered.
+	DeploymentCreated = 3
+
+	// DeploymentImageBuildInProgress indicates new image is in build.
+	DeploymentImageBuildInProgress = 4
+
+	// DeploymentImageBuildFinished indicates new image building is finished.
+	DeploymentImageBuildFinished = 5
+
+	// DeploymentPartialScaleInRolling indicates orchestrator is applying rolling updates to partial application instances.
+	DeploymentPartialScaleInRolling = 6
+
+	// DeploymentPartialScaled indicates orchestrator has update partial application instance.
+	DeploymentPartialScaled = 7
+
+	// DeploymentInProgress indicates orchestrator is applying rolling updates to all application instance.
+	DeploymentInProgress = 8
+
+	// DeploymentRollbackInProgress indicates orchestrator is rolling back deploymeng.
+	DeploymentRollbackInProgress = 9
 )
 
 var ActiveDeploymentStates []int = []int{
 	DeploymentCreated,
 	DeploymentImageBuildFinished,
 	DeploymentImageBuildInProgress,
-	DeploymentTestingReplicaFinished,
-	DeploymentTestingReplicaInProgress,
+	DeploymentPartialScaleInRolling,
+	DeploymentPartialScaled,
 	DeploymentInProgress,
 	DeploymentRollbackInProgress,
 }

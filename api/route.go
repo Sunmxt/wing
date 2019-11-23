@@ -30,7 +30,11 @@ func RegisterAPI(engine *gin.Engine) error {
 
 	engine.POST("/api/sae/application/create", sae.CreateApplication)
 	//engine.POST("/api/sae/application/edit", sae.EditApplication)
-	engine.POST("/api/sae/application/cluster/create", sae.CreateApplicationCluster)
+
+	engine.POST("/api/sae/application/cluster/create", sae.CreateApplication)
+	engine.GET("/api/sae/application/deployment", sae.GetDeploymentDetail)
+
+	engine.POST("/api/sae/application/deployment/next", sae.DeploymentTriggerNext)
 
 	// Application API
 	engine.GET("/api/application/list", ListApplication)

@@ -254,15 +254,23 @@ func (ctx *RequestContext) PermitOrReject(resource string, verbs int64) bool {
 	return true
 }
 
-func (ctx *RequestContext) PermitApplicationOrReject(verbs int64, app *sae.Application) bool {
+func (ctx *RequestContext) PermitResourceByIDOrReject(verbs int64, resource string, ID, ownerID int) bool {
 	account := ctx.GetAccount()
 	if account == nil {
 		return false
 	}
-	if account.Basic.ID == app.OwnerID {
+	if account.Basic.ID == ownerID {
 		return true
 	}
-	return ctx.PermitOrReject("application/by_id/"+strconv.FormatInt(int64(app.Basic.ID), 10), verbs)
+	return ctx.PermitOrReject(resource+"/by_id/"+strconv.FormatInt(int64(ID), 10), verbs)
+}
+
+func (ctx *RequestContext) PermitApplicationOrReject(verbs int64, app *sae.Application) bool {
+	return ctx.PermitResourceByIDOrReject(verbs, "application", app.ID, app.OwnerID)
+}
+
+func (ctx *RequestContext) PermitDeploymentOrReject(verbs int64, deployment *sae.ApplicationDeployment) bool {
+	return ctx.PermitResourceByIDOrReject(verbs, "deployment", deployment.ID, deployment.OwnerID)
 }
 
 func (ctx *RequestContext) BindOrFail(req APIRequest) bool {

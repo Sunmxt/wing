@@ -125,26 +125,10 @@ type GetCICDApprovalDetailRequest struct {
 	ApprovalID int `form:"approval_id" binding:"required"`
 }
 
-type FlowStage struct {
-	Name   string      `json:"name"`
-	Prompt string      `json:"prompt"`
-	State  uint        `json:"status"`
-	Extra  interface{} `json:"extra"`
-}
-
-const (
-	FlowStageWait      = 0
-	FlowStageInProcess = 1
-	FlowStagePassed    = 2
-	FlowStageRejected  = 3
-	FlowStageError     = 4
-	FlowStageSkip      = 5
-)
-
 type GetCICDApprovalDetailResponse struct {
-	ID           int         `json:"approval_id"`
-	CurrentStage int         `json:"current_stage_index"`
-	Stages       []FlowStage `json:"stages"`
+	ID           int                 `json:"approval_id"`
+	CurrentStage int                 `json:"current_stage_index"`
+	Stages       []acommon.FlowStage `json:"stages"`
 }
 
 func (r *GetCICDApprovalDetailRequest) Clean(rctx *acommon.RequestContext) error {
@@ -193,16 +177,16 @@ func GetCICDApprovalDetail(ctx *gin.Context) {
 	}
 
 	// pick
-	response.Stages = make([]FlowStage, 3)
+	response.Stages = make([]acommon.FlowStage, 3)
 	response.Stages[0].Name = rctx.TranslateMessage("UI.Flow.Stage.SubmitRepositoryBuildEnableApproval")
 	response.Stages[1].Name = rctx.TranslateMessage("UI.Flow.Stage.SubmitGitlabMergeRequestApproval")
 	response.Stages[2].Name = rctx.TranslateMessage("UI.Flow.Stage.RepositoryBuildEnabled")
 	response.Stages[0].Prompt = rctx.TranslateMessage("UI.Flow.Stage.Prompt.SubmitRepositoryBuildEnableApproval")
 	response.Stages[1].Prompt = rctx.TranslateMessage("UI.Flow.Stage.Prompt.SubmitGitlabMergeRequestApproval")
 	response.Stages[2].Prompt = rctx.TranslateMessage("UI.Flow.Stage.Prompt.RepositoryBuildEnabled")
-	response.Stages[0].State = FlowStageWait
-	response.Stages[1].State = FlowStageWait
-	response.Stages[2].State = FlowStageWait
+	response.Stages[0].State = acommon.FlowStageWait
+	response.Stages[1].State = acommon.FlowStageWait
+	response.Stages[2].State = acommon.FlowStageWait
 
 	// pick workflow status according to latest ci log.
 	stageAccepted, extra := true, &scm.CIRepositoryLogApprovalStageChangedExtra{}
@@ -214,22 +198,22 @@ func GetCICDApprovalDetail(ctx *gin.Context) {
 		if extra.OldStage < 0 {
 			switch extra.NewStage {
 			case scm.ApprovalAccepted:
-				response.Stages[0].State = FlowStagePassed
-				response.Stages[1].State = FlowStageSkip
-				response.Stages[2].State = FlowStagePassed
+				response.Stages[0].State = acommon.FlowStagePassed
+				response.Stages[1].State = acommon.FlowStageSkip
+				response.Stages[2].State = acommon.FlowStagePassed
 				response.CurrentStage = 3
 
 			case scm.ApprovalRejected:
-				response.Stages[0].State = FlowStageRejected
+				response.Stages[0].State = acommon.FlowStageRejected
 				response.CurrentStage = 1
 
 			case scm.ApprovalCreated:
-				response.Stages[0].State = FlowStageInProcess
+				response.Stages[0].State = acommon.FlowStageInProcess
 				response.CurrentStage = 1
 
 			case scm.ApprovalWaitForAccepted:
-				response.Stages[0].State = FlowStagePassed
-				response.Stages[1].State = FlowStageInProcess
+				response.Stages[0].State = acommon.FlowStagePassed
+				response.Stages[1].State = acommon.FlowStageInProcess
 				response.CurrentStage = 2
 
 			default:
@@ -240,19 +224,19 @@ func GetCICDApprovalDetail(ctx *gin.Context) {
 			case scm.ApprovalCreated:
 				switch extra.NewStage {
 				case scm.ApprovalWaitForAccepted:
-					response.Stages[0].State = FlowStagePassed
-					response.Stages[1].State = FlowStageInProcess
+					response.Stages[0].State = acommon.FlowStagePassed
+					response.Stages[1].State = acommon.FlowStageInProcess
 					response.CurrentStage = 2
 
 				case scm.ApprovalAccepted:
-					response.Stages[0].State = FlowStagePassed
-					response.Stages[1].State = FlowStageSkip
-					response.Stages[2].State = FlowStagePassed
+					response.Stages[0].State = acommon.FlowStagePassed
+					response.Stages[1].State = acommon.FlowStageSkip
+					response.Stages[2].State = acommon.FlowStagePassed
 					response.CurrentStage = 3
 
 				case scm.ApprovalRejected:
-					response.Stages[0].State = FlowStagePassed
-					response.Stages[1].State = FlowStageRejected
+					response.Stages[0].State = acommon.FlowStagePassed
+					response.Stages[1].State = acommon.FlowStageRejected
 					response.CurrentStage = 2
 				default:
 					stageAccepted = false
@@ -261,14 +245,14 @@ func GetCICDApprovalDetail(ctx *gin.Context) {
 			case scm.ApprovalWaitForAccepted:
 				switch extra.NewStage {
 				case scm.ApprovalAccepted:
-					response.Stages[0].State = FlowStagePassed
-					response.Stages[1].State = FlowStagePassed
-					response.Stages[2].State = FlowStagePassed
+					response.Stages[0].State = acommon.FlowStagePassed
+					response.Stages[1].State = acommon.FlowStagePassed
+					response.Stages[2].State = acommon.FlowStagePassed
 					response.CurrentStage = 3
 
 				case scm.ApprovalRejected:
-					response.Stages[0].State = FlowStagePassed
-					response.Stages[1].State = FlowStageRejected
+					response.Stages[0].State = acommon.FlowStagePassed
+					response.Stages[1].State = acommon.FlowStageRejected
 					response.CurrentStage = 2
 				default:
 					stageAccepted = false

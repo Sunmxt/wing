@@ -9,39 +9,57 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// CreateApplicationClusterRequest : request from to create application cluster.
 type CreateApplicationClusterRequest struct {
 	OrcherstratorID int `form:"orchestrator_id" binding:"required"`
 	ApplicationID   int `form:"application_id" binding:"required"`
 
-	Command              string            `form:"command"`
-	Replicas             int               `form:"replicas" binding:"required"`
-	TestingReplicas      int               `form:"testing_replicas" binding:"required"`
+	// Command tell how to launch this application
+	Command string `form:"command"`
+	// Replicas specifies the number of instances to deploy.
+	Replicas int `form:"replicas" binding:"required"`
+
+	// Environment variables.
 	EnvironmentVariables map[string]string `form:"env_vars"`
-	Core                 float32           `form:"core" binding:"required"`
-	Memory               uint64            `form:"memory" binding:"required"`
-	BaseImage            string            `form:"base_image" binding:"required"`
+
+	// Number of required CPU Cores.
+	Core float32 `form:"core" binding:"required"`
+
+	// Number (in bytes) of required memory.
+	Memory uint64 `form:"memory" binding:"required"`
+
+	// reference to base image.
+	BaseImage string `form:"base_image" binding:"required"`
 }
 
+// Clean validate the form.
 func (c *CreateApplicationClusterRequest) Clean(ctx *acommon.RequestContext) error {
 	return nil
 }
 
+// CreateApplicationClusterResponse contains JSON response for new created applcation cluster.
 type CreateApplicationClusterResponse struct {
 	ClusterID    int `json:"cluster_id"`
 	DeploymentID int `json:"deployment_id"`
 }
 
+// CreateApplicationCluster : create new cluster for application.
 func CreateApplicationCluster(ctx *gin.Context) {
 	rctx, request, response := acommon.NewRequestContext(ctx), &CreateApplicationClusterRequest{}, &CreateApplicationClusterResponse{}
 	if !rctx.LoginEnsured(true) || !rctx.BindOrFail(request) {
 		return
 	}
 	db := rctx.DatabaseOrFail()
+
+	// Should have create permission for application.
 	if db == nil || !rctx.PermitOrReject("application", account.VerbCreate) {
 		return
 	}
+	account := rctx.GetAccount()
 	tx := db.Begin()
 	orcher, app := &sae.Orchestrator{}, &sae.Application{}
+
+	// Application should exists.
 	if err := app.ByID(tx, request.ApplicationID); err != nil {
 		tx.Rollback()
 		rctx.AbortWithError(err)
@@ -52,6 +70,8 @@ func CreateApplicationCluster(ctx *gin.Context) {
 		rctx.FailWithMessage("SAE.ApplicationNotFound")
 		return
 	}
+
+	// Orchestrator should exists.
 	if err := orcher.ByID(tx, request.OrcherstratorID); err != nil {
 		tx.Rollback()
 		rctx.AbortWithError(err)
@@ -62,10 +82,13 @@ func CreateApplicationCluster(ctx *gin.Context) {
 		rctx.FailWithMessage("SAE.OrchestratorNotFound")
 		return
 	}
+
+	// save cluster.
 	cluster := &sae.ApplicationCluster{
 		ApplicationID:  app.ID,
 		OrchestratorID: orcher.Basic.ID,
 		Active:         mcommon.Active,
+		OwnerID:        account.ID,
 	}
 	if err := tx.Save(cluster).Error; err != nil {
 		tx.Rollback()
@@ -73,6 +96,7 @@ func CreateApplicationCluster(ctx *gin.Context) {
 		return
 	}
 	cluster.Application = app
+	// get latest products according to dependencies.
 	products, err := csae.CreateProductSnapshotForApplication(&rctx.OpCtx, tx, cluster.Application)
 	if err != nil {
 		tx.Rollback()
@@ -82,7 +106,6 @@ func CreateApplicationCluster(ctx *gin.Context) {
 		Command:              request.Command,
 		ReplicaCount:         request.Replicas,
 		EnvironmentVariables: request.EnvironmentVariables,
-		TestingReplicaCount:  request.TestingReplicas,
 		Resource: &sae.ResourceRequirement{
 			Core:   request.Core,
 			Memory: request.Memory,
@@ -90,7 +113,7 @@ func CreateApplicationCluster(ctx *gin.Context) {
 		Product:   products,
 		BaseImage: request.BaseImage,
 	}
-	deployment, err := csae.CreateNewDeploymentForCluster(&rctx.OpCtx, tx, cluster, spec, nil)
+	deployment, err := csae.CreateNewDeploymentForCluster(&rctx.OpCtx, tx, cluster, spec, nil, account.ID)
 	if err != nil {
 		tx.Rollback()
 		rctx.AbortWithError(err)

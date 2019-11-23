@@ -28,6 +28,8 @@ func registerI18NMessage() {
 
 	message.SetString(language.Chinese, "SAE.ApplicationNotFound", "应用不存在.")
 	message.SetString(language.English, "SAE.ApplicationNotFound", "Application not found.")
+	message.SetString(language.Chinese, "SAE.DeploymentNotFound", "部署不存在.")
+	message.SetString(language.English, "SAE.DeploymentNotFound", "Deployment not found.")
 	message.SetString(language.Chinese, "SAE.ServiceNameAlreadyExists", "服务名已存在")
 	message.SetString(language.English, "SAE.ServiceNameAlreadyExists", "Service name already exists.")
 	message.SetString(language.Chinese, "SAE.InvalidOrchestratorType", "无效的编排器类型")
