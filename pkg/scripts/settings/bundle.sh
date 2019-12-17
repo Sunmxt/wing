@@ -1,0 +1,1 @@
+BUNDLE_BINARY_DIR='/tmp/sar_runtime/bin'

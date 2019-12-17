@@ -45,18 +45,21 @@ dashboard/dist: build/resource/dashboard
 	npx webpack --mode=production; 					\
 	cd ..
 
-build/resource/sae/runtime: build/resource/sae
-	tar -zcvf build/resource/sae/runtime -C controller/sae/runtime .
+build/resource/shim.sh: build/resource
+	@bash -c 'pkg/scripts/bin/sar_execute sar_bundle build/resource shim.sh'
+
+#build/resource/sae/runtime: build/resource/sae
+#	tar -zcvf build/resource/sae/runtime -C controller/sae/runtime .
 
 bin/statik: build/bin
 	@[ ! -e "bin/statik" ] && go get -u github.com/rakyll/statik || true
 
-bin/wing: statik build/resource/sae/runtime dashboard/dist bin/statik build/bin force-run
+bin/wing: statik build/resource/shim.sh dashboard/dist bin/statik build/bin force-run
 	@statik -src=$$(pwd)/build/resource/ -f
 	@if [ "$${TYPE:=release}" = "debug" ]; then 						\
-		go install -v -gcflags='all=-N -l' git.stuhome.com/Sunmxt/wing; \
+		go install -v -gcflags='all=-N -l' git.uestc.cn/Sunmxt/wing; \
 	else																\
-	    go install -v -ldflags='all=-s -w' git.stuhome.com/Sunmxt/wing; \
+	    go install -v -ldflags='all=-s -w' git.uestc.cn/Sunmxt/wing; \
 	fi;
 
 clean:

@@ -1,0 +1,11 @@
+#! /usr/bin/env bash
+
+self="$0"
+while [ -L "$self" ]; do
+    self=`readlink "$self"`
+done
+
+SAR_DEV_DIR="$( cd "$(dirname "$self")"/..; pwd -P )"
+source $SAR_DEV_DIR/bin/sar_activate
+
+$*
