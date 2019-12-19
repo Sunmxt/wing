@@ -405,7 +405,7 @@ build_runtime_image() {
                 local ci_image_tag=$OPTARG
                 ;;
             e)
-                local ci_image_env_name=`_ci_get_env_value "$OPTARG"`
+                local ci_image_env_name=`_ci_build_generate_env_ref "$OPTARG"`
                 ;;
             r)
                 local ci_image_prefix=$OPTARG

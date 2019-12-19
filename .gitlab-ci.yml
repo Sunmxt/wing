@@ -1,30 +1,25 @@
 image: registry.stuhome.com/devops/dockerepo/docker:1.0.2
 
 before_script:
-  - controller/sae/runtime/install.sh /opt/runtime
+  - pkg/scripts/install.sh /opt/runtime
   - source runtime_env
 
-services:
-    - docker:18.09.7-dind
-
 variables:
-    DOCKER_HOST: tcp://docker:2375/
-    DOCKER_DRIVER: overlay2
     GIT_SUBMODULE_STRATEGY: recursive
     ENV: ci
 
 stages:
   - package
+  - test_scripts
   - build
   - test
   - pre_deploy
-  - deploy
 
 package-sae-runtime-manifests:
     stage: package
     script:
     - rm .gitlab-ci.yml 
-    - ci_build gitlab-package -e sae_runtime_$CI_COMMIT_REF_NAME ./controller/sae/runtime
+    - ci_build gitlab-package -e sae_runtime_$CI_COMMIT_REF_NAME ./pkg/scripts
     allow_failure: false
 
 
@@ -53,37 +48,51 @@ build-wing-executable:
     allow_failure: false
 
 test-sae-runtime-build-image:
-    stage: test
+    stage: test_scripts
     script:
     - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
     - runtime_image_base_image alpine:3.7
     - build_runtime_image gitlab-docker -t gitlab_ci_commit_hash -e sar_runtime_test_$CI_COMMIT_REF_NAME
+    when: always
 
 test-build-lnmp-image:
-    stage: test
+    stage: test_scripts
     script:
     - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
     - runtime_image_base_image php:7.2-fpm-alpine
-    - runtime_image_post_build_script ./controller/sae/runtime/ci/ci_lnmp_postbuild.sh
+    - runtime_image_post_build_script ./pkg/scripts/ci/ci_lnmp_postbuild.sh
     - runtime_image_add_service normal php_fpm /usr/local/sbin/php-fpm
     - runtime_image_add_service normal nginx /usr/sbin/nginx -g 'daemon off;'
-    - build_runtime_image gitlab-docker -h ./controller/sae/runtime/ci/ci_lnmp_postbuild.sh -e sar_runtime_test_$ENV --ignore-runtime
+    - build_runtime_image gitlab-docker -h ./pkg/scripts/ci/ci_lnmp_postbuild.sh -e sar_runtime_test_$ENV --ignore-runtime
     variables:
         ENV: ci_lnmp
+    when: always
+
+test-script-bundle:
+    stage: test_scripts
+    before_script: []
+    script:
+    - pkg/scripts/bin/sar_execute
+    - bash -c 'pkg/scripts/bin/sar_execute sar_bundle build/resource shim.sh
+    - source build/resource/shim.sh
+    when: always
+
 
 test-pull-package:
-    stage: test
+    stage: test_scripts
     script:
     - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
     - ci_package_pull -r sunmxt/wing -e sae_runtime_$CI_COMMIT_REF_NAME ./testing_pull
+    when: always
 
 test-no-push:
-    stage: test
+    stage: test_scripts
     script:
-    - source ./controller/sae/runtime/ci/docker_push_gate.sh
+    - source ./pkg/scripts/ci/docker_push_gate.sh
     - runtime_image_base_image registry.stuhome.com/devops/dockerepo/alpine:3.7
     - build_runtime_image gitlab-docker -t gitlab_ci_commit_hash -e sar_runtime_test_no_push_$CI_COMMIT_REF_NAME -s -f
     - ci_build gitlab-package -t gitlab_ci_commit_hash -e sar_runtime_test_no_push_$CI_COMMIT_REF_NAME -s -f ./
+    when: always
 
 build-wing-runtime-image:
     stage: pre_deploy
@@ -92,23 +101,3 @@ build-wing-runtime-image:
     - runtime_image_add_dependency -t latest -r $CI_REGISTRY_IMAGE -e CI_COMMIT_REF_NAME /opt/exec
     - runtime_image_add_service normal wing /opt/exec/wing serve -config=/etc/wing/config.yml
     - build_runtime_image gitlab-docker -e CI_COMMIT_REF_NAME
-
-#deploy-staging:
-#    stage: deploy
-#    image: registry.stuhome.com/devops/dockerepo/kubectl:1.0.1
-#    variables:
-#      env: production
-#    script:
-#    - mkdir /etc/starconf -p
-#    - touch /etc/starconf/confmap
-#    - bash ./deploy.sh staging
-#
-#    only:
-#    - staging
-#    tags:
-#    - k8s_deploy
-#    - staging
-
-
-
-

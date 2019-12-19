@@ -22,8 +22,11 @@ _ci_docker_build() {
             e)
                 local ci_build_docker_env_name=$OPTARG
                 ;;
+            p)
+                local ci_project_path=$OPTARG
+                ;;
             r)
-                local ci_registry_image=$OPTARG
+                local ci_registry=$OPTARG
                 ;;
             s)
                 local ci_no_push=1
@@ -44,7 +47,7 @@ _ci_docker_build() {
     local -i shift_opt_cnt=optind-1
     shift $shift_opt_cnt
 
-    local ci_build_docker_ref=`_ci_build_generate_registry_path "$ci_registry_image" "$ci_build_docker_env_name"`
+    local ci_build_docker_ref=`_ci_build_generate_registry_prefix "$ci_registry" "$ci_package_path" "$ci_build_docker_env_name"`
 
     if [ -z "$ci_build_docker_tag" ]; then
         if [ ! -z "$hash_target_content" ]; then
@@ -165,13 +168,16 @@ _ci_gitlab_package_build() {
     fi
 
     OPTIND=0
-    while getopts 't:r:e:sf' opt; do
+    while getopts 't:r:p:e:sf' opt; do
         case $opt in
             t)
                 local ci_build_tag=$OPTARG
                 ;;
             r)
-                local ci_build_prefix=$OPTARG
+                local ci_registry=$OPTARG
+                ;;
+            p)
+                local ci_package_path=$OPTARG
                 ;;
             e)
                 local ci_build_env_name=$OPTARG
@@ -202,8 +208,8 @@ _ci_gitlab_package_build() {
         local -i idx=idx+1
     done
 
-    if [ ! -z "$ci_build_prefix" ]; then
-        opts+=("-r" "$ci_build_prefix")
+    if [ ! -z "$ci_registry" ]; then
+        opts+=("-r" "$ci_registry")
     fi
     if [ ! -z "$ci_build_env_name" ]; then
         opts+=("-e" "$ci_build_env_name")
@@ -323,7 +329,7 @@ _ci_wing_gitlab_package_build() {
 
 _ci_build_package() {
     OPTIND=0
-    while getopts 't:e:r:sf' opt; do
+    while getopts 't:e:r:p:sf' opt; do
         case $opt in
             t)
                 local ci_package_tag=$OPTARG
@@ -332,7 +338,10 @@ _ci_build_package() {
                 local ci_package_env_name=$OPTARG
                 ;;
             r)
-                local ci_package_prefix=$OPTARG
+                local ci_registry_host=$OPTARG
+                ;;
+            p)
+                local ci_package_path=$OPTARG
                 ;;
             s)
                 local ci_no_push=1
@@ -361,7 +370,7 @@ _ci_build_package() {
 
     # backend: docker
     # resolve prefix
-    local ci_package_ref=`_ci_build_generate_registry_path "$ci_package_prefix" "$ci_package_env_name"`
+    local ci_package_ref=`_ci_build_generate_registry_prefix "$ci_registry_host" "$ci_package_path" "$ci_package_env_name"`
     if [ -z "$ci_package_ref" ]; then
         logerror Empty package ref.
         return 1
@@ -429,10 +438,12 @@ Project builder in CI Environment.
 ci_build <mode> [options] -- [docker build options]
 
 mode:
-  gitlab-docker                 build and push to gitlab registry.
+  gitlab-docker                         build and push to gitlab registry.
   docker
-  package
-  gitlab-package                upload achifact
+
+  package                               upload archifacts in local development environment.
+  gitlab-package                        upload archifacts in Gitlab-CI environment.
+  auto-package      [recommanded]       upload archifacts with environment automatically detected.
 
 options:
       -t <tag>                            Image tag / package tag (package mode)
@@ -440,18 +451,19 @@ options:
                                           `gitlab-runner-docker` mode, the tag will be substitute 
                                           with actually commit hash.
       -e <environment_variable_name>      Identify docker path by environment variable.
-      -r <ref_prefix>                     Image reference prefix.
+      -r <host>                           registry.
+      -p <project_path>                   project path.
       -s                                  Do not push image to regsitry.
       -h <path_to_hash>                   Use file(s) hash for tag.
       -f                                  force to build.
 
 example:
-      ci_build gitlab-runner-docker -t gitlab_ci_commit_hash -e ENV .
-      ci_build gitlab-runner-docker -t gitlab_ci_commit_hash -e ENV -- --build-arg="myvar=1" .
-      ci_build gitlab-runner-docker -t gitlab_ci_commit_hash -r registry.mine.cn/test/myimage -e ENV -- --build-arg="myvar=1" .
+      ci_build gitlab-runner-docker -t gitlab_ci_commit_hash -e dev .
+      ci_build gitlab-runner-docker -t gitlab_ci_commit_hash -e dev -- --build-arg="myvar=1" .
+      ci_build gitlab-runner-docker -t gitlab_ci_commit_hash -r registry.mine.cn -p test/myimage -e dev -- --build-arg="myvar=1" .
       ci_build docker -t stable_version -r registry.mine.cn/test/myimage -e ENV .
-      ci_build package -t be/recruitment2019 -e ENV bin
-      ci_build gitlab-package -t gitlab_ci_commit_hash -e ENV bin
+      ci_build package -p be/recruitment2019 bin
+      ci_build gitlab-package bin
 '
 }
 

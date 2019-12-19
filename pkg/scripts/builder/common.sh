@@ -15,7 +15,7 @@ _ci_build_generate_registry() {
     local registry=`strip "$1"`
     registry=${registry:="$SAR_CI_REGISTRY"}
     registry=${registry:="docker.io"}
-    echo "$prefix" | sed -E 's/(\/)*$//g'
+    echo "$registry" | sed -E 's/^(\/)*$//g'
 }
 
 _ci_build_generate_env_ref() {
@@ -27,20 +27,18 @@ _ci_build_generate_env_ref() {
         
         if [ ! -z "$path_appended" ]; then
             env="$path_appended"
-            local registry_path=$registry_path/$path_appended
-        else
         fi
     else
         # use default path.
         if [ ! -z "$GITLAB_CI" ]; then
             # Gitlab CI.
-            
+            env="$CI_COMMIT_REF_NAME"
         fi
 
         # fallback: from local refs.
         if [ -z "$env" ]; then
             # from local repo: use branch name.
-            env=`git rev-parse --abbrev-ref HEAD | tr -d ' ' | tr '-[:lower:]' '_[:upper:]' | sed 's/^_*//g'`
+            env=`git rev-parse --abbrev-ref HEAD`
         fi
     fi
 
@@ -48,6 +46,19 @@ _ci_build_generate_env_ref() {
         logerror "cannot resolve environment."
         return 1
     fi
+    echo -n "$env" | tr -d ' ' | tr '[:upper:]_' '[:lower:]-' | sed 's/^_*//g'
+}
+
+_ci_build_generate_package_path() {
+    local path=`strip "$1"`
+    if [ -z "$path" ] && [ ! -z "$GITLAB_CI" ]; then
+        path="$CI_PROJECT_PATH"
+    fi
+    if [ -z "$path" ]; then
+        logerror "project path not given."
+        return 1
+    fi
+    echo "$path" | tr -d ' ' | tr '[:upper:]-' '[:lower:]_' | sed 's/^_*//g'
 }
 
 _ci_build_generate_tag() {
@@ -58,18 +69,19 @@ _ci_build_generate_tag() {
     fi
     # from local repo
     if [ -z "$tag" ]; then
-        env=`git rev-parse HEAD | tr -d ' ' | tr '-[:lower:]' '_[:upper:]' | sed 's/^_*//g'`
+        env=`git rev-parse HEAD `
         tag=${tag:0:10}
     fi
     tag=${tag:=latest}
-    echo -n "$tag"
+    echo -n "$tag" | tr -d ' ' | tr '[:upper:]-' '[:lower:]_' | sed 's/^_*//g'
 }
 
-_ci_build_generate_registry_path() {
-    local prefix=`__ci_build_generate_registry "$1"`
-    local env=`_ci_build_generate_env_ref "$2"`
-    if [ -z "$prefix" ] || [ -z "$env" ]; then
+_ci_build_generate_registry_prefix() {
+    local host=`_ci_build_generate_registry "$1"`
+    local package_path=`_ci_build_generate_package_path "$2"`
+    local env=`_ci_build_generate_env_ref "$3"`
+    if [ -z "$host" ] || [ -z "$package_path" ] ||  [ -z "$env" ]; then
         return 1
     fi
-    echo "$registry_path/$env"
+    echo "$host/$package_path/$env"
 }

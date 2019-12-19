@@ -26,7 +26,7 @@ bin/sar_execute sar_bundle ./dist shim.sh # dist目录,入口点:shim.sh
 ```bash
 # yq darwin x86_64 版本，二进制文件在 libexec/yq_darwin_amd64
 sar_register_binary yq darwin x86_64 libexec/yq_darwin_amd64
-# --lazy-load 使得二进制只在被使用到的时候解包。这种方式能够提高加载速度。当然，没有打包就没有解包的说法，--lazy-load 只影响打包后的文件。
+# --lazy-load 使得二进制只在被使用到的时候解包。这种方式能够提高加载速度。当然，没有打包就没有解包的说法，--lazy-load 只影响打包后行为。
 sar_register_binary --lazy-load yq darwin x86_64 libexec/yq_darwin_amd64
 # --no-bundled 使得二进制文件不会被打包
 sar_register_binary --no-bundled yq darwin x86_64 libexec/yq_darwin_amd64
@@ -35,10 +35,6 @@ sar_register_binary --no-bundled yq darwin x86_64 libexec/yq_darwin_amd64
 引用 yq
 
 ```bash
-yq() {
-    ${SAR_yq} $* # SAR_<二进制名> 给出了解压后的二进制命令名称。直接把参数传给它。
-}
-echo ${SAR_BINREF_yq} # SAR_BINREF_<二进制名> 给出了解包后的二进制路径。
 yq new .... # 像平常一样使用即可
 ```
 
