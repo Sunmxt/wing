@@ -25,6 +25,7 @@ fi
 #SAR_BUNDLE_EXCLUDED{{
 sar_import log.sh
 sar_import utils.sh
+sar_import binary.sh
 sar_import settings/bundle.sh
 
 __sar_bundle_preprocess() {
@@ -58,7 +59,7 @@ unset SAR_arch
     echo "mkdir -p \"$BUNDLE_BINARY_DIR\""
     local has_lazy_loading
 
-    for exec in $SAR_BINARIES; do
+    for exec in ${SAR_BINARIES[@]}; do
         eval "local num_of_arch_os=\${#SAR_BINARY_${exec}_ARCH_OS[@]}"
         echo "# binary: $exec"
 
@@ -88,14 +89,7 @@ unset SAR_arch
         done
 
         # shim to invoke binary.
-        echo '
-____sar_invoke_binary_'"${exec}"'() {
-    if [ -z "${SAR_BINREF_'$exec'}" ]; then
-        ____sar_lazy_load_binray_'${exec}' || return 1
-    fi
-    ${SAR_BINREF_'$exec'} $*
-}
-'
+        _sar_generate_binary_shim "$exec"
 
         # bundle lazy-load binary.
         echo '

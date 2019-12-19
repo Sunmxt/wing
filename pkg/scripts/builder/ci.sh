@@ -6,39 +6,6 @@ sar_import docker.sh
 
 enable_dockercli_experimentals
 
-_ci_build_generate_registry_tag() {
-    local tag=$1
-    if [ -z "$tag" ]; then
-        local tag=latest
-    fi
-    echo $tag
-}
-
-_ci_build_generate_registry_path() {
-    local prefix=$1
-    local env=$2
-
-    if ! [ -z "$prefix" ]; then
-        local prefix=`echo "$prefix" | sed -E 's/(\/)*$//g'`
-    fi
-    local registry_path="$prefix"
-
-    if [ ! -z "$env" ]; then
-        eval "local path_appended=\$$env"
-        if [ ! -z "$path_appended" ]; then
-            local registry_path=$registry_path/$path_appended
-        else
-            local registry_path=$registry_path/$env
-        fi
-    fi
-
-    echo $registry_path
-    if [ -z "$registry_path" ]; then
-        logwarn Empty image reference.
-        return 1
-    fi
-}
-
 # _ci_docker_build [options] -- [docker build options]
 #   options:
 #       -t <tag>           
@@ -201,13 +168,13 @@ _ci_gitlab_package_build() {
     while getopts 't:r:e:sf' opt; do
         case $opt in
             t)
-                local ci_build_docker_tag=$OPTARG
+                local ci_build_tag=$OPTARG
                 ;;
             r)
-                local ci_build_docker_ref=$OPTARG
+                local ci_build_prefix=$OPTARG
                 ;;
             e)
-                local ci_build_docker_env_name=$OPTARG
+                local ci_build_env_name=$OPTARG
                 ;;
             s)
                 local ci_no_push=1
@@ -218,11 +185,11 @@ _ci_gitlab_package_build() {
         esac
         eval "local opt=\${$OPTIND}"
         if [ "${opt:0:2}" = "--" ]; then
-            local has_docker_ext="--"
+            local has_ext_opt="--"
             break
         fi
     done
-    local opts=
+    local opts=()
     local -i idx=1
     while [ $idx -lt $OPTIND ]; do
         eval "local opt=\${$idx}"
@@ -231,19 +198,25 @@ _ci_gitlab_package_build() {
             local -i idx=idx+2
             continue
         fi
-        eval "local opts=\"\$opts \${$idx}\""
+        eval "opts+=(\"\${$idx}\")"
         local -i idx=idx+1
     done
-    if [ "$ci_build_docker_tag" = "gitlab_ci_commit_hash" ]; then
-        local ci_build_docker_tag=${CI_COMMIT_SHA:0:10}
-        local opts="$opts -t $ci_build_docker_tag"
+
+    if [ ! -z "$ci_build_prefix" ]; then
+        opts+=("-r" "$ci_build_prefix")
     fi
-    if [ ! -z "$ci_build_docker_env_name" ]; then
-        local opts="$opts -e $ci_build_docker_env_name"
+    if [ ! -z "$ci_build_env_name" ]; then
+        opts+=("-e" "$ci_build_env_name")
     fi
+    if [ "$ci_build_tag" = "gitlab_ci_commit_hash" ]; then
+        local ci_build_tag=`_ci_build_generate_tag ""`
+        opts+=("-t" "$ci_build_tag")
+    fi
+
     local -i shift_cnt=$OPTIND-1
     shift $shift_cnt
-    log_exec _ci_build_package $opts -r $CI_REGISTRY_IMAGE $has_docker_ext $*
+
+    log_exec _ci_build_package ${opts[@]} $has_ext_opt $*
     return $?
 }
 
@@ -383,16 +356,21 @@ _ci_build_package() {
         logerror output path not specified.
         return 1
     fi
-
     local -i shift_opt_cnt=optind-1
     shift $shift_opt_cnt
 
+    # backend: docker
+    # resolve prefix
     local ci_package_ref=`_ci_build_generate_registry_path "$ci_package_prefix" "$ci_package_env_name"`
     if [ -z "$ci_package_ref" ]; then
         logerror Empty package ref.
         return 1
     fi
-
+    local ci_package_ref=`path_join "$ci_package_ref" sar__package`
+    # resolve default tag.
+    if [ -z "$ci_package_tag" ]; then
+        local ci_package_tag=`_ci_build_generate_tag "$ci_package_tag"`
+    fi
     if [ -z "$ci_package_tag" ]; then
         local ci_package_tag=`hash_content_for_key "$product_path"`
         if [ -z "$ci_package_tag" ]; then
@@ -401,10 +379,8 @@ _ci_build_package() {
         fi
         local ci_package_tag=${ci_package_tag:0:10}
     fi
-
-    local ci_package_ref=`path_join "$ci_package_ref" sar__package`
-    local ci_package_env_name=`_ci_get_env_value "$ci_package_env_name"`
-    local ci_package_tag=`_ci_build_generate_registry_tag "$ci_package_tag"`
+    # resolve environment
+    local ci_package_env_name=`_ci_build_generate_env_ref "$ci_package_env_name"`
     loginfo build package with registry image: $ci_package_ref:$ci_package_tag
 
     if is_image_exists "$ci_package_ref:$ci_package_tag" && [ -z "$force_to_build" ]; then
@@ -453,10 +429,10 @@ Project builder in CI Environment.
 ci_build <mode> [options] -- [docker build options]
 
 mode:
-  gitlab-runner-docker
+  gitlab-docker                 build and push to gitlab registry.
   docker
   package
-  gitlab-package
+  gitlab-package                upload achifact
 
 options:
       -t <tag>                            Image tag / package tag (package mode)
@@ -483,7 +459,7 @@ ci_build() {
     local mode=$1
     shift 1
     case $mode in
-        gitlab-runner-docker)
+        gitlab-docker)
             _ci_gitlab_runner_docker_build $*
             return $?
             ;;

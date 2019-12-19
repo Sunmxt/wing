@@ -88,6 +88,22 @@ sar_register_binary() {
     fi
 }
 
+_sar_generate_binary_shim() {
+    local exec=$1
+    echo '
+____sar_invoke_binary_'"${exec}"'() {
+    if [ -z "${SAR_BINREF_'$exec'}" ]; then
+        ____sar_lazy_load_binray_'${exec}' || return 1
+    fi
+    ${SAR_BINREF_'$exec'} $*
+}
+
+'$exec'() {
+    ${SAR_'$exec'} $*
+}
+'
+}
+
 sar_binary_init() {
     local machine=`uname -m | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]'`
     local arch=`uname -o | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]'`
@@ -100,6 +116,7 @@ sar_binary_init() {
             sar_binary_arch_unsupported ${exec} ${arch} ${machine}
             return 1
         fi
+        eval "`_sar_generate_binary_shim $exec`"
     done
 }
 

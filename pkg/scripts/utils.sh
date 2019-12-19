@@ -21,6 +21,10 @@ path_join() {
     echo $result
 }
 
+set_var() {
+    eval "$1="\'"$2"\'
+}
+
 hash_for_key() {
     echo "$*" | md5sum - | cut -d ' ' -f 1
 }
@@ -29,7 +33,7 @@ hash_file_for_key() {
     cat $* | md5sum - | cut -d ' ' -f 1
 }
 
-str() {
+strip() {
     echo "$*" | xargs
 }
 
@@ -54,10 +58,6 @@ hash_content_for_key() {
         logerror unknown file type of \"$target\"
         return 1
     fi
-}
-
-yq() {
-    ${SAR_yq} $*
 }
 
 next_long_opt() {
@@ -121,4 +121,16 @@ set -- ${__sar_args[@]};'
     idx=idx-1
     echo "LONGOPTIND=$idx;"
     echo "unset LONGOPTCANELIMATE;"
+}
+
+binary_deps() {
+    while [ $# -gt 0 ]; do
+        if which "$1" 2>&1 > /dev/null || (set | grep -E '^'"$1"'\s+()' 2>&1 >/dev/null ); then
+            shift
+            continue
+        fi
+        MISSING_BINARY_DEP="$1"
+        return 1
+    done
+    return 0
 }
