@@ -37,8 +37,16 @@ strip() {
     echo "$*" | xargs
 }
 
-determine_os_package_manager() {
-    echo apk
+os_package_manager_name() {
+    if command -v yum 2>&1 >/dev/null && [ `yum --version | grep -iE 'installed:\s+(rpm|yum)' | wc -l` -gt 0 ]; then
+        echo yum; return 0
+    fi
+    if command -v apk 2>&1 >/dev/null && apk --version | grep -iqE 'apk-tools'; then
+        echo apk; return 0
+    fi
+    if command -v dpkg 2>&1 >/dev/null; then
+        echo apt; return 0
+    fi
 }
 
 full_path_of() {

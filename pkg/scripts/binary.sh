@@ -106,7 +106,7 @@ ____sar_invoke_binary_'"${exec}"'() {
 
 sar_binary_init() {
     local machine=`uname -m | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]'`
-    local arch=`uname -o | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]'`
+    local arch=`uname | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]'`
     for exec in $SAR_BINARIES; do
         eval "full_ref=\$SAR_BINARY_${exec}_${arch}_${machine}_full_ref"
         eval "declare -g SAR_$exec"

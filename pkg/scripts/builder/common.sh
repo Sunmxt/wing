@@ -5,10 +5,13 @@ _ci_get_package_ref() {
     local path=`_ci_build_generate_package_path $2`
     local env=`_ci_build_generate_env_ref "$3"`
     local tag=`_ci_build_generate_tag "$4"`
+    if [ -z "$host" ] || [ -z "$path" ]; then
+        return 1
+    fi
     if [ ! -z "$env" ]; then
-        echo -n $prefix/$env/sar__package:$tag
+        echo -n $host/$path/$env/sar__package:$tag
     else
-        echo -n $prefix/sar__package:$tag
+        echo -n $host/$path/sar__package:$tag
     fi
 }
 
