@@ -108,7 +108,7 @@ serverurl=unix:///run/supervisord.sock
 
     local making_dirs="/var/log/application /run/runtime"
     # generate services.
-    eval "local -i count=\${#_SAR_RT_BUILD_${context}_SVCS[@]}"
+    eval "local -i count=\${_SAR_RT_BUILD_${context}_SVCS[@]}"
     local -i idx=1
     while [ $idx -le $count ]; do
         eval "local key=\${_SAR_RT_BUILD_${context}_SVCS[$idx]}"
@@ -452,7 +452,7 @@ build_runtime_image() {
     
     # add runtime
     if [ -z "$ignore_runtime" ]; then
-        runtime_image_add_dependency -c "$context" -r "$SAR_RUNTIME_PKG_PREFIX" -p "$SAR_RUNTIME_PKG_PROJECT_PATH" -e "$SAR_RUNTIME_PKG_ENV" -t "$SAR_RUNTIME_PKG_TAG" /_sar_package/runtime_install
+        runtime_image_add_dependency -c "$context" -p "$SAR_RUNTIME_PKG_PROJECT_PATH" -e "$SAR_RUNTIME_PKG_ENV" -t "$SAR_RUNTIME_PKG_TAG" /_sar_package/runtime_install
     fi
 
     local dockerfile=/tmp/Dockerfile-RuntimeImage-$RANDOM$RANDOM$RANDOM
@@ -478,14 +478,7 @@ build_runtime_image() {
     done
     shift $optind
 
-    case $mode in
-        docker)
-            eval "log_exec _ci_docker_build ${opts[@]} -- -f \"$dockerfile\" $* ." || return 1
-            ;;
-        gitlab-docker)
-            eval "log_exec _ci_gitlab_runner_docker_build ${opts[@]} -- -f \"$dockerfile\" $* ." || return 1
-            ;;
-    esac
+    log_exec _ci_auto_docker_build ${opts[@]} -- -f "$dockerfile" $* .
 }
 
 runtime_image_base_image_help() {
@@ -547,7 +540,7 @@ example:
 
 runtime_image_add_dependency() {
     OPTIND=0
-    while getopts 't:e:r:c:' opt; do
+    while getopts 't:e:r:c:p:' opt; do
         case $opt in
             t)
                 local ci_package_tag=$OPTARG

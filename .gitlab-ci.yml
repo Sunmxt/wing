@@ -52,7 +52,7 @@ test-sae-runtime-build-image:
     script:
     - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
     - runtime_image_base_image alpine:3.7
-    - build_runtime_image gitlab-docker -t gitlab_ci_commit_hash -e sar_runtime_test_$CI_COMMIT_REF_NAME
+    - build_runtime_image -t gitlab_ci_commit_hash -e sar_runtime_test_$CI_COMMIT_REF_NAME
     when: always
 
 test-build-lnmp-image:
@@ -63,7 +63,7 @@ test-build-lnmp-image:
     - runtime_image_post_build_script ./pkg/scripts/ci/ci_lnmp_postbuild.sh
     - runtime_image_add_service normal php_fpm /usr/local/sbin/php-fpm
     - runtime_image_add_service normal nginx /usr/sbin/nginx -g 'daemon off;'
-    - build_runtime_image gitlab-docker -h ./pkg/scripts/ci/ci_lnmp_postbuild.sh -e sar_runtime_test_$ENV --ignore-runtime
+    - build_runtime_image -h ./pkg/scripts/ci/ci_lnmp_postbuild.sh -e sar_runtime_test_$ENV --ignore-runtime
     variables:
         ENV: ci_lnmp
     when: always
@@ -82,7 +82,7 @@ test-pull-package:
     stage: test_scripts
     script:
     - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
-    - ci_package_pull -r sunmxt/wing -e sae_runtime_$CI_COMMIT_REF_NAME ./testing_pull
+    - ci_package_pull -e sae_runtime_$CI_COMMIT_REF_NAME ./testing_pull
     when: always
 
 test-no-push:
@@ -90,8 +90,8 @@ test-no-push:
     script:
     - source ./pkg/scripts/ci/docker_push_gate.sh
     - runtime_image_base_image registry.stuhome.com/devops/dockerepo/alpine:3.7
-    - build_runtime_image gitlab-docker -t gitlab_ci_commit_hash -e sar_runtime_test_no_push_$CI_COMMIT_REF_NAME -s -f
-    - ci_build gitlab-package -t gitlab_ci_commit_hash -e sar_runtime_test_no_push_$CI_COMMIT_REF_NAME -s -f ./
+    - build_runtime_image -t gitlab_ci_commit_hash -e sar_runtime_test_no_push_$CI_COMMIT_REF_NAME -s -f
+    - ci_build package -t gitlab_ci_commit_hash -e sar_runtime_test_no_push_$CI_COMMIT_REF_NAME -s -f ./
     when: always
 
 build-wing-runtime-image:
@@ -100,4 +100,4 @@ build-wing-runtime-image:
     - runtime_image_base_image registry.stuhome.com/devops/dockerepo/alpine:3.7
     - runtime_image_add_dependency -t latest -r $CI_REGISTRY_IMAGE -e CI_COMMIT_REF_NAME /opt/exec
     - runtime_image_add_service normal wing /opt/exec/wing serve -config=/etc/wing/config.yml
-    - build_runtime_image gitlab-docker -e CI_COMMIT_REF_NAME
+    - build_runtime_image -e CI_COMMIT_REF_NAME
