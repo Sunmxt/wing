@@ -5,6 +5,7 @@ COMPONENTS=(
     'settings/binary.sh' 'settings/bundle.sh' 'settings/wing.sh'
 
     'builder/ci.sh' 'builder/common.sh' 'builder/runtime_image.sh' 'builder/validate.sh'
+    'builder/archifacts.sh' 'builder/docker.sh'
 
     'libexec/yq_darwin_amd64' 'libexec/yq_linux_amd64'
 )

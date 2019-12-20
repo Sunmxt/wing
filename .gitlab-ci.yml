@@ -19,7 +19,7 @@ package-sae-runtime-manifests:
     stage: package
     script:
     - rm .gitlab-ci.yml 
-    - ci_build gitlab-package -e sae_runtime_$CI_COMMIT_REF_NAME ./pkg/scripts
+    - ci_build package -e sae_runtime_$CI_COMMIT_REF_NAME ./pkg/scripts
     allow_failure: false
 
 
@@ -73,7 +73,7 @@ test-script-bundle:
     before_script: []
     script:
     - pkg/scripts/bin/sar_execute
-    - bash -c 'pkg/scripts/bin/sar_execute sar_bundle build/resource shim.sh
+    - bash -c 'pkg/scripts/bin/sar_execute sar_bundle build/resource shim.sh'
     - source build/resource/shim.sh
     when: always
 

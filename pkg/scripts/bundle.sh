@@ -30,15 +30,18 @@ sar_import settings/bundle.sh
 
 __sar_bundle_preprocess() {
     sed -E '
-    /^#SAR_BUNDLE_EXCLUDED{{/,/^#}}SAR_BUNDLE_EXCLUDED/d;
+    /^#SAR_BUNDLE_EXCLUDED\{\{/,/^#\}\}SAR_BUNDLE_EXCLUDED/d;
     s/^[[:space:]]+(sar_import.*)$/\1/;
     s/^[[:space:]]+(sar_register_binary.*)$/\1/;
     s/^[[:space:]]+(#.*)$/\1/;
+
+    $s/^(.*)$/\1\n/;
 
     /^#/d;
     /^sar_import/d;
     /^sar_register_binary/d;
     /^$/d'
+
 }
 
 sar_base64_bundle_binary() {

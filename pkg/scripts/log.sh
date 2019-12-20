@@ -34,5 +34,4 @@ logwarn() {
 log_exec() {
     loginfo '[exec]' $*
     $*
-    return $?
 }

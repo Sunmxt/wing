@@ -1,9 +1,10 @@
 sar_import utils.sh
 
 _ci_get_package_ref() {
-    local prefix=`_ci_build_generate_registry $1`
-    local env=`_ci_build_generate_env_ref "$2"`
-    local tag=`_ci_build_generate_tag "$3"`
+    local host=`_ci_build_generate_registry $1`
+    local path=`_ci_build_generate_package_path $2`
+    local env=`_ci_build_generate_env_ref "$3"`
+    local tag=`_ci_build_generate_tag "$4"`
     if [ ! -z "$env" ]; then
         echo -n $prefix/$env/sar__package:$tag
     else
@@ -58,7 +59,7 @@ _ci_build_generate_package_path() {
         logerror "project path not given."
         return 1
     fi
-    echo "$path" | tr -d ' ' | tr '[:upper:]-' '[:lower:]_' | sed 's/^_*//g'
+    echo -n "$path" | tr -d ' ' | tr '[:upper:]-' '[:lower:]_' | sed 's/^_*//g'
 }
 
 _ci_build_generate_tag() {
