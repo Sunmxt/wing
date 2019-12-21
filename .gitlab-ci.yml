@@ -23,6 +23,11 @@ package-sae-runtime-manifests:
     - ci_build package -e sae_runtime_$CI_COMMIT_REF_NAME ./pkg/scripts
     allow_failure: false
 
+baseimage-fpm-apline-72:
+    stage: base_image
+    script:
+    - ci_build docker -e php_fpm/$CI_COMMIT_REF_NAME -t 7.2 -- -f ./docker/baseimage/Dockerfile-fpm-72-alpine .
+
 baseimage-alpine-36:
     stage: base_image
     script:
