@@ -1,5 +1,7 @@
 FROM php:7.2-fpm-alpine
 
+ARG APK_MIRROR=mirror.tuna.tsinghua.edu.cn
+
 RUN set -xe;\
     sed -Ei "s/dl-cdn\.alpinelinux\.org/$APK_MIRROR/g" /etc/apk/repositories; \
     mkdir /apk-cache;\

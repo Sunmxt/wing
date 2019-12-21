@@ -250,7 +250,7 @@ RUN set -xe; \
 
 _generate_runtime_image_dockerfile() {
     local context=$1
-    local package_ref=$2
+    local package_project_path=$2
     local package_env=$3
     local pakcage_tag=$4
     local build_id=$RANDOM$RANDOM$RANDOM$RANDOM
@@ -266,7 +266,7 @@ _generate_runtime_image_dockerfile() {
         local pkg_image_ref=`_ci_get_package_ref "$pkg_registry" "$pkg_project_path" "$pkg_env_name" "$pkg_tag"`
 
         loginfo "[runtime_image_builder][pre_check] check package: $pkg_image_ref"
-        if ! _validate_dependency_package "$pkg_registry" "$pkg_prefix" "$pkg_env" "$pkg_tag"; then
+        if ! _validate_dependency_package "$pkg_registry" "$pkg_project_path" "$pkg_env_name" "$pkg_tag"; then
             local failure=1
         fi
     done
@@ -280,7 +280,7 @@ _generate_runtime_image_dockerfile() {
     local -i idx=1
     for key in ${dep_keys[@]}; do
         eval "local pkg_env_name=\${_SAR_RT_BUILD_${context}_DEP_${key}_ENV}"
-        eval "local pkg_prefix=\${_SAR_RT_BUILD_${context}_DEP_${key}_PROJECT_PATH}"
+        eval "local pkg_project_path=\${_SAR_RT_BUILD_${context}_DEP_${key}_PROJECT_PATH}"
         eval "local pkg_tag=\${_SAR_RT_BUILD_${context}_DEP_${key}_TAG}"
         eval "local pkg_registry=\${_SAR_RT_BUILD_${context}_DEP_${key}_REGISTRY}"
         local pkg_image_ref=`_ci_get_package_ref "$pkg_registry" "$pkg_project_path" "$pkg_env_name" "$pkg_tag"`
@@ -304,7 +304,7 @@ _generate_runtime_image_dockerfile() {
     # Place packages.
     for key in ${dep_keys[@]}; do
         eval "local pkg_env_name=\${_SAR_RT_BUILD_${context}_DEP_${key}_ENV}"
-        eval "local pkg_prefix=\${_SAR_RT_BUILD_${context}_DEP_${key}_PROJECT_PATH}"
+        eval "local pkg_project_path=\${_SAR_RT_BUILD_${context}_DEP_${key}_PROJECT_PATH}"
         eval "local pkg_tag=\${_SAR_RT_BUILD_${context}_DEP_${key}_TAG}"
         eval "local pkg_registry=\${_SAR_RT_BUILD_${context}_DEP_${key}_REGISTRY}"
         eval "local placed_path=\${_SAR_RT_BUILD_${context}_DEP_${key}_PLACE_PATH}"
@@ -327,8 +327,7 @@ RUN set -xe;\
     echo PKG_REF='\\\'$package_project_path\\\'' > /_sar_package/meta;\
     echo PKG_ENV='\\\'$package_env\\\'' >> /_sar_package/meta;\
     echo PKG_TAG='\\\'$pakcage_tag\\\'' >> /_sar_package/meta;\
-    echo PKG_TYPE=runtime_image >> /_sar_package/meta;\
-    echo PKG_APP_NAME='\\\'$application_name\\\'' >> /_sar_package/meta;
+    echo PKG_TYPE=runtime_image >> /_sar_package/meta
 '
 
     # run post-build scripts.
@@ -413,7 +412,6 @@ build_runtime_image() {
     local ci_project_path=
     local context=
     local path_to_hash=
-    local force_to_build=
     while getopts 't:e:r:c:p:sh:f' opt; do
         case $opt in
             t)
@@ -433,14 +431,13 @@ build_runtime_image() {
                 continue
                 ;;
             s)
-                local ci_no_push=1
+                opts+=("-s")
                 continue
                 ;;
             h)
-                local path_to_hash=$OPTARG
                 ;;
             f)
-                local force_to_build=1
+                opts+=("-f")
                 continue
                 ;;
             *)
@@ -469,12 +466,11 @@ build_runtime_image() {
     fi
 
     local dockerfile=/tmp/Dockerfile-RuntimeImage-$RANDOM$RANDOM$RANDOM
-    if ! _generate_runtime_image_dockerfile "$context" "$ci_registry" "$ci_project_name" "$ci_image_env_name" "$ci_image_tag" > "$dockerfile" ; then
+    if ! _generate_runtime_image_dockerfile "$context" "$ci_registry" "$ci_project_path" "$ci_image_env_name" "$ci_image_tag" > "$dockerfile" ; then
         build_runtime_image_help
         logerror "[runtime_image_builder]" generate runtime image failure.
         return 1
     fi
-
 
     log_exec _ci_auto_docker_build ${opts[@]} -- -f "$dockerfile" $* .
 }

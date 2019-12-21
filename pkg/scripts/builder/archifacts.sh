@@ -224,69 +224,38 @@ _ci_gitlab_package_build() {
     fi
 
     OPTIND=0
-    local ci_build_tag=
-    local ci_registry=
-    local ci_package_path=
-    local ci_build_env_name=
-    local ci_no_push=
-    local force_to_build=
     local has_ext_opt=
+    local -a opts=()
     while getopts 't:r:p:e:sf' opt; do
         case $opt in
             t)
-                local ci_build_tag=$OPTARG
+                [ "$OPTARG" = "gitlab_ci_commit_hash" ] && continue
                 ;;
             r)
-                local ci_registry=$OPTARG
                 ;;
             p)
-                local ci_package_path=$OPTARG
                 ;;
             e)
-                local ci_build_env_name=$OPTARG
                 ;;
             s)
-                local ci_no_push=1
+                opts+=("-s")
+                continue
                 ;;
             f)
-                local force_to_build=1
+                opts+=("-f")
+                continue
                 ;;
         esac
-        eval "local opt=\${$OPTIND}"
-        if [ "${opt:0:2}" = "--" ]; then
-            local has_ext_opt="--"
-            break
-        fi
+        opts+=("-$opt" "$OPTARG")
     done
-    local opts=()
-    local -i idx=1
-    while [ $idx -lt $OPTIND ]; do
-        eval "local opt=\${$idx}"
-        local opt=${opt:1:1}
-        if [ "${opt:1:1}" = "c" ]; then
-            local -i idx=idx+2
-            continue
-        fi
-        eval "opts+=(\"\${$idx}\")"
-        local -i idx=idx+1
-    done
-
-    if [ ! -z "$ci_registry" ]; then
-        opts+=("-r" "$ci_registry")
+    local -i optind=$OPTIND-1
+    eval "local __=\${$optind}"
+    if [ "$__" == "--" ]; then
+        local has_ext_opt="--"
     fi
-    if [ ! -z "$ci_build_env_name" ]; then
-        opts+=("-e" "$ci_build_env_name")
-    fi
-    if [ "$ci_build_tag" = "gitlab_ci_commit_hash" ]; then
-        local ci_build_tag=`_ci_build_generate_tag ""`
-        opts+=("-t" "$ci_build_tag")
-    fi
-
-    local -i shift_cnt=$OPTIND-1
-    shift $shift_cnt
+    shift $optind
 
     log_exec _ci_build_package ${opts[@]} $has_ext_opt $*
-    return $?
 }
 
 

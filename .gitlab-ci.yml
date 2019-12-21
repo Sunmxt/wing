@@ -74,7 +74,7 @@ test-build-lnmp-image:
     stage: test_scripts
     script:
     - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
-    - runtime_image_base_image php:7.2-fpm-alpine
+    - runtime_image_base_image registry.stuhome.com/sunmxt/wing/php_fpm/$CI_COMMIT_REF_NAME:7.2
     - runtime_image_post_build_script ./pkg/scripts/ci/ci_lnmp_postbuild.sh
     - runtime_image_add_service normal php_fpm /usr/local/sbin/php-fpm
     - runtime_image_add_service normal nginx /usr/sbin/nginx -g 'daemon off;'

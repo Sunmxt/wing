@@ -103,8 +103,6 @@ _ci_gitlab_runner_docker_build() {
 
     OPTIND=0
     local -a opts=()
-    local ci_no_push=
-    local force_to_build=
     while getopts 't:r:e:p:sfh:' opt; do
         case $opt in
             t)
@@ -118,11 +116,11 @@ _ci_gitlab_runner_docker_build() {
             e)
                 ;;
             s)
-                local ci_no_push=1
+                opts+=("-s")
                 continue
                 ;;
             f)
-                local force_to_build=1
+                opts+=("-f")
                 continue
                 ;;
             h)
