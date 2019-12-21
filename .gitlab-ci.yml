@@ -3,7 +3,6 @@ image: registry.stuhome.com/devops/dockerepo/docker:1.0.2
 before_script:
   - pkg/scripts/install.sh /opt/runtime
   - source runtime_env
-  - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
 
 variables:
     GIT_SUBMODULE_STRATEGY: recursive
@@ -27,12 +26,12 @@ package-sae-runtime-manifests:
 baseimage-alpine-36:
     stage: base_image
     script:
-    - ci_build docker -t 3.6 -- -f ./docker/baseimage/Dockerfile-alpine36 .
+    - ci_build docker -e alpine/$CI_COMMIT_REF_NAME -t 3.6 -- -f ./docker/baseimage/Dockerfile-alpine36 .
 
 baseimage-alpine-37:
     stage: base_image
     script:
-    - ci_build docker -t 3.7 -- -f ./docker/baseimage/Dockerfile-alpine37 .
+    - ci_build docker -e alpine/$CI_COMMIT_REF_NAME -t 3.7 -- -f ./docker/baseimage/Dockerfile-alpine37 .
 
 build-wing-executable:
     cache:
@@ -62,7 +61,7 @@ test-sae-runtime-build-image:
     stage: test_scripts
     script:
     - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
-    - runtime_image_base_image alpine:3.7
+    - runtime_image_base_image registry.stuhome.com/sunmxt/wing/alpine/$CI_COMMIT_REF_NAME:3.7
     - build_runtime_image -t gitlab_ci_commit_hash -e sar_runtime_test_$CI_COMMIT_REF_NAME
     when: always
 
@@ -100,7 +99,7 @@ test-no-push:
     stage: test_scripts
     script:
     - source ./pkg/scripts/ci/docker_push_gate.sh
-    - runtime_image_base_image registry.stuhome.com/devops/dockerepo/alpine:3.7
+    - runtime_image_base_image registry.stuhome.com/sunmxt/wing/alpine/$CI_COMMIT_REF_NAME:3.7
     - build_runtime_image -t gitlab_ci_commit_hash -e sar_runtime_test_no_push_$CI_COMMIT_REF_NAME -s -f
     - ci_build package -t gitlab_ci_commit_hash -e sar_runtime_test_no_push_$CI_COMMIT_REF_NAME -s -f ./
     when: always

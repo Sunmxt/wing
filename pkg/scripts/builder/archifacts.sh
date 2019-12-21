@@ -29,6 +29,11 @@ ci_package_pull() {
     fi
 
     OPTIND=0
+    local ci_build_tag=
+    local ci_build_host=
+    local ci_package_env_name=
+    local ci_build_package_path=
+    local ci_full_reference=
     while getopts 't:r:e:f:p:' opt; do
         case $opt in
             t)
@@ -90,7 +95,7 @@ ci_package_pull() {
 }
 
 _ci_auto_package() {
-    if [ -z "${GITLAB_CI+x}" ]; then
+    if [ ! -z "${GITLAB_CI+x}" ]; then
         _ci_gitlab_package_build $*
         return $?
     fi
@@ -99,6 +104,12 @@ _ci_auto_package() {
 
 _ci_build_package() {
     OPTIND=0
+    local ci_package_tag=
+    local ci_package_env_name=
+    local ci_registry_host=
+    local ci_package_path=
+    local ci_no_push=
+    local force_to_build=
     while getopts 't:e:r:p:sf' opt; do
         case $opt in
             t)
@@ -202,7 +213,7 @@ _ci_build_package() {
 }
 
 _ci_gitlab_package_build() {
-    if [ ! -z "${GITLAB_CI+x}" ]; then
+    if [ -z "${GITLAB_CI+x}" ]; then
         logerror Not a Gitlab CI environment.
         return 1
     fi
@@ -213,6 +224,13 @@ _ci_gitlab_package_build() {
     fi
 
     OPTIND=0
+    local ci_build_tag=
+    local ci_registry=
+    local ci_package_path=
+    local ci_build_env_name=
+    local ci_no_push=
+    local force_to_build=
+    local has_ext_opt=
     while getopts 't:r:p:e:sf' opt; do
         case $opt in
             t)

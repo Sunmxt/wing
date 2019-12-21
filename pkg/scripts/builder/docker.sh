@@ -3,6 +3,14 @@ sar_import builder/common.sh
 _ci_docker_build() {
     # Parse normal options
     OPTIND=0
+    local ci_build_docker_tag=
+    local ci_build_docker_env_name=
+    local ci_project_path=
+    local ci_registry=
+    local ci_no_push=
+    local force_to_build=
+    local hash_target_content=
+
     while getopts 't:e:p:r:sfh:' opt; do
         case $opt in
             t)
@@ -83,7 +91,7 @@ _ci_docker_build() {
 }
 
 _ci_gitlab_runner_docker_build() {
-    if [ ! -z "${GITLAB_CI+x}" ]; then
+    if [ -z "${GITLAB_CI+x}" ]; then
         logerror Not a Gitlab CI environment.
         return 1
     fi
@@ -94,65 +102,49 @@ _ci_gitlab_runner_docker_build() {
     fi
 
     OPTIND=0
-    while getopts 't:r:e:sfh:' opt; do
+    local -a opts=()
+    local ci_no_push=
+    local force_to_build=
+    while getopts 't:r:e:p:sfh:' opt; do
         case $opt in
             t)
                 local ci_build_docker_tag=$OPTARG
+                [ "$ci_build_docker_tag" = "gitlab_ci_commit_hash" ] && continue
                 ;;
             r)
-                local ci_build_docker_registry=$OPTARG
                 ;;
             p)
-                local ci_build_project_path=$OPTARG
                 ;;
             e)
-                local ci_build_docker_env_name=$OPTARG
                 ;;
             s)
                 local ci_no_push=1
+                continue
                 ;;
             f)
                 local force_to_build=1
+                continue
                 ;;
             h)
-                local hash_target_content="$OPTARG"
                 ;;
         esac
-        eval "local opt=\${$OPTIND}"
-        if [ "${opt:0:2}" = "--" ]; then
-            local has_docker_ext="--"
-            break
-        fi
+        opts+=("-$opt" "$OPTARG")
     done
-    local -a opts=()
-    local -i idx=1
-    while [ $idx -lt $OPTIND ]; do
-        eval "opts+=(\"\${$idx}\")"
-        local -i idx=idx+1
-    done
-    local -i shift_cnt=$OPTIND
-    shift $shift_cnt
 
-    if [ "$ci_build_docker_tag" != "gitlab_ci_commit_hash" ]; then
-        opts+=("-t" "$ci_build_docker_tag")
+    local -i optind=$OPTIND-1
+    eval "local __=\${$optind}"
+    if [ "$__" == "--" ]; then
+        local has_docker_ext="--"
     fi
-    if [ ! -z "$ci_build_docker_env_name" ]; then
-        opts+=("-e" "$ci_build_docker_env_name")
-    fi
-    if [ ! -z "$ci_build_docker_registry" ]; then
-        opt+=("-r" "$ci_build_docker_registry")
-    fi
-    if [ ! -z "$ci_build_project_path" ]; then
-        opt+=("-p" "$ci_build_project_path")
-    fi
+    shift $optind
 
-    log_exec _ci_docker_build ${opts[@]} -r $CI_REGISTRY_IMAGE $has_docker_ext $*
+    log_exec _ci_docker_build ${opts[@]} $has_docker_ext $*
 }
 
 _ci_auto_docker_build() {
-    if [ -z "${GITLAB_CI+x}" ]; then
-        _ci_gitlab_runner_docker_build $*
+    if [ ! -z "${GITLAB_CI+x}" ]; then
+        log_exec _ci_gitlab_runner_docker_build $*
         return $?
     fi
-    _ci_docker_build $*
+    log_exec _ci_docker_build $*
 }

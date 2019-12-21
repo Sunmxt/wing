@@ -36,7 +36,7 @@ _ci_build_generate_env_ref() {
         fi
     else
         # use default path.
-        if [ ! -z "$GITLAB_CI" ]; then
+        if [ ! -z "${GITLAB_CI+x}" ]; then
             # Gitlab CI.
             env="$CI_COMMIT_REF_NAME"
         fi
@@ -57,7 +57,7 @@ _ci_build_generate_env_ref() {
 
 _ci_build_generate_package_path() {
     local path=`strip "$1"`
-    if [ -z "$path" ] && [ ! -z "$GITLAB_CI" ]; then
+    if [ -z "$path" ] && [ ! -z "${GITLAB_CI+x}" ]; then
         path="$CI_PROJECT_PATH"
     fi
     if [ -z "$path" ]; then
@@ -69,7 +69,7 @@ _ci_build_generate_package_path() {
 
 _ci_build_generate_tag() {
     local tag=`strip "$1"`
-    if [ -z "$tag" ] && [ ! -z "$GITLAB_CI" ]; then
+    if [ -z "$tag" ] && [ ! -z "${GITLAB_CI+x}" ]; then
         # Gitlab CI.
         tag=${CI_COMMIT_SHA:0:10}
     fi

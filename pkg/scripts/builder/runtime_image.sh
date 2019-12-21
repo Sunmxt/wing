@@ -16,28 +16,6 @@ _runtime_image_stash_prefix_by_context() {
     echo $stash_prefix
 }
 
-_generate_runtime_image_dockerfile_add_os_deps_alpine() {
-    loginfo "[runtime_image_build] add os dependencies with apk."
-
-    echo -n '
-RUN set -xe;\
-    mkdir -p /tmp/apk-cache;\
-    [ ! -z "'`strip $SAR_RUNTIME_ALPINE_APK_MIRROR`'" ] && sed -Ei "s/dl-cdn\.alpinelinux\.org/'$SAR_RUNTIME_ALPINE_APK_MIRROR'/g" /etc/apk/repositories;\
-    apk update --cache-dir /tmp/apk-cache;\
-    apk add '${SAR_RUNTIME_ALPINE_DEPENDENCIES[@]}' --cache-dir /tmp/apk-cache;\
-    rm -rf /tmp/apk-cache'
-
-    if [ ${#SAR_RUNTIME_SYS_PYTHON_DEPENDENCIES[@]} -gt 0 ]; then
-        echo ';\
-    pip install pip -U;\
-    pip config set global.index-url '${SAR_PYTHON_MIRRORS}';\
-    pip install '${SAR_RUNTIME_SYS_PYTHON_DEPENDENCIES[@]}'
-'
-    else
-        echo
-    fi
-}
-
 _generate_runtime_image_dockerfile_add_os_deps_centos() {
     logerror "[runtime_image_builder] Centos will be supported soon."
 }
@@ -83,7 +61,7 @@ _generate_runtime_image_dockerfile_add_supervisor_services() {
 
     local supervisor_root_config=supervisor-$RANDOM$RANDOM$RANDOM.ini
 
-    echo '
+    echo -n "RUN echo \"`echo '
 [unix_http_server]
 file=/run/supervisord.sock
 
@@ -102,16 +80,16 @@ supervisor.rpcinterface_factory = supervisor.rpcinterface:make_main_rpcinterface
 
 [supervisorctl]
 serverurl=unix:///run/supervisord.sock
-' > "$supervisor_root_config"
+' | base64 | tr -d '\n'`\" | base64 -d > /etc/sar_supervisor.conf"
 
-    echo "COPY $supervisor_root_config /etc/sar_supervisor.conf"
+    eval "local mkeddir_`hash_for_key /var/log/application`=1"
+    echo -ne ';\\\n mkdir -p /var/log/application'
+    eval "local mkeddir_`hash_for_key /run/runtime`=1"
+    echo -ne ';\\\n mkdir -p /run/runtime'
 
-    local making_dirs="/var/log/application /run/runtime"
     # generate services.
-    eval "local -i count=\${_SAR_RT_BUILD_${context}_SVCS[@]}"
-    local -i idx=1
-    while [ $idx -le $count ]; do
-        eval "local key=\${_SAR_RT_BUILD_${context}_SVCS[$idx]}"
+    eval "local -a keys=\${_SAR_RT_BUILD_${context}_SVCS[@]}"
+    for key in ${keys[@]}; do
         eval "local type=\${_SAR_RT_BUILD_${context}_SVC_${key}_TYPE}"
         eval "local name=\${_SAR_RT_BUILD_${context}_SVC_${key}_NAME}"
         eval "local exec=\${_SAR_RT_BUILD_${context}_SVC_${key}_EXEC}"
@@ -119,25 +97,30 @@ serverurl=unix:///run/supervisord.sock
         if [ -z "$working_dir" ]; then
             local working_dir=$SAR_RUNTIME_APP_DEFAULT_WORKING_DIR
         fi
-        local making_dirs="$making_dirs '$working_dir'"
+        eval "local mked=\${mkeddir_`hash_for_key \"$working_dir\"`}"
+        if [ -z "$mked" ]; then
+            eval "local mkeddir_`hash_for_key \"$working_dir\"`=1"
+            echo -ne ';\\\n mkdir -p "'"$working_dir"'"'
+        fi
 
         local file="supervisor-svc-$key.conf"
-        case $type in
+        echo -ne ';\\\n echo '\'''
+        ( case $type in
             cron)
                 eval "locak cron=\${_SAR_RT_BUILD_${context}_SVC_${key}_CRON}"
-                if ! _generate_supervisor_cron_service "$name" "$cron" "$working_dir" $exec > "$file"; then
+                if ! _generate_supervisor_cron_service "$name" "$cron" "$working_dir" $exec ; then
                     logerror "[runtime_image_builder] Generate cronjob $name configuration failure." 
                     return 1
                 fi
                 ;;
             system)
-                if ! _generate_supervisor_system_service "$name" "$working_dir" $exec > "$file"; then
+                if ! _generate_supervisor_system_service "$name" "$working_dir" $exec ; then
                     logerror "[runtime_image_builder] Generate system service $name configuration failure." 
                     return 1
                 fi
                 ;;
             normal)
-                if ! _generate_supervisor_normal_service "$name" "$working_dir" $exec > "$file"; then
+                if ! _generate_supervisor_normal_service "$name" "$working_dir" $exec ; then
                     logerror "[runtime_image_builder] Generate normal service $name configuration failure." 
                     return 1
                 fi
@@ -146,19 +129,9 @@ serverurl=unix:///run/supervisord.sock
                 logerror "[runtime_image_builder] Unsupported service type."
                 return 1
                 ;;
-        esac
-        local svc_files="$svc_files $file"
-        local -i idx=idx+1
+        esac ) | base64 | tr -d '\n'
+        echo -ne \'"| base64 -d > \"$file\""
     done
-    if [ ! -z "$svc_files" ]; then
-        echo "COPY $svc_files /etc/supervisor.d/services/"
-    fi
-    if [ ! -z "$making_dirs" ]; then
-        echo '
-RUN set -xe;\
-    mkdir -p '`echo $making_dirs | xargs -n 1 echo | sort | uniq | sed -E 's/(.*)/'\\\\\''\1'\\\\\''/g' | xargs echo`'
-'
-    fi
 }
 
 _generate_runtime_image_dockerfile_prebuild_scripts() {
@@ -250,15 +223,39 @@ RUN     set -xe;\
     fi
 }
 
+_generate_runtime_image_dockerfile_deps() {
+    echo '
+RUN set -xe; \
+    command -v yum 2>&1 >/dev/null && [ `yum --version | grep -iE '\''installed:\s+(rpm|yum)'\'' | wc -l` -gt 0 ] && (\
+        which bash || yum install -y bash;\
+        bash -c '\'`declare -p SAR_RUNTIME_YUM_DEPENDENCIES`'; yum install -y ${SAR_RUNTIME_YUM_DEPENDENCIES[@]}'\''; \
+    ) ||( command -v apk 2>&1 >/dev/null && apk --version | grep -iqE '\''apk-tools'\'' && ( \
+        mkdir -p /tmp/apk-cache;\
+        apk update --cache-dir /tmp/apk-cache;\
+        which bash || apk add bash;\
+        bash -c '\'`declare -p SAR_RUNTIME_ALPINE_DEPENDENCIES`'; apk add ${SAR_RUNTIME_ALPINE_DEPENDENCIES[@]}'\''; \
+        rm -rf /tmp/apk-cache;\
+    ) || (command -v dpkg 2>&1 >/dev/null && (\
+        apt update;\
+        which bash || apt install bash;\
+        bash -c '\'`declare -p SAR_RUNTIME_APT_DEPENDENCIES`'; apt install -y ${SAR_RUNTIME_APT_DEPENDENCIES[@]}'\''; \
+    ) || (echo unknown package manager.; false)))
+'
+    if [ ${#SAR_RUNTIME_SYS_PYTHON_DEPENDENCIES[@]} -gt 0 ]; then
+        echo '
+RUN set -xe; \
+    bash -c '\'`declare -p SAR_RUNTIME_SYS_PYTHON_DEPENDENCIES`';pip install pip -U -i "'${SAR_PYTHON_MIRRORS}'" && pip config set global.index-url "'${SAR_PYTHON_MIRRORS}'" && pip install ${SAR_RUNTIME_SYS_PYTHON_DEPENDENCIES[@]} '\'''
+    fi
+}
+
 _generate_runtime_image_dockerfile() {
     local context=$1
     local package_ref=$2
     local package_env=$3
     local pakcage_tag=$4
-
     local build_id=$RANDOM$RANDOM$RANDOM$RANDOM
 
-    eval "local -a dep_keys=\${#_SAR_RT_BUILD_${context}_DEPS[@]}"
+    eval "local -a dep_keys=\${_SAR_RT_BUILD_${context}_DEPS[@]}"
     local failure=0
     local -i idx=1
     for key in ${dep_keys[@]}; do
@@ -282,7 +279,6 @@ _generate_runtime_image_dockerfile() {
     # Multi-stage image layers.
     local -i idx=1
     for key in ${dep_keys[@]}; do
-        eval "local key=\${_SAR_RT_BUILD_${context}_DEPS[$idx]}"
         eval "local pkg_env_name=\${_SAR_RT_BUILD_${context}_DEP_${key}_ENV}"
         eval "local pkg_prefix=\${_SAR_RT_BUILD_${context}_DEP_${key}_PROJECT_PATH}"
         eval "local pkg_tag=\${_SAR_RT_BUILD_${context}_DEP_${key}_TAG}"
@@ -297,12 +293,15 @@ _generate_runtime_image_dockerfile() {
     _validate_base_image "$base_image" || return 1
     echo "FROM $base_image"
 
-    # pack pre-build and post-build scripts.
+    # pack pre-build scripts.
     if ! _generate_runtime_image_dockerfile_prebuild_scripts $context; then
         return 1
     fi
+
+    # minimum requirements
+    _generate_runtime_image_dockerfile_deps
+
     # Place packages.
-    local -i idx=1
     for key in ${dep_keys[@]}; do
         eval "local pkg_env_name=\${_SAR_RT_BUILD_${context}_DEP_${key}_ENV}"
         eval "local pkg_prefix=\${_SAR_RT_BUILD_${context}_DEP_${key}_PROJECT_PATH}"
@@ -313,26 +312,7 @@ _generate_runtime_image_dockerfile() {
 
         loginfo "[runtime_image_builder] place package $pkg_image_ref --> $placed_path"
         echo "COPY --from=sar_stage_`hash_for_key $build_id $pkg_image_ref` /package/data \"$placed_path\""
-        local -i idx=idx+1
     done
-
-    # add system dependencies.
-    local pkg_mgr=`os_package_manager_name`
-    case $pkg_mgr in
-        apk)
-            _generate_runtime_image_dockerfile_add_os_deps_alpine || return 1
-            ;;
-        yum)
-            _generate_runtime_image_dockerfile_add_os_deps_centos || return 1
-            ;;
-        apt)
-            _generate_runtime_image_dockerfile_add_os_deps_debian || return 1
-            ;;
-        *)
-            logerror "[runtime_image_builder] unsupported package manager type: $pkg_mgr"
-            return 1
-            ;;
-    esac
 
     if ! _generate_runtime_image_dockerfile_add_supervisor_services $context; then
         logerror "[runtime_image_builder] failed to add supervisor services."
@@ -355,8 +335,29 @@ RUN set -xe;\
     if ! _generate_runtime_image_dockerfile_postbuild_scripts $context; then
         return 1
     fi
-echo 'CMD ["supervisord", "-c", "/etc/sar_supervisor.conf"]'
+    echo 'ENTRYPOINT [""]'
+    echo 'CMD ["supervisord", "-c", "/etc/sar_supervisor.conf"]'
+}
 
+runtime_image_init_system_dependencies() {
+    local pkg_mgr=`os_package_manager_name`
+    case $pkg_mgr in
+        apk)
+            _runtime_image_init_system_dependencies_for_apk || return 1
+            ;;
+        yum)
+            _runtime_image_init_system_dependencies_for_yum || return 1
+            ;;
+        apt)
+            _runtime_image_init_system_dependencies_for_apt || return 1
+            ;;
+        *)
+            logerror "[runtime_image_builder] unsupported package manager type: $pkg_mgr"
+            return 1
+            ;;
+    esac
+
+    _runtime_image_init_system_dependencies_for_python
 }
 
 build_runtime_image_help() {
@@ -387,6 +388,9 @@ example:
 
 build_runtime_image() {
     LONGOPTIND=0
+    local ignore_runtime=
+    local ci_image_env_name=
+    local ci_no_push=
     while next_long_opt opt $*; do
         case $opt in
             ignore-runtime)
@@ -402,7 +406,15 @@ build_runtime_image() {
         eval `eliminate_long_opt`
     done
     OPTIND=0
-    while getopts 't:e:r:c:sh:f' opt; do
+    local -a opts=()
+    local ci_image_tag=
+    local ci_package_env_name=
+    local ci_registry=
+    local ci_project_path=
+    local context=
+    local path_to_hash=
+    local force_to_build=
+    while getopts 't:e:r:c:p:sh:f' opt; do
         case $opt in
             t)
                 local ci_image_tag=$OPTARG
@@ -418,33 +430,34 @@ build_runtime_image() {
                 ;;
             c)
                 local context=$OPTARG
+                continue
                 ;;
             s)
                 local ci_no_push=1
+                continue
                 ;;
             h)
                 local path_to_hash=$OPTARG
                 ;;
             f)
                 local force_to_build=1
+                continue
                 ;;
             *)
                 build_runtime_image_help
                 logerror "[runtime_image_builder]" unexcepted options -$opt.
+                return 1
                 ;;
         esac
+        opts+=("-$opt" "$OPTARG")
     done
 
-    eval "local __=\${$OPTIND}"
-    local -i optind=$OPTIND
-    if [ "$__" != "--" ]; then
-        if [ ! -z "$__" ]; then
-            build_runtime_image_help
-            logerror "[runtime_image_builder] build_runtime_image: got unexcepted non-option argument: \"$__\"."
-            return 1
-        fi
-        local -i optind=optind-1
+    local -i optind=$OPTIND-1
+    eval "local __=\${$optind}"
+    if [ "$__" == "--" ]; then
+        local has_docker_ext="--"
     fi
+    shift $optind
 
     if [ -z "$context" ]; then
         local context=system
@@ -452,7 +465,7 @@ build_runtime_image() {
     
     # add runtime
     if [ -z "$ignore_runtime" ]; then
-        runtime_image_add_dependency -c "$context" -p "$SAR_RUNTIME_PKG_PROJECT_PATH" -e "$SAR_RUNTIME_PKG_ENV" -t "$SAR_RUNTIME_PKG_TAG" /_sar_package/runtime_install
+        log_exec runtime_image_add_dependency -c "$context" -p "$SAR_RUNTIME_PKG_PROJECT_PATH" -e "$SAR_RUNTIME_PKG_ENV" -t "$SAR_RUNTIME_PKG_TAG" /_sar_package/runtime_install
     fi
 
     local dockerfile=/tmp/Dockerfile-RuntimeImage-$RANDOM$RANDOM$RANDOM
@@ -462,21 +475,6 @@ build_runtime_image() {
         return 1
     fi
 
-    local -i idx=1
-    local -i ref=1
-    local -a opts
-    while [ $ref -le $optind ]; do
-        eval "local opt=\${$ref}"
-        local opt=${opt:1:1}
-        if [ "$opt" = "c" ]; then
-            local -i ref=ref+2
-            continue
-        fi
-        eval "opts[$idx]=\"\${$ref}\""
-        idx=idx+1
-        ref=ref+1
-    done
-    shift $optind
 
     log_exec _ci_auto_docker_build ${opts[@]} -- -f "$dockerfile" $* .
 }
@@ -830,7 +828,3 @@ runtime_image_post_build_script() {
     eval "_SAR_RT_BUILD_${context}_POST_BUILD_SFRIPT_${key}_PATH=\"$script_appended\""
     eval "_SAR_RT_BUILD_${context}_POST_BUILD_SCRIPT_${key}_WORKDIR=$working_dir"
 }
-
-#runtime_image_health_check_script() {
-#    return 1
-#}
