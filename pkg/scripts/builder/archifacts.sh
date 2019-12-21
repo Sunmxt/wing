@@ -90,7 +90,7 @@ ci_package_pull() {
 }
 
 _ci_auto_package() {
-    if [ ! -z "$GITLAB_CI" ]; then
+    if [ -z "${GITLAB_CI+x}" ]; then
         _ci_gitlab_package_build $*
         return $?
     fi
@@ -202,7 +202,7 @@ _ci_build_package() {
 }
 
 _ci_gitlab_package_build() {
-    if [ -z "$GITLAB_CI" ]; then
+    if [ ! -z "${GITLAB_CI+x}" ]; then
         logerror Not a Gitlab CI environment.
         return 1
     fi

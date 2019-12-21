@@ -27,7 +27,9 @@ _ci_build_generate_env_ref() {
 
     if [ ! -z "$env" ]; then
         # from environment variables.
-        eval "local path_appended=\$$env"
+        if echo "$env" | grep -qE '^[[:alnum:]_]+$'; then
+            eval "local path_appended=\${$env}"
+        fi
         
         if [ ! -z "$path_appended" ]; then
             env="$path_appended"
@@ -50,7 +52,7 @@ _ci_build_generate_env_ref() {
         logerror "cannot resolve environment."
         return 1
     fi
-    echo -n "$env" | tr -d ' ' | tr '[:upper:]_' '[:lower:]-' | sed 's/^_*//g'
+    echo -n "$env" | tr -d ' ' | tr '[:upper:]' '[:lower:]' | sed 's/^_*//g'
 }
 
 _ci_build_generate_package_path() {
@@ -62,7 +64,7 @@ _ci_build_generate_package_path() {
         logerror "project path not given."
         return 1
     fi
-    echo -n "$path" | tr -d ' ' | tr '[:upper:]-' '[:lower:]_' | sed 's/^_*//g'
+    echo -n "$path" | tr -d ' ' | tr '[:upper:]' '[:lower:]' | sed 's/^_*//g'
 }
 
 _ci_build_generate_tag() {
@@ -77,7 +79,7 @@ _ci_build_generate_tag() {
         tag=${tag:0:10}
     fi
     tag=${tag:=latest}
-    echo -n "$tag" | tr -d ' ' | tr '[:upper:]-' '[:lower:]_' | sed 's/^_*//g'
+    echo -n "$tag" | tr -d ' ' | tr '[:upper:]' '[:lower:]' | sed 's/^_*//g'
 }
 
 _ci_build_generate_registry_prefix() {

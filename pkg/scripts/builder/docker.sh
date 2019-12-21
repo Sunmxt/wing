@@ -3,7 +3,7 @@ sar_import builder/common.sh
 _ci_docker_build() {
     # Parse normal options
     OPTIND=0
-    while getopts 't:e:r:sfh:' opt; do
+    while getopts 't:e:p:r:sfh:' opt; do
         case $opt in
             t)
                 local ci_build_docker_tag=$OPTARG
@@ -37,13 +37,12 @@ _ci_docker_build() {
     shift $shift_opt_cnt
 
     # resolve path
-    local ci_build_docker_ref=`_ci_build_generate_registry_prefix "$ci_registry" "$ci_package_path" "$ci_build_docker_env_name"`
+    local ci_build_docker_ref=`_ci_build_generate_registry_prefix "$ci_registry" "$ci_project_path" "$ci_build_docker_env_name"`
     if [ -z "$ci_build_docker_ref" ]; then
         logerror Empty image reference.
         return 1
     fi
     local ci_build_docker_ref_path=$ci_build_docker_ref
-    local ci_build_docker_ref=$ci_build_docker_ref_path:$ci_build_docker_tag
     # resolve tag
     if [ -z "$ci_build_docker_tag" ]; then
         if [ ! -z "$hash_target_content" ]; then
@@ -57,6 +56,8 @@ _ci_docker_build() {
             local ci_build_docker_tag=`_ci_build_generate_tag`
         fi 
     fi
+    local ci_build_docker_ref=$ci_build_docker_ref_path:$ci_build_docker_tag
+
     if is_image_exists "$ci_build_docker_ref" && [ -z "$force_to_build" ]; then
         logwarn Skip image build: $ci_build_docker_ref
         return 0
@@ -82,7 +83,7 @@ _ci_docker_build() {
 }
 
 _ci_gitlab_runner_docker_build() {
-    if [ -z "$GITLAB_CI" ]; then
+    if [ ! -z "${GITLAB_CI+x}" ]; then
         logerror Not a Gitlab CI environment.
         return 1
     fi
@@ -149,7 +150,7 @@ _ci_gitlab_runner_docker_build() {
 }
 
 _ci_auto_docker_build() {
-    if [ ! -z "$GITLAB_CI" ]; then
+    if [ -z "${GITLAB_CI+x}" ]; then
         _ci_gitlab_runner_docker_build $*
         return $?
     fi

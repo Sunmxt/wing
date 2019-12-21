@@ -3,6 +3,7 @@ image: registry.stuhome.com/devops/dockerepo/docker:1.0.2
 before_script:
   - pkg/scripts/install.sh /opt/runtime
   - source runtime_env
+  - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
 
 variables:
     GIT_SUBMODULE_STRATEGY: recursive
@@ -10,6 +11,7 @@ variables:
 
 stages:
   - package
+  - base_image
   - test_scripts
   - build
   - test
@@ -22,6 +24,15 @@ package-sae-runtime-manifests:
     - ci_build package -e sae_runtime_$CI_COMMIT_REF_NAME ./pkg/scripts
     allow_failure: false
 
+baseimage-alpine-36:
+    stage: base_image
+    script:
+    - ci_build docker -t 3.6 -- -f ./docker/baseimage/Dockerfile-alpine36 .
+
+baseimage-alpine-37:
+    stage: base_image
+    script:
+    - ci_build docker -t 3.7 -- -f ./docker/baseimage/Dockerfile-alpine37 .
 
 build-wing-executable:
     cache:
