@@ -484,19 +484,42 @@ usage:
 
 options:
     -c <context_name>       specified build context. default: system
+    -p <project_path>       project path.
+    -r <registry>           registry.
+    -e <environment_name>   environment name.
+    -t <tag>                tag.
 
 example:
     runtime_image_base_image alpine:3.7
     runtime_image_base_image -c my_context alpine:3.7
+    runtime_image_base_image -p my/project -e master
 '
 }
 
 runtime_image_base_image() {
     OPTIND=0
-    while getopts 'c:' opt; do
+    local context=
+    local project_path=
+    local registry=
+    local project_environment=
+    local project_tag=
+    local base_image=
+    while getopts 'c:p:r:e:t:' opt; do
         case $opt in
             c)
                 local context=$OPTARG
+                ;;
+            p)
+                local project_path=$OPTARG
+                ;;
+            r)
+                local registry=`_ci_build_generate_registry "$OPTARG"`
+                ;;
+            e)
+                local project_environment=$OPTARG
+                ;;
+            t)
+                local project_tag=$OPTARG
                 ;;
             *)
                 runtime_image_base_image_help
@@ -504,17 +527,20 @@ runtime_image_base_image() {
                 ;;
         esac
     done
-    eval "local base_image=\${$OPTIND}"
+    eval "base_image=\${$OPTIND}"
     if [ -z "$base_image" ]; then
-        runtime_image_base_image_help
-        logerror "[runtime_image_builder] base image not specifed."
-        return 1
+        if [ ! -z "$project_path" ] && [ ! -z "$project_environment" ] ; then
+            base_image=`_ci_build_generate_registry_prefix "$registry" "$project_path" "$project_environment"`:`_ci_build_generate_tag "$project_tag"`
+        else
+            runtime_image_base_image_help
+            logerror "[runtime_image_builder] base image not specifed."
+            return 1
+        fi
     fi
-
     if [ -z "$context" ]; then
         local context=system
     fi
-    eval "_SAR_RT_BUILD_${context}_BASE_IMAGE=$base_image"
+    eval "_SAR_RT_BUILD_${context}_BASE_IMAGE=\"$base_image\""
 }
 
 runtime_image_add_dependency_help() {
